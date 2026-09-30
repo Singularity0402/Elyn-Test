@@ -127,6 +127,32 @@ def test_recheck_never_chases_old_entry(traded):
     assert old['last_recheck']['status'] == out['status']
 
 
+def test_unverified_signal_is_labelled_and_risk_reduced(traded):
+    pe, eng, store, clock, df, cut, final = traded
+    assert final['evidence_level'].startswith('E3')
+    assert final['multipliers']['evidence_ladder'] == pe.UNVERIFIED_RISK_MULT
+    screen = eng.state.peek(lambda st: pe.render_screen(st, final, 1000.0))
+    assert '미검증 신호' in screen
+
+
+def test_evidence_certificate_requires_null_and_real_data(pe):
+    base = pe._synthetic_1m(3, seed=8)
+    eng, store, clock = offline_engine(pe, base, base.index[-1] + pd.Timedelta(minutes=1, seconds=10))
+    good = dict(summary=dict(passed=True, n=80, ci_lo=0.05, dsr=0.95))
+    assert eng.record_walkforward('15m', good, do_null=False, surrogate=False)['level'] == 'FAILED'
+    assert eng.record_walkforward('15m', good, do_null=True, surrogate=True)['level'] == 'FAILED'
+    assert eng.state.read()['evidence']['15m']['level'] == 'FAILED'
+    cert = eng.record_walkforward('15m', good, do_null=True, surrogate=False)
+    assert cert['level'] == 'E4' and eng.state.read()['evidence']['15m']['model_id'] == pe.MODEL_ID
+    # 이후 실패 실험은 E4 를 덮지 않지만 원장에는 남는다
+    eng.record_walkforward('15m', dict(summary=dict(passed=False)), do_null=True, surrogate=False)
+    assert eng.state.read()['evidence']['15m']['level'] == 'E4'
+    kinds = [e['kind'] for e in eng.state.ledger.read()]
+    assert kinds.count('EVIDENCE') == 2 and kinds.count('SYSTEM') == 2     # 실험 4번 모두 기록됨
+    book = eng.book(eng.state.read(), 1000.0, clock())
+    assert book['evidence_gate'] and book['evidence']['15m']['level'] == 'E4'
+
+
 def test_stale_data_blocks_new_signals(traded):
     pe, eng, store, clock, df, cut, final = traded
     clock.t = clock.t + pd.Timedelta(minutes=30).to_pytimedelta()

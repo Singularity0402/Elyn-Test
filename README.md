@@ -9,6 +9,7 @@ BTCUSDT 무기한선물용 Analog-first 의사결정 지원 도구입니다. **�
 | `01_BASELINE/pattern_edge_v611_visual_audit.py` | V611 원본. 수정 금지이며 SHA256 `6078…775e`로 테스트가 확인합니다. |
 | `AUDIT_V611_V612.md` | 객관 감사 보고서: 결함 재현 증거, 수정 내역, 남은 한계, 다음 단계 |
 | `tests/` | V611 결함 재현 + V612 수정 검증 + 수명주기/GUI 스모크 (pytest) |
+| `experiments/` | 감사 보고서 숫자를 재현하는 스크립트 (null 보정도, 무엣지 시장 거짓 신호율) |
 
 ## 실행
 

@@ -49,6 +49,8 @@
    수동   '내가 진입함' 포지션 추적 → TP/SL/시간만료/반대신호 EXIT_RECOMMENDED
    상태   append-only 이벤트 원장에서 상태를 재구성 (상태파일 손상 시 자동 복구)
    검증   V611 에 없던 '생산엔진' 워크포워드 + 가짜 BTC 대조군 + block-bootstrap CI
+   증거   Evidence ladder 강제: TF 별 실데이터 워크포워드(E4, null ON, 사전등록 기준) 통과 전
+          주문표는 '미검증' 표시 + 위험 25%. 인증/실패 모두 원장에 기록
 
  면책 : 통계적 참고 도구. 모든 주문과 손실의 책임은 사용자에게 있다.
 ================================================================================
@@ -146,7 +148,7 @@ VOTE_EDGE_PROB = 0.62
 MIN_RR = 1.3
 MIN_MOVE_COST_MULT = 3.0
 NULL_N_FINAL = 400                # 최종 후보만 비싼 matched-null 을 치른다
-FAMILY_ALPHA = 0.10
+FAMILY_ALPHA = 0.05               # 합성 무엣지 보정실험: null 이 명목보다 ~1.5배 관대 → 0.05 로 실효 FWER ≈ 0.07–0.09
 # F-06: 실제로 '여러 대안 중 고르는' 차원은 timeframe 이다 (가장 좋은 TF 의 신호가 채택됨).
 #       scale(K/2, K, 2K)은 주 scale K 가 사전에 고정되고 나머지는 AND 조건(합의)이라
 #       거짓양성을 늘리지 않으므로 family 에 넣지 않는다. (넣으면 검정력이 사라진다 — AUDIT 참고)
@@ -173,6 +175,11 @@ ST09_MAX_DD, ST09_MAX_DD_PROB = 0.30, 0.05            # edge 100% 소멸 가정 
 ST09_FLOOR, ST09_FLOOR_PROB = 0.60, 0.01
 DAILY_MAX_LOSSES = 3
 DAILY_MAX_LOSS_FRAC = 0.03
+# Evidence ladder 강제: 실데이터 워크포워드(E4) 인증 전에는 주문표를 '미검증'으로 표시하고 위험을 25% 로 축소.
+# 무엣지 합성시장에서도 스캔의 ~1% 는 신호가 난다 (24/7 이면 하루 여러 장) — AUDIT 4.3
+UNVERIFIED_RISK_MULT = 0.25
+WF_PASS_MIN_TRADES = 50           # 사전등록 E4 기준: 체결 ≥ 50, 평균R 90% CI 하한 > 0, DSR ≥ 0.90, null ON
+WF_PASS_DSR = 0.90
 
 # ── 비용 ────────────────────────────────────────────────────────
 ENTRY_TYPE = 'taker'
@@ -2060,6 +2067,13 @@ def scan_tf(snap, tf, seed, ctx, book=None, do_null=True, end=None, live=True, s
                  stability=clip01(np.clip(p['stability'], 0.40, 1.0)),
                  context=clip01(cmult), prospective=clip01(book.get('prospective_mult', 1.0)),
                  governor=clip01(book.get('governor_mult', 1.0)))
+    ev_level = 'E3'
+    if book.get('evidence_gate'):
+        cert = (book.get('evidence') or {}).get(tf) or {}
+        verified = cert.get('model_id') == MODEL_ID and cert.get('level') == 'E4'
+        ev_level = 'E4' if verified else 'E3(미검증)'
+        mults['evidence_ladder'] = 1.0 if verified else UNVERIFIED_RISK_MULT
+    d['evidence_level'] = ev_level
     risk = min(RISK_CAP, g['risk'] * float(np.prod(list(mults.values()))))
     if book.get('governor_block'):
         d['reason'] = book['governor_block']
@@ -2164,7 +2178,7 @@ class Ledger:
 
 def new_state():
     return dict(version=VERSION, model_id=MODEL_ID, created=_iso_now(), signals=[], manual=[],
-                last_scan={}, fails={}, rebuilt_from_ledger=False)
+                last_scan={}, fails={}, evidence={}, rebuilt_from_ledger=False)
 
 
 def _find(items, key, value):
@@ -2189,6 +2203,8 @@ def apply_event(st, ev):
                     s[kk].update(copy.deepcopy(vv))
                 else:
                     s[kk] = copy.deepcopy(vv)
+    elif k == 'EVIDENCE':
+        st.setdefault('evidence', {})[ev['tf']] = copy.deepcopy(ev['certificate'])
     elif k == 'MANUAL_OPENED':
         if not _find(st['manual'], 'pos_id', ev['position']['pos_id']):
             st['manual'].append(copy.deepcopy(ev['position']))
@@ -2501,7 +2517,24 @@ class Engine:
         gov = daily_governor(st['manual'], seed, now)
         pro = prospective_health(st['signals'])
         return dict(prospective_mult=pro['mult'], governor_mult=gov['mult'],
-                    governor_block=gov.get('block') or pro.get('block'), prospective=pro, governor=gov)
+                    governor_block=gov.get('block') or pro.get('block'), prospective=pro, governor=gov,
+                    evidence_gate=True, evidence=copy.deepcopy(st.get('evidence') or {}))
+
+    def record_walkforward(self, tf, res, do_null, surrogate, data_note=''):
+        """
+        Evidence ladder 를 코드로 강제한다. 실데이터·null ON·대조군 아님·사전 기준 통과일 때만
+        (tf, model_id) 에 E4 인증을 원장에 기록한다. 실패도 기록한다 (cherry-picking 금지).
+        """
+        s = res.get('summary') or {}
+        passed = bool(s.get('passed')) and do_null and not surrogate
+        cert = dict(level='E4' if passed else 'FAILED', model_id=MODEL_ID, time=_iso_now(), do_null=bool(do_null),
+                    surrogate=bool(surrogate), summary=s, note=data_note)
+        with self.state.tx() as st:
+            if passed or ((st.get('evidence') or {}).get(tf) or {}).get('model_id') != MODEL_ID:
+                self.state.emit(st, 'EVIDENCE', tf=tf, certificate=cert)
+            else:                                            # 기존 E4 는 유지하되 실패 실험도 원장에 남긴다
+                self.state.emit(st, 'SYSTEM', what='walkforward_failed', tf=tf, certificate=cert)
+        return cert
 
     # ── 추적 (shadow · 수동) ─────────────────────────────────────
     def update_tracking(self, st, base1m, now, live_price=None):
@@ -2658,6 +2691,7 @@ class Engine:
                    p_family=d.get('p_family'), null_n=d.get('null_n'), votes=d.get('votes'),
                    confirming=d.get('confirming'), context_notes=d.get('context_notes'),
                    multipliers=d.get('multipliers'), primary_summary=d.get('primary_summary'),
+                   evidence_level=d.get('evidence_level'),
                    visual=d.get('visual'), model_id=MODEL_ID, version=VERSION, status='ALERTING',
                    thesis='VALID', cluster_id=cluster, origin=origin, parent_id=parent_id,
                    pending_alert=_alert(f'NEW {side_txt}', f'NEW {side_txt} — {d["tf"]}',
@@ -2929,24 +2963,36 @@ def walk_forward(base1m, tf, start, end=None, step=None, seed=10000.0, do_null=F
         t = max(t + 1, int(df.index.searchsorted(exit_t, side='right')) + 1)
         if equity <= seed * 0.2:
             break
-    return dict(report=wf_report(trades, curve, seed, tf, df.index[min(t, len(df) - 1)], evals, reasons, do_null),
-                trades=trades, curve=curve, evals=evals)
+    summary = wf_summary(trades, seed)
+    summary.update(tf=tf, evals=evals, start=str(start), end=str(df.index[min(t, len(df) - 1)]), do_null=bool(do_null))
+    return dict(report=wf_report(trades, summary, seed, tf, evals, reasons, do_null),
+                trades=trades, curve=curve, evals=evals, summary=summary)
 
 
-def wf_report(trades, curve, seed, tf, t_last, evals, reasons, do_null):
+def wf_summary(trades, seed):
+    if not trades:
+        return dict(n=0, passed=False)
+    r = np.array([x['r'] for x in trades])
+    eq = np.array([seed] + [x['equity'] for x in trades])
+    boots = stationary_block_bootstrap(r, n_boot=3000, mean_block=5.0)
+    lo, hi = np.quantile(boots, [0.05, 0.95])
+    sr, sr0, dsr = deflated_sharpe(np.diff(np.log(np.maximum(eq, 1e-9))), FAMILY_SIZE)
+    return dict(n=int(len(r)), mean_r=float(r.mean()), ci_lo=float(lo), ci_hi=float(hi), dsr=float(dsr),
+                sr=float(sr), sr0=float(sr0), mdd=float((1 - eq / np.maximum.accumulate(eq)).max()),
+                final_equity=float(eq[-1]),
+                passed=bool(lo > 0 and dsr >= WF_PASS_DSR and len(r) >= WF_PASS_MIN_TRADES))
+
+
+def wf_report(trades, s, seed, tf, evals, reasons, do_null):
     L = [f'━━━ 생산엔진 워크포워드 · {SYMBOL} {tf} · model {MODEL_ID} · null {"ON" if do_null else "OFF(1차만)"} ━━━',
-         f'평가 시점 {evals}개 · 마지막 {t_last}']
+         f'평가 시점 {evals}개 · 구간 {s.get("start")} ~ {s.get("end")}']
     if not trades:
         L += ['체결 0건 — 게이트가 전부 걸렀습니다. 이것도 결과입니다.',
               'WAIT 사유 상위: ' + ', '.join(f'{k}×{v}' for k, v in sorted(reasons.items(), key=lambda x: -x[1])[:8])]
         return '\n'.join(L)
     r = np.array([x['r'] for x in trades])
     eq = np.array([seed] + [x['equity'] for x in trades])
-    mdd = float((1 - eq / np.maximum.accumulate(eq)).max())
-    boots = stationary_block_bootstrap(r, n_boot=3000, mean_block=5.0)
-    lo, hi = np.quantile(boots, [0.05, 0.95])
-    lr = np.diff(np.log(np.maximum(eq, 1e-9)))
-    sr, sr0, dsr = deflated_sharpe(lr, FAMILY_SIZE)
+    mdd, lo, hi, sr, sr0, dsr = s['mdd'], s['ci_lo'], s['ci_hi'], s['sr'], s['sr0'], s['dsr']
     wins, losses = r[r > 0].sum(), -r[r <= 0].sum()
     per_year = {}
     for x in trades:
@@ -2958,9 +3004,9 @@ def wf_report(trades, curve, seed, tf, t_last, evals, reasons, do_null):
           f'Sharpe/trade {sr:.2f} · 시행보정 기대최대 {sr0:.2f} · DSR {dsr:.3f}',
           '연도별 평균 R: ' + '  '.join(f'{y}:{np.mean(v):+.2f}({len(v)})' for y, v in sorted(per_year.items())),
           '─' * 70]
-    if lo > 0 and dsr >= 0.90 and len(r) >= 50:
-        L.append('▶ 표본외 평균 R 의 CI 하한 > 0 이고 DSR ≥ 0.90. (실데이터라면 E4 증거) '
-                 '그래도 가짜 BTC 대조군과 prospective shadow 로 재확인할 것.')
+    if s['passed']:
+        L.append(f'▶ 사전등록 기준 통과 (CI 하한 > 0, DSR ≥ {WF_PASS_DSR}, 체결 ≥ {WF_PASS_MIN_TRADES}). '
+                 '실데이터 + null ON 이면 이 TF 는 E4 인증되어 위험 축소가 풀린다. 가짜 BTC 대조군도 꼭 돌릴 것.')
     elif r.mean() > 0:
         L.append('▶ 평균은 양(+)이나 CI 하한 ≤ 0 또는 표본/DSR 부족 — 엣지 입증 아님.')
     else:
@@ -2999,6 +3045,9 @@ def render_ticket(sig, current_seed=None):
          f"ACCOUNT RISK      {fnum(sz.get('risk_actual'), 0):.3%}",
          f"MAX LOSS          {fnum(sz.get('max_loss_usdt'), 0):,.2f} USDT",
          f"STATUS / TIME     {sig.get('status')} · 감지 {fmt_kst(sig.get('detected_at'))} · 최대보유 {int(sig.get('max_hold_min') or 0) / 60:.1f}h"]
+    L.append(f"EVIDENCE          {sig.get('evidence_level') or '-'}")
+    if str(sig.get('evidence_level') or '').startswith('E3'):
+        L.append(f'※ 미검증 신호: 이 TF 는 아직 실데이터 워크포워드(E4)를 통과하지 않아 위험을 {UNVERIFIED_RISK_MULT:.0%} 로 줄였습니다.')
     if sig.get('thesis') == 'INVALIDATED':
         L.append(f"THESIS            INVALIDATED by {sig.get('invalidated_by')}")
     if sig.get('status') == 'ENTERED':
@@ -3713,8 +3762,13 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
             if base is None:
                 messagebox.showerror('오류', '데이터가 없습니다.')
                 return
-            self.run_bg(lambda: walk_forward(base, tf, start, do_null=use_null, status=self.status),
-                        done='wf', busy=True)
+            def work():
+                res = walk_forward(base, tf, start, do_null=use_null, status=self.status)
+                cert = self.engine.record_walkforward(tf, res, use_null, surrogate=False,
+                                                      data_note='GUI · 로컬 캐시 1분봉')
+                res['report'] += f"\n\n[EVIDENCE] {tf}: {cert['level']} (model {MODEL_ID}) — 원장에 기록됨"
+                return res
+            self.run_bg(work, done='wf', busy=True)
 
         def build_data(self):
             def work():
@@ -3787,6 +3841,9 @@ def main(argv=None):
             print('★ 가짜 BTC(하루 블록 셔플) — 여기서도 벌면 엣지가 아니라 곡선맞춤 ★')
         res = walk_forward(base, tf, start, do_null='--null' in argv, status=lambda t, c='': print(t))
         print(res['report'])
+        cert = Engine(store=store).record_walkforward(tf, res, '--null' in argv, '--surrogate' in argv,
+                                                      data_note='CLI · 로컬 캐시 1분봉')
+        print(f"[EVIDENCE] {tf}: {cert['level']} (model {MODEL_ID}) — 원장에 기록됨")
         return 0
     try:
         run_gui()
