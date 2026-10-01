@@ -76,8 +76,16 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse
 
-import numpy as np
-import pandas as pd
+try:
+    import numpy as np
+    import pandas as pd
+except ImportError as _e:              # IDLE 에서 F5 했을 때 읽을 수 있는 안내를 남기고 멈춘다
+    print('=' * 70)
+    print(f' PatternEdge 실행에 필요한 패키지가 없습니다: {_e.name}')
+    print(' Windows 명령 프롬프트(cmd)에서 아래 한 줄을 실행한 뒤 IDLE 에서 다시 F5 하세요.')
+    print(f'   "{sys.executable}" -m pip install numpy pandas requests pyarrow numba matplotlib')
+    print('=' * 70)
+    raise SystemExit(1)
 
 __version__ = 'V612-HONEST-NULL'
 VERSION = 'V612'
@@ -3555,6 +3563,12 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
             self.root.after(AUTO_POLL_MS, self.tick_slow)
 
         def _boot(self):
+            if not NUMBA_OK:
+                HEALTH.set('dep:numba', 'WARN', 'numba 없음 — DTW 가 느립니다 (pip install numba 권장)')
+            if not PARQUET_OK:
+                HEALTH.set('dep:pyarrow', 'WARN', 'pyarrow 없음 — 캐시를 pickle 로 저장합니다 (pip install pyarrow 권장)')
+            if not MPL_available():
+                HEALTH.set('dep:matplotlib', 'WARN', 'matplotlib 없음 — [패턴 차트] 사용 불가')
             self.status('데이터 로드/갱신 (최초 실행이면 아카이브 전체 구축 — 수 분)...', 'blue')
             self.engine.store.refresh(progress=lambda i, t, m: self.status(f'[{i}/{t}] {m} 다운로드/캐시', 'blue'))
             fetch_rules(self.engine.http)
