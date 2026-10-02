@@ -4192,21 +4192,33 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
 #  · 마지막 holdout 구간은 기본적으로 '봉인'. 공개(--reveal-holdout)하면 원장에 기록된다 (한 번 쓰면 끝).
 #  · DSR 은 시험한 절차 수(전략군 × TF)로 보정한다. 가짜 BTC(--surrogate)로 '운의 크기'를 함께 본다.
 # =============================================================================
-LAB_TFS = ('15m', '1h', '4h')
+LAB_TFS = ('5m', '15m', '1h', '4h')
 LAB_RISK = 0.01                 # 비교용 고정 위험 (거래당 계좌 1%)
 LAB_TRAIN_YEARS = 2.0
 LAB_TEST_MONTHS = 3
 LAB_HOLDOUT_MONTHS = 9
 LAB_MIN_TRAIN_TRADES = 15
 LAB_GRIDS = {
+    # 추세·돌파
     'tsmom':    [dict(L=L, k=k) for L in (12, 24, 48, 96, 168, 336, 720) for k in (2.0, 4.0)],
     'ema':      [dict(f=f, s=s, k=k) for f, s in ((5, 35), (10, 50), (12, 26), (20, 100), (50, 200)) for k in (2.0, 4.0)],
     'donchian': [dict(N=N, k=k) for N in (20, 55, 100, 200) for k in (2.0, 4.0)],
     'bollinger': [dict(N=N, z=z, k=k) for N in (20, 50, 100) for z in (2.0, 3.0) for k in (2.0, 4.0)],
+    'keltner':  [dict(N=N, m=mm, k=k) for N in (20, 50) for mm in (1.5, 2.5) for k in (2.0, 4.0)],
+    # 단타(일중)
+    'volbreak': [dict(kr=kr, k=k) for kr in (0.3, 0.5, 0.8) for k in (2.0, 4.0)],
+    'session':  [dict(L=L, x=x, k=k) for L in (30, 60) for x in (17, 20) for k in (2.0, 4.0)],
+    'flow':     [dict(N=N, th=th, k=k) for N in (12, 48) for th in (0.04, 0.08) for k in (2.0, 4.0)],
+    # 평균회귀
     'meanrev':  [dict(N=N, z=z, k=k) for N in (20, 50, 100) for z in (2.0, 2.5, 3.0) for k in (1.5, 3.0)],
+    'rsi2':     [dict(th=th, k=k) for th in (5, 10, 20) for k in (2.0, 4.0)],
 }
 LAB_FAMILY_KO = {'tsmom': '시계열 모멘텀', 'ema': 'EMA 교차', 'donchian': 'Donchian 돌파',
-                 'bollinger': 'Bollinger 돌파', 'meanrev': 'z-score 평균회귀'}
+                 'bollinger': 'Bollinger 돌파', 'keltner': 'Keltner+거래량 돌파',
+                 'volbreak': '변동성 돌파(일중)', 'session': '뉴욕개장 레인지 돌파', 'flow': '테이커 체결강도',
+                 'meanrev': 'z-score 평균회귀', 'rsi2': 'RSI(2) 단기반전'}
+LAB_FAMILY_TFS = {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h')}   # 일중 구조가 의미 있는 TF 만
+LAB_MAX_HOLD = {'rsi2': 10}
 
 
 @njit(cache=False)
@@ -4292,7 +4304,16 @@ def _lab_indicators(df):
     pc = c.shift(1).fillna(c)
     tr = np.maximum(h - l, np.maximum((h - pc).abs(), (l - pc).abs()))
     atr = (tr / c).ewm(alpha=1 / 14.0, adjust=False).mean()
-    return dict(c=c, h=h, l=l, o=df['open'].astype(np.float64), atr=atr)
+    return dict(c=c, h=h, l=l, o=df['open'].astype(np.float64), atr=atr,
+                v=df['volume'].astype(np.float64), tb=df['taker_buy_base'].astype(np.float64), idx=df.index)
+
+
+def _lab_day_frame(ind):
+    idx = ind['idx']
+    day = pd.Series(idx.floor('D'), index=idx)
+    last_bar = (day.shift(-1) != day).values
+    minute = (idx.hour * 60 + idx.minute).values
+    return day, last_bar, minute
 
 
 def _lab_target(fam, p, ind):
@@ -4312,6 +4333,54 @@ def _lab_target(fam, p, ind):
         el, es = (c > up).values, (c < lo).values
         xl, xs = (c < xlo).values, (c > xup).values
         return lab_state(el, es, xl, xs)
+    if fam == 'keltner':
+        N = p['N']
+        mid = c.ewm(span=N, adjust=False).mean()
+        band = p['m'] * ind['atr'] * c
+        volok = (ind['v'] > 1.5 * ind['v'].rolling(N).mean()).values
+        return lab_state(((c > mid + band).values & volok), ((c < mid - band).values & volok),
+                         (c < mid).values, (c > mid).values)
+    if fam == 'volbreak':
+        # Larry Williams 변동성 돌파: 당일 시가 ± k × 전일 레인지, 당일 마지막 봉에 청산
+        day, last_bar, _ = _lab_day_frame(ind)
+        dopen = ind['o'].groupby(day.values).transform('first')
+        dh = h.groupby(day.values).max()
+        dl = l.groupby(day.values).min()
+        prev_rng = (dh - dl).shift(1)
+        rng = pd.Series(day.values, index=c.index).map(prev_rng)
+        up, dn = (dopen + p['kr'] * rng).values, (dopen - p['kr'] * rng).values
+        cv = c.values
+        el = (cv > up) & ~last_bar
+        es = (cv < dn) & ~last_bar
+        return lab_state(el, es, last_bar, last_bar)
+    if fam == 'session':
+        # 뉴욕 개장(13:30 UTC) 후 L 분 레인지 돌파, x 시(UTC) 청산
+        day, _, minute = _lab_day_frame(ind)
+        start = 13 * 60 + 30
+        inwin = (minute >= start) & (minute < start + p['L'])
+        hh = h.where(inwin).groupby(day.values).transform('max')
+        ll = l.where(inwin).groupby(day.values).transform('min')
+        live = (minute >= start + p['L']) & (minute < p['x'] * 60)
+        cv = c.values
+        el = live & (cv > np.nan_to_num(hh.values, nan=np.inf))
+        es = live & (cv < np.nan_to_num(ll.values, nan=-np.inf))
+        out_t = minute >= p['x'] * 60
+        return lab_state(el, es, out_t, out_t)
+    if fam == 'flow':
+        # 테이커 매수−매도 체결 비율 (주문흐름 대용) + 추세 필터
+        N = p['N']
+        imb = ((2 * ind['tb'] - ind['v']).rolling(N).sum() / ind['v'].rolling(N).sum()).fillna(0).values
+        trend = (c > c.ewm(span=100, adjust=False).mean()).values
+        return lab_state((imb > p['th']) & trend, (imb < -p['th']) & ~trend, imb < 0, imb > 0)
+    if fam == 'rsi2':
+        # Connors RSI(2): 장기 추세 방향의 단기 과매도/과매수 되돌림
+        d = c.diff()
+        up = d.clip(lower=0).ewm(alpha=0.5, adjust=False).mean()
+        dn = (-d.clip(upper=0)).ewm(alpha=0.5, adjust=False).mean()
+        rsi = (100 - 100 / (1 + up / dn.replace(0, np.nan))).fillna(50).values
+        s200, s5 = c.rolling(200).mean().values, c.rolling(5).mean().values
+        cv = c.values
+        return lab_state((rsi < p['th']) & (cv > s200), (rsi > 100 - p['th']) & (cv < s200), cv > s5, cv < s5)
     N = p['N']
     z = ((c - c.rolling(N).mean()) / c.rolling(N).std()).values
     z = np.nan_to_num(z)
@@ -4352,7 +4421,9 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
     families = list(families or LAB_GRIDS)
     hold_start = base1m.index[-1] - pd.DateOffset(months=int(holdout_months))
     rows, n_sims = [], 0
-    n_trials = len(families) * len(tfs)
+    def applies(fam, tf):
+        return tf in LAB_FAMILY_TFS.get(fam, LAB_TFS)
+    n_trials = sum(1 for tf in tfs for fam in families if applies(fam, tf))
     for tf in tfs:
         df = snap.tf(tf)
         df = df[df['complete'].values > 0.5]
@@ -4369,11 +4440,13 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
         test_n = max(1, int(test_months * 30.44 * 24 / bar_h))
         starts = list(range(train_n, len(df), test_n))
         for fam in families:
+            if not applies(fam, tf):
+                continue
             status(f'Lab {tf} {LAB_FAMILY_KO[fam]}: 파라미터 {len(LAB_GRIDS[fam])}개 백테스트...', 'blue')
             sims = []
             for p in LAB_GRIDS[fam]:
                 tgt = _lab_target(fam, p, ind)
-                mh = int(p['N']) if fam == 'meanrev' else 0
+                mh = int(p['N']) if fam == 'meanrev' else int(LAB_MAX_HOLD.get(fam, 0))
                 ei, xi, sd, rr = lab_sim(o, h, l, c, atr, tgt, float(p['k']), mh, cost, fund)
                 sims.append((p, ei, rr))
                 n_sims += 1
@@ -4403,10 +4476,11 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
             met = _lab_metrics(oos_r, years, n_trials=n_trials)
             hmet = _lab_metrics(hold_r, hold_years, n_trials=1)
             last = next((pp for _, pp in reversed(chosen) if pp is not None), None)
-            rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last,
+            rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last, oos_r=oos_r,
                              windows=len(chosen), idle_windows=sum(1 for _, pp in chosen if pp is None)))
     rows.sort(key=lambda r: (np.nan_to_num(r['oos']['ci_lo'], nan=-9), r['oos']['n']), reverse=True)
     out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_sims=n_sims,
+               n_families=len(families), tfs=list(tfs),
                seconds=round(time.time() - t_wall, 1), revealed=bool(reveal_holdout),
                data=f'{base1m.index[0]:%Y-%m-%d} ~ {base1m.index[-1]:%Y-%m-%d} (선물 {"만" if futures_only else "+스팟"})')
     out['report'] = lab_report(out)
@@ -4415,7 +4489,8 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
 
 def lab_report(res):
     L = [f'━━━ STRATEGY LAB · {SYMBOL} · {res["data"]} ━━━',
-         f'전략군 {len(LAB_GRIDS)} × TF {len(LAB_TFS)} = 절차 {res["n_trials"]}개 · 파라미터 백테스트 {res["n_sims"]}회 · {res["seconds"]}초',
+         f'전략군 {res.get("n_families", len(LAB_GRIDS))}개 × TF {"/".join(res.get("tfs", LAB_TFS))} = 절차 {res["n_trials"]}개 · '
+         f'파라미터 백테스트 {res["n_sims"]}회 · {res["seconds"]}초',
          f'롤링 WFO: train {LAB_TRAIN_YEARS:g}년 → test {LAB_TEST_MONTHS}개월 · 위험 거래당 {LAB_RISK:.0%} 고정 · '
          f'holdout {res["holdout_start"][:10]} 이후 {"공개됨(원장 기록)" if res["revealed"] else "봉인"}',
          '─' * 96,
@@ -4433,9 +4508,16 @@ def lab_report(res):
     L.append('─' * 96)
     good = [r for r in res['rows'] if r['oos']['n'] >= 50 and r['oos']['ci_lo'] > 0 and r['oos']['dsr'] >= 0.9]
     if good:
-        g = good[0]
-        L.append(f'▶ 후보: {g["tf"]} {LAB_FAMILY_KO[g["family"]]} — 표본외 평균R CI 하한 > 0, DSR ≥ 0.9, 체결 ≥ 50. '
-                 f'최근 선택 파라미터 {g["last_params"]}.')
+        good.sort(key=lambda r: r['oos']['cagr'], reverse=True)          # 통과한 것 중 '가장 빠른 성장' 순
+        L.append('▶ 사전 기준 통과 (표본외 체결 ≥ 50, CI 하한 > 0, DSR ≥ 0.9) — 빠른 성장 순:')
+        for g in good[:3]:
+            m = g['oos']
+            R = np.asarray(g.get('oos_r') or [], dtype=np.float64)
+            half = 0.5 * _kelly_risk(R - (m['mean_r'] - m['ci_lo'])) if len(R) else 0.0
+            g_half = float(np.mean(np.log1p(half * (R - (m['mean_r'] - m['ci_lo']))))) if half > 0 else 0.0
+            day_half = math.exp(g_half * m['n_year'] / 365.0) - 1
+            L.append(f'   {g["tf"]} {LAB_FAMILY_KO[g["family"]]}: 1% 위험 기준 연 {m["cagr"]:+.1%} (하루 {m["daily"]:+.3%}) · '
+                     f'증거 기반 반켈리 위험 {half:.2%} → 하루 {day_half:+.3%} (이론 상한) · 최근 파라미터 {g["last_params"]}')
         L.append('  다음 단계: 가짜 BTC 대조군(--surrogate)에서 같은 수준이 안 나오는지 확인 → holdout 1회 공개로 최종 확인 → '
                  'prospective 추적. 통과해야 실전 신호원으로 연결할 가치가 있다.')
     else:

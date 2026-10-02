@@ -20,7 +20,7 @@ python pattern_edge_v612.py                                 # GUI (IDLE F5 와 �
 python pattern_edge_v612.py --walkforward 15m 2024-01-01    # 생산엔진 워크포워드
 python pattern_edge_v612.py --walkforward 15m 2024-01-01 --surrogate   # 가짜 BTC 대조군
 #   추가 옵션: --null (matched-null 포함) --workers 6 (병렬 작업자 수) --step 8 (평가 간격, 봉) --no-cache
-python pattern_edge_v612.py --lab                           # 전략 탐색기: 5개 전략군 × 15m/1h/4h 롤링 WFO (약 10초)
+python pattern_edge_v612.py --lab                           # 전략 탐색기: 10개 전략군 × 5m/15m/1h/4h 롤링 WFO (약 20초)
 python pattern_edge_v612.py --lab --surrogate               # 같은 탐색을 가짜 BTC 에서 (운의 크기)
 python pattern_edge_v612.py --lab --reveal-holdout          # 봉인된 최근 9개월 공개 (1회, 원장 기록)
 ```

@@ -37,12 +37,28 @@ def test_lab_rejects_no_edge_market(pe):
 
 
 def test_lab_finds_real_trend_and_hides_holdout(pe):
-    base = _trend_1m(1300, 0.0000004)
+    base = _trend_1m(2000, 0.0000004)          # 전략군이 늘수록(절차 17개) 통과 기준이 올라가므로 표본외 기간을 충분히
     res = pe.lab_run(base, tfs=('1h', '4h'))
     assert _passed(res)
     assert 'holdout평균R' not in res['report'] and '봉인' in res['report']
     shown = pe.lab_run(base, tfs=('4h',), families=['donchian'], reveal_holdout=True)
     assert 'holdout평균R' in shown['report']
+
+
+def test_intraday_families_run_and_respect_tf_scope(pe):
+    base = _trend_1m(900, 0.0)
+    g = np.random.default_rng(1)
+    base['volume'] = np.exp(g.normal(3, 0.5, len(base)))
+    base['taker_buy_base'] = base['volume'] * np.clip(0.5 + g.normal(0, 0.1, len(base)), 0, 1)
+    res = pe.lab_run(base, tfs=('15m', '1h'), families=['volbreak', 'session', 'flow', 'rsi2', 'keltner'])
+    pairs = {(r['tf'], r['family']) for r in res['rows']}
+    assert ('15m', 'session') in pairs and ('1h', 'session') not in pairs        # 개장 레인지는 단기 TF 만
+    assert res['n_trials'] == len(pairs) == 9
+    snap = pe.Snapshot(base, base.index[-1].to_pydatetime())
+    ind = pe._lab_indicators(snap.tf('15m'))
+    for fam in ('volbreak', 'session', 'rsi2'):
+        tgt = pe._lab_target(fam, pe.LAB_GRIDS[fam][0], ind)
+        assert set(np.unique(tgt)) <= {-1, 0, 1} and np.abs(tgt).sum() > 0
 
 
 def test_lab_sim_stop_is_minus_one_R_plus_costs(pe):
