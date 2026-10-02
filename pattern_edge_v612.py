@@ -124,7 +124,7 @@ except Exception:                      # tzdata 없는 윈도우 대비: 고정 
 # [1] 설정 — 단 한 곳에서만 정의한다 (V611 의 V200/V400/V500/V600 중복 설정 제거)
 # =============================================================================
 SYMBOL = 'BTCUSDT'
-INTERVALS = {'1m': 1, '5m': 5, '15m': 15, '1h': 60}
+INTERVALS = {'1m': 1, '5m': 5, '15m': 15, '1h': 60, '4h': 240}
 
 # K = 기억(패턴) 길이, H = 최대 보유 봉수. 각 모델은 자기 봉이 닫힐 때만 평가된다.
 MODELS = {
@@ -3738,7 +3738,8 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
                     ('늦은 진입 재검증', self.recheck, '#b71c1c'), ('패턴 차트', self.chart, '#263238'),
                     ('내가 진입함', self.open_manual, '#1565c0'), ('포지션 종료', self.close_manual, None),
                     ('신호 기록', self.history, None), ('워크포워드', self.walkforward, '#4527a0'),
-                    ('데이터 구축/복구', self.build_data, None), ('상세', self.detail, None)]
+                    ('데이터 구축/복구', self.build_data, None), ('상세', self.detail, None),
+                    ('전략 탐색(Lab)', self.lab, '#00695c')]
             bar = tk.Frame(root, padx=10)
             bar.pack(fill='x')
             self.buttons = {}
@@ -3821,6 +3822,8 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
                     self.show_recheck(out)
                 elif done == 'chart':
                     self.show_chart(*out)
+                elif done == 'lab':
+                    self.text_window('STRATEGY LAB', out)
                 elif done == 'wf':
                     self.text_window('생산엔진 워크포워드', out['report'] + '\n\n' +
                                      json.dumps(json_safe(out['trades'][-50:]), ensure_ascii=False, indent=1))
@@ -4123,6 +4126,23 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
                 return res
             self.run_bg(work, done='wf', busy=True)
 
+        def lab(self):
+            base = self.engine.store.base
+            if base is None:
+                messagebox.showerror('오류', '데이터가 없습니다.')
+                return
+            with_sur = messagebox.askyesno('전략 탐색', '가짜 BTC 대조군도 같이 돌릴까요? (권장 — "운의 크기"를 함께 봅니다)')
+
+            def work():
+                txt = lab_run(base, status=self.status)['report']
+                if with_sur:
+                    self.status('Lab: 가짜 BTC 대조군...', 'blue')
+                    txt += '\n\n★ 가짜 BTC 대조군 — 아래 최고 성적이 "운으로도 나오는 수준"이다 ★\n'
+                    txt += lab_run(make_surrogate_1m(base, seed=1), status=self.status)['report']
+                return txt + '\n\n(holdout 공개는 명령행에서만: python pattern_edge_v612.py --lab --reveal-holdout)'
+            if not self.run_bg(work, done='lab', busy=True):
+                messagebox.showinfo('안내', '작업 실행 중입니다.')
+
         def build_data(self):
             def work():
                 self.engine.store.build_full_history(
@@ -4161,6 +4181,279 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
     return app
 
 
+# =============================================================================
+# [24] STRATEGY LAB — 여러 전략군을 빠르게 검증하되, 끼워맞추기(data mining)는 구조적으로 막는다
+# -----------------------------------------------------------------------------
+#  · 전략군: 추세(TSMOM, EMA 교차), 돌파(Donchian, Bollinger), 평균회귀(z-score)
+#  · 모든 전략은 진입 시 ATR 손절을 갖는다 → 결과를 R(1회 위험) 단위로 같은 잣대 비교
+#  · 진입·청산 = 신호 다음 봉 시가, 손절은 봉 안에서 먼저 처리, taker 비용·슬리피지·펀딩 차감
+#  · 롤링 워크포워드 최적화(WFO): 과거 train 구간에서 고른 파라미터를 '보지 않은' 다음 test 구간에만 적용
+#    → 보고되는 성과는 '파라미터 고르는 절차'의 표본외 성과다. 고를 게 없으면 그 구간은 쉰다.
+#  · 마지막 holdout 구간은 기본적으로 '봉인'. 공개(--reveal-holdout)하면 원장에 기록된다 (한 번 쓰면 끝).
+#  · DSR 은 시험한 절차 수(전략군 × TF)로 보정한다. 가짜 BTC(--surrogate)로 '운의 크기'를 함께 본다.
+# =============================================================================
+LAB_TFS = ('15m', '1h', '4h')
+LAB_RISK = 0.01                 # 비교용 고정 위험 (거래당 계좌 1%)
+LAB_TRAIN_YEARS = 2.0
+LAB_TEST_MONTHS = 3
+LAB_HOLDOUT_MONTHS = 9
+LAB_MIN_TRAIN_TRADES = 15
+LAB_GRIDS = {
+    'tsmom':    [dict(L=L, k=k) for L in (12, 24, 48, 96, 168, 336, 720) for k in (2.0, 4.0)],
+    'ema':      [dict(f=f, s=s, k=k) for f, s in ((5, 35), (10, 50), (12, 26), (20, 100), (50, 200)) for k in (2.0, 4.0)],
+    'donchian': [dict(N=N, k=k) for N in (20, 55, 100, 200) for k in (2.0, 4.0)],
+    'bollinger': [dict(N=N, z=z, k=k) for N in (20, 50, 100) for z in (2.0, 3.0) for k in (2.0, 4.0)],
+    'meanrev':  [dict(N=N, z=z, k=k) for N in (20, 50, 100) for z in (2.0, 2.5, 3.0) for k in (1.5, 3.0)],
+}
+LAB_FAMILY_KO = {'tsmom': '시계열 모멘텀', 'ema': 'EMA 교차', 'donchian': 'Donchian 돌파',
+                 'bollinger': 'Bollinger 돌파', 'meanrev': 'z-score 평균회귀'}
+
+
+@njit(cache=False)
+def lab_state(enter_long, enter_short, exit_long, exit_short):
+    """진입/청산 조건 → 매 봉 목표 포지션(+1/0/−1). 상태 유지형."""
+    n = len(enter_long)
+    out = np.zeros(n, dtype=np.int64)
+    pos = 0
+    for i in range(n):
+        if pos == 1 and exit_long[i]:
+            pos = 0
+        elif pos == -1 and exit_short[i]:
+            pos = 0
+        if enter_long[i]:
+            pos = 1
+        elif enter_short[i]:
+            pos = -1
+        out[i] = pos
+    return out
+
+
+@njit(cache=False)
+def lab_sim(o, h, l, c, atr, target, stop_k, max_hold, cost_frac, fund_per_bar):
+    """
+    목표 포지션 → 거래 목록. target[i-1] 을 봉 i 시가에 실행, 진입 시 손절 = 진입가 ∓ k·ATR.
+    손절 후 같은 방향 재진입은 신호가 한 번 바뀐 뒤에만 (같은 추세에 연속 손절 방지).
+    반환 (진입봉, 청산봉, 방향, 순 R)
+    """
+    n = len(c)
+    ei = np.empty(n, dtype=np.int64)
+    xi = np.empty(n, dtype=np.int64)
+    sd = np.empty(n, dtype=np.int64)
+    rr = np.empty(n, dtype=np.float64)
+    m = 0
+    pos = 0
+    entry = 0.0
+    dist = 0.0
+    stop = 0.0
+    t_in = 0
+    blocked = 0
+    for i in range(1, n):
+        want = target[i - 1]
+        if blocked != 0 and want != blocked:
+            blocked = 0
+        if pos != 0 and want != pos:
+            g = pos * (o[i] / entry - 1.0)
+            ei[m] = t_in; xi[m] = i; sd[m] = pos
+            rr[m] = (g - cost_frac - fund_per_bar * (i - t_in)) / (dist / entry)
+            m += 1
+            pos = 0
+        if pos == 0 and want != 0 and want != blocked and atr[i - 1] > 1e-5:
+            pos = want
+            entry = o[i]
+            dist = stop_k * atr[i - 1] * entry
+            stop = entry - pos * dist
+            t_in = i
+        if pos != 0:
+            hit = (pos > 0 and l[i] <= stop) or (pos < 0 and h[i] >= stop)
+            if hit:
+                px = stop
+                if (pos > 0 and o[i] < stop) or (pos < 0 and o[i] > stop):
+                    px = o[i]
+                g = pos * (px / entry - 1.0)
+                ei[m] = t_in; xi[m] = i; sd[m] = pos
+                rr[m] = (g - cost_frac - fund_per_bar * (i - t_in + 1)) / (dist / entry)
+                m += 1
+                blocked = pos
+                pos = 0
+            elif max_hold > 0 and i - t_in + 1 >= max_hold:
+                g = pos * (c[i] / entry - 1.0)
+                ei[m] = t_in; xi[m] = i; sd[m] = pos
+                rr[m] = (g - cost_frac - fund_per_bar * (i - t_in + 1)) / (dist / entry)
+                m += 1
+                blocked = pos
+                pos = 0
+    return ei[:m], xi[:m], sd[:m], rr[:m]
+
+
+def _lab_indicators(df):
+    c = df['close'].astype(np.float64)
+    h = df['high'].astype(np.float64)
+    l = df['low'].astype(np.float64)
+    pc = c.shift(1).fillna(c)
+    tr = np.maximum(h - l, np.maximum((h - pc).abs(), (l - pc).abs()))
+    atr = (tr / c).ewm(alpha=1 / 14.0, adjust=False).mean()
+    return dict(c=c, h=h, l=l, o=df['open'].astype(np.float64), atr=atr)
+
+
+def _lab_target(fam, p, ind):
+    c, h, l = ind['c'], ind['h'], ind['l']
+    zeros = np.zeros(len(c), dtype=np.bool_)
+    if fam == 'tsmom':
+        return np.sign(np.log(c / c.shift(p['L']))).fillna(0).values.astype(np.int64)
+    if fam == 'ema':
+        d = c.ewm(span=p['f'], adjust=False).mean() - c.ewm(span=p['s'], adjust=False).mean()
+        t = np.sign(d).values.astype(np.int64)
+        t[:p['s']] = 0
+        return t
+    if fam == 'donchian':
+        N = p['N']
+        up, lo = h.rolling(N).max().shift(1), l.rolling(N).min().shift(1)
+        xup, xlo = h.rolling(max(2, N // 2)).max().shift(1), l.rolling(max(2, N // 2)).min().shift(1)
+        el, es = (c > up).values, (c < lo).values
+        xl, xs = (c < xlo).values, (c > xup).values
+        return lab_state(el, es, xl, xs)
+    N = p['N']
+    z = ((c - c.rolling(N).mean()) / c.rolling(N).std()).values
+    z = np.nan_to_num(z)
+    if fam == 'bollinger':
+        return lab_state(z > p['z'], z < -p['z'], z < 0, z > 0)
+    if fam == 'meanrev':
+        return lab_state(z < -p['z'], z > p['z'], z >= 0, z <= 0)
+    return zeros.astype(np.int64)
+
+
+def _lab_metrics(R, years, risk=LAB_RISK, n_trials=1):
+    R = np.asarray(R, dtype=np.float64)
+    if len(R) == 0:
+        return dict(n=0, n_year=0.0, mean_r=float('nan'), ci_lo=float('nan'), ci_hi=float('nan'),
+                    win=float('nan'), pf=float('nan'), cagr=0.0, mdd=0.0, dsr=0.0, daily=0.0)
+    eq = np.cumprod(1.0 + risk * np.clip(R, -50, 50))
+    eq = np.concatenate(([1.0], eq))
+    boots = stationary_block_bootstrap(R, n_boot=1500, mean_block=5.0, rng=np.random.default_rng(len(R)))
+    lo, hi = (np.quantile(boots, [0.05, 0.95]) if len(R) >= 5 else (float('nan'), float('nan')))
+    _, _, dsr = deflated_sharpe(np.diff(np.log(np.maximum(eq, 1e-12))), max(n_trials, 2))
+    cagr = max(eq[-1], 1e-12) ** (1 / max(years, 1e-6)) - 1
+    return dict(n=int(len(R)), n_year=len(R) / max(years, 1e-6), mean_r=float(R.mean()), ci_lo=float(lo),
+                ci_hi=float(hi), win=float(np.mean(R > 0)),
+                pf=float(R[R > 0].sum() / max(-R[R <= 0].sum(), 1e-9)), cagr=float(cagr),
+                daily=float((1 + cagr) ** (1 / 365) - 1),
+                mdd=float((1 - eq / np.maximum.accumulate(eq)).max()), dsr=float(dsr))
+
+
+def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTHS, train_years=LAB_TRAIN_YEARS,
+            test_months=LAB_TEST_MONTHS, reveal_holdout=False, status=None, futures_only=True):
+    """반환 dict(rows=[...], holdout_start, report)."""
+    status = status or (lambda *a, **k: None)
+    t_wall = time.time()
+    base1m = normalize_frame(base1m)
+    if futures_only and (base1m['era'].values == ERA_FUT).any():
+        base1m = base1m[base1m['era'].values == ERA_FUT]
+    snap = Snapshot(base1m, base1m.index[-1].to_pydatetime() + timedelta(minutes=1))
+    families = list(families or LAB_GRIDS)
+    hold_start = base1m.index[-1] - pd.DateOffset(months=int(holdout_months))
+    rows, n_sims = [], 0
+    n_trials = len(families) * len(tfs)
+    for tf in tfs:
+        df = snap.tf(tf)
+        df = df[df['complete'].values > 0.5]
+        if len(df) < 500:
+            continue
+        ind = _lab_indicators(df)
+        o, h, l, c, atr = (ind[k].values for k in ('o', 'h', 'l', 'c', 'atr'))
+        idx = df.index
+        bar_h = INTERVALS[tf] / 60.0
+        cost = 2 * (TAKER_FEE + SLIPPAGE_T)
+        fund = FUNDING_PER_8H * bar_h / 8.0
+        i_hold = int(idx.searchsorted(hold_start))
+        train_n = int(train_years * 365.25 * 24 / bar_h)
+        test_n = max(1, int(test_months * 30.44 * 24 / bar_h))
+        starts = list(range(train_n, len(df), test_n))
+        for fam in families:
+            status(f'Lab {tf} {LAB_FAMILY_KO[fam]}: 파라미터 {len(LAB_GRIDS[fam])}개 백테스트...', 'blue')
+            sims = []
+            for p in LAB_GRIDS[fam]:
+                tgt = _lab_target(fam, p, ind)
+                mh = int(p['N']) if fam == 'meanrev' else 0
+                ei, xi, sd, rr = lab_sim(o, h, l, c, atr, tgt, float(p['k']), mh, cost, fund)
+                sims.append((p, ei, rr))
+                n_sims += 1
+            oos_r, oos_i, hold_r, chosen = [], [], [], []
+            for s in starts:
+                e = min(s + test_n, len(df))
+                best, best_score = None, 0.0
+                for p, ei, rr in sims:
+                    m = (ei >= s - train_n) & (ei < s)
+                    if m.sum() < LAB_MIN_TRAIN_TRADES:
+                        continue
+                    x = rr[m]
+                    score = x.mean() - x.std(ddof=1) / math.sqrt(len(x))     # 평균 R 의 1σ 하한
+                    if score > best_score:
+                        best, best_score = (p, ei, rr), score
+                chosen.append((str(idx[s])[:10], None if best is None else best[0]))
+                if best is None:
+                    continue                                                # 고를 게 없으면 쉰다
+                p, ei, rr = best
+                m = (ei >= s) & (ei < e)
+                for j in np.flatnonzero(m):
+                    (hold_r if ei[j] >= i_hold else oos_r).append(float(rr[j]))
+                    if ei[j] < i_hold:
+                        oos_i.append(int(ei[j]))
+            years = max((idx[min(i_hold, len(idx) - 1)] - idx[min(train_n, len(idx) - 1)]).days / 365.25, 1e-6)
+            hold_years = max((idx[-1] - idx[min(i_hold, len(idx) - 1)]).days / 365.25, 1e-6)
+            met = _lab_metrics(oos_r, years, n_trials=n_trials)
+            hmet = _lab_metrics(hold_r, hold_years, n_trials=1)
+            last = next((pp for _, pp in reversed(chosen) if pp is not None), None)
+            rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last,
+                             windows=len(chosen), idle_windows=sum(1 for _, pp in chosen if pp is None)))
+    rows.sort(key=lambda r: (np.nan_to_num(r['oos']['ci_lo'], nan=-9), r['oos']['n']), reverse=True)
+    out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_sims=n_sims,
+               seconds=round(time.time() - t_wall, 1), revealed=bool(reveal_holdout),
+               data=f'{base1m.index[0]:%Y-%m-%d} ~ {base1m.index[-1]:%Y-%m-%d} (선물 {"만" if futures_only else "+스팟"})')
+    out['report'] = lab_report(out)
+    return out
+
+
+def lab_report(res):
+    L = [f'━━━ STRATEGY LAB · {SYMBOL} · {res["data"]} ━━━',
+         f'전략군 {len(LAB_GRIDS)} × TF {len(LAB_TFS)} = 절차 {res["n_trials"]}개 · 파라미터 백테스트 {res["n_sims"]}회 · {res["seconds"]}초',
+         f'롤링 WFO: train {LAB_TRAIN_YEARS:g}년 → test {LAB_TEST_MONTHS}개월 · 위험 거래당 {LAB_RISK:.0%} 고정 · '
+         f'holdout {res["holdout_start"][:10]} 이후 {"공개됨(원장 기록)" if res["revealed"] else "봉인"}',
+         '─' * 96,
+         f'{"순위":<4}{"TF":<5}{"전략군":<16}{"OOS체결":>8}{"연간":>7}{"승률":>7}{"평균R":>8}{"90%CI 하한":>11}{"PF":>6}'
+         f'{"연복리(1%)":>11}{"MDD":>7}{"DSR":>7}' + ('  holdout평균R/건수' if res['revealed'] else '')]
+    for k, r in enumerate(res['rows'], 1):
+        m = r['oos']
+        line = (f'{k:<4}{r["tf"]:<5}{LAB_FAMILY_KO[r["family"]]:<16}{m["n"]:>8}{m["n_year"]:>7.0f}'
+                f'{np.nan_to_num(m["win"]):>7.0%}{np.nan_to_num(m["mean_r"]):>+8.3f}{np.nan_to_num(m["ci_lo"], nan=0):>+11.3f}'
+                f'{np.nan_to_num(m["pf"]):>6.2f}{m["cagr"]:>+11.1%}{m["mdd"]:>7.1%}{m["dsr"]:>7.2f}')
+        if res['revealed']:
+            hm = r['holdout']
+            line += f'  {np.nan_to_num(hm["mean_r"]):+.3f}/{hm["n"]}'
+        L.append(line)
+    L.append('─' * 96)
+    good = [r for r in res['rows'] if r['oos']['n'] >= 50 and r['oos']['ci_lo'] > 0 and r['oos']['dsr'] >= 0.9]
+    if good:
+        g = good[0]
+        L.append(f'▶ 후보: {g["tf"]} {LAB_FAMILY_KO[g["family"]]} — 표본외 평균R CI 하한 > 0, DSR ≥ 0.9, 체결 ≥ 50. '
+                 f'최근 선택 파라미터 {g["last_params"]}.')
+        L.append('  다음 단계: 가짜 BTC 대조군(--surrogate)에서 같은 수준이 안 나오는지 확인 → holdout 1회 공개로 최종 확인 → '
+                 'prospective 추적. 통과해야 실전 신호원으로 연결할 가치가 있다.')
+    else:
+        L.append('▶ 사전 기준(표본외 체결 ≥ 50, CI 하한 > 0, DSR ≥ 0.9)을 통과한 절차 없음 — 이 데이터·비용에서 입증된 edge 없음.')
+    L.append('※ 성과는 "과거 train 으로 고른 파라미터를 보지 않은 다음 구간에 적용한" 표본외 성과다. 최상위 1개만 보고 고르면 '
+             '그 자체가 선택이므로 DSR(절차 수 보정)과 가짜 BTC 결과를 함께 볼 것.')
+    L.append('※ 거래소 최소주문·레버리지 한도는 반영하지 않은 연구용 결과다 (R 단위 비교가 목적).')
+    return '\n'.join(L)
+
+
+def lab_record_holdout(engine, res):
+    """holdout 공개는 되돌릴 수 없다 → 원장에 남긴다 (몇 번 엿봤는지가 증거의 일부)."""
+    with engine.state.tx() as st:
+        engine.state.emit(st, 'SYSTEM', what='lab_holdout_revealed', holdout_start=res['holdout_start'],
+                          top=[dict(tf=r['tf'], family=r['family'], oos=r['oos'], holdout=r['holdout'])
+                               for r in res['rows'][:5]])
+
+
 def MPL_available():
     return importlib.util.find_spec('matplotlib') is not None
 
@@ -4181,6 +4474,21 @@ def main(argv=None):
         final = eng.cycle(seed, status=lambda t, c='': print(t))
         print(eng.state.peek(lambda st: render_screen(st, final, seed)))
         eng.store.persist(force=True)
+        return 0
+    if '--lab' in argv:
+        store = DataStore()
+        store.refresh()
+        base = store.base
+        sur = '--surrogate' in argv
+        if sur:
+            base = make_surrogate_1m(base, seed=1)
+            print('★ 가짜 BTC(하루 블록 셔플) — 여기서 나오는 최고 성적이 "운의 크기"다 ★')
+        reveal = '--reveal-holdout' in argv and not sur
+        res = lab_run(base, reveal_holdout=reveal, status=lambda t, c='': print(t))
+        print(res['report'])
+        if reveal:
+            lab_record_holdout(Engine(store=store), res)
+            print('[LAB] holdout 공개가 원장에 기록되었습니다. 이 구간은 이제 "본 데이터"입니다.')
         return 0
     if '--walkforward' in argv:
         i = argv.index('--walkforward')
