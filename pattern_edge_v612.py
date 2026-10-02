@@ -168,8 +168,11 @@ RISK_CAP = 0.010                  # 트레이드당 계좌위험 '천장' (최�
 RISK_FLOOR = 0.0005               # 이보다 작으면 경제적으로 무의미 → WAIT
 PORTFOLIO_MAX_OPEN_RISK = 0.020   # 동시에 열린 shadow/수동 위험 합계 한도
 CLUSTER_MAX_RISK = RISK_CAP       # 같은 방향·겹치는 보유구간 신호들의 위험 합계 한도
-MARGIN_CAP = 0.30
-MAX_LEV = 4
+# 사용자 규칙: 격리 증거금 = 시드의 최대 20%. 손실 크기는 '수량 × 손절거리'가 정하고,
+# 레버리지는 그 수량을 20% 증거금 안에 담는 최소 정수다 → 레버리지가 바뀌어도 손절 시 손실은 같다.
+# 손절이 갭으로 무시되는 최악의 경우에도 격리 청산 손실 ≤ 증거금(시드 20%).
+MARGIN_CAP = 0.20
+MAX_LEV = 20
 MMR = 0.005                       # 유지증거금률 보수 가정 (청산거리 근사용)
 GROWTH_BOOT = 700
 GROWTH_Q = 0.10
@@ -191,8 +194,8 @@ WF_PASS_DSR = 0.90
 
 # ── 비용 ────────────────────────────────────────────────────────
 ENTRY_TYPE = 'taker'
-TP_TYPE = 'maker'
-SL_TYPE = 'taker'
+TP_TYPE = 'taker'                 # 바이낸스 주문창 TP/SL 체크박스 = 트리거 후 시장가 → taker 비용으로 보수 계산
+SL_TYPE = 'taker'                 # (익절을 reduce-only 지정가로 따로 걸 거라면 TP_TYPE = 'maker')
 TAKER_FEE = float(os.environ.get('PATTERNEDGE_TAKER_FEE', 0.00050))
 MAKER_FEE = float(os.environ.get('PATTERNEDGE_MAKER_FEE', 0.00020))
 SLIPPAGE_T = float(os.environ.get('PATTERNEDGE_SLIPPAGE_T', 0.00020))
@@ -1879,7 +1882,8 @@ def context_multiplier(ctx, side, tf, H, now=None):
 
 
 # =============================================================================
-# [13] 사이징 — 위험예산이 명목을 정하고, 레버리지는 그 명목을 담는 최소 정수
+# [13] 사이징 — 위험예산이 수량(명목)을 정하고, 레버리지는 그 명목을 시드 20% 증거금에 담는 최소 정수
+#      손절 시 손실 = 수량 × (손절거리 + 비용) = 위험예산. 레버리지 배수와 무관하게 일정하다.
 # =============================================================================
 def _step_decimals(step):
     s = f'{step:.10f}'.rstrip('0')
@@ -2348,7 +2352,7 @@ def shadow_step(sh, base1m):
     if sub.empty:
         return upd or None
     op, hi, lo, cl = sub['open'].values, sub['high'].values, sub['low'].values, sub['close'].values
-    thr = tp * (1 + side * MAKER_TP_THROUGH)
+    thr = tp * (1 + side * (MAKER_TP_THROUGH if TP_TYPE == 'maker' else 0.0))
     if side > 0:
         hs, ht = lo <= sl, hi >= thr
     else:
@@ -3051,8 +3055,14 @@ def render_ticket(sig, current_seed=None):
          f"TP                {fnum(sig.get('tp_px')):,.1f}  (+{fnum(sig.get('tp'), 0):.3%})",
          f"SL                {fnum(sig.get('sl_px')):,.1f}  (-{fnum(sig.get('sl'), 0):.3%})",
          f"ACCOUNT RISK      {fnum(sz.get('risk_actual'), 0):.3%}",
-         f"MAX LOSS          {fnum(sz.get('max_loss_usdt'), 0):,.2f} USDT",
-         f"STATUS / TIME     {sig.get('status')} · 감지 {fmt_kst(sig.get('detected_at'))} · 최대보유 {int(sig.get('max_hold_min') or 0) / 60:.1f}h"]
+         f"MAX LOSS          {fnum(sz.get('max_loss_usdt'), 0):,.2f} USDT  (손절가에서 청산 시)",
+         f"WORST CASE        {fnum(sz.get('margin'), 0):,.2f} USDT  (손절이 갭으로 무시돼 격리 청산될 때 = 증거금 전액)",
+         f"STATUS / TIME     {sig.get('status')} · 감지 {fmt_kst(sig.get('detected_at'))} · 최대보유 {int(sig.get('max_hold_min') or 0) / 60:.1f}h",
+         '── 바이낸스 입력 (USDⓈ-M BTCUSDT 무기한) ──',
+         f"  ① 마진모드 Isolated(격리)   ② 레버리지 {int(sz.get('lev') or 0)}x",
+         f"  ③ {'매수/롱(Buy/Long)' if int(sig['side']) > 0 else '매도/숏(Sell/Short)'} · 시장가 · 수량 {fnum(sz.get('qty'), 0)} BTC",
+         f"  ④ TP/SL 체크 → 익절 {fnum(sig.get('tp_px')):,.1f} / 손절 {fnum(sig.get('sl_px')):,.1f} (트리거: Last Price)",
+         f"  ⑤ 최대보유 {int(sig.get('max_hold_min') or 0) / 60:.1f}h 가 지나도 안 닿으면 시장가 정리 (EXIT 알림이 옵니다)"]
     L.append(f"EVIDENCE          {sig.get('evidence_level') or '-'}")
     if str(sig.get('evidence_level') or '').startswith('E3'):
         L.append(f'※ 미검증 신호: 이 TF 는 아직 실데이터 워크포워드(E4)를 통과하지 않아 위험을 {UNVERIFIED_RISK_MULT:.0%} 로 줄였습니다.')
@@ -3182,7 +3192,7 @@ def selftest(verbose=True):
     pnl, code = bracket_vec(HI, LO, CL, 1, 0.01, 0.01)
     check('bracket 동시도달=손절', code[0] == -1)
     pnl, code = bracket_vec(np.array([[0.01]]), np.array([[0.0]]), np.array([[0.0]]), 1, 0.01, 0.02)
-    check('maker TP 터치만으로는 미체결', code[0] == 0)
+    check('TP 체결 규칙 (maker=관통 필요 / taker=터치 체결)', code[0] == (0 if TP_TYPE == 'maker' else 1))
     # 2. F-01: 승자 없는 primary → dict WAIT, 예외 없음
     pc = precheck(dict(reason='데이터 부족', K=192), [], '15m', 16)
     check('F-01 precheck 단일 dict 반환', isinstance(pc, dict) and pc['ok'] is False)
