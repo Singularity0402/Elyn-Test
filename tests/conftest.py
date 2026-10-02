@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def _load(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod          # 병렬 워크포워드가 작업 함수를 pickle 할 수 있도록
     spec.loader.exec_module(mod)
     return mod
 

@@ -1130,9 +1130,93 @@ class Channels:
         self.high, self.low, self.close, self.volume_raw = h, l, c, v
         self.ts = ts_ns(df.index)
         self.n = n
+        era_chg = np.zeros(n)
+        era_chg[1:] = (np.diff(self.era) != 0)
+        self.cum_era = np.concatenate(([0.0], np.cumsum(era_chg)))
+        self.cum_bad = np.concatenate(([0.0], np.cumsum(self.bad)))
+        self._cache = {}
+        self._clock = threading.Lock()
 
     def window(self, name, s, K):
         return getattr(self, name)[s:s + K]
+
+    def _cached(self, key, fn):
+        with self._clock:
+            v = self._cache.get(key)
+        if v is None:
+            v = fn()
+            with self._clock:
+                self._cache[key] = v
+        return v
+
+    def norm(self, name):
+        """전 구간 전역 정규화 (상관은 아핀변환 불변 → 어느 prefix 의 상관과도 같다)."""
+        def mk():
+            T = getattr(self, name)
+            s = T.std()
+            return (T - T.mean()) / (s if s > 1e-300 else 1.0), (s if s > 1e-300 else 0.0)
+        return self._cached(('norm', name), mk)
+
+    def fft(self, name, size):
+        return self._cached(('fft', name, size), lambda: np.fft.rfft(self.norm(name)[0], size))
+
+    def sliding_sd(self, name, m):
+        return self._cached(('sd', name, m), lambda: _sliding_ms(self.norm(name)[0], m)[1])
+
+
+def corr_profile_ch(ch, name, Q, limit):
+    """
+    corr_profile 의 워크포워드 가속판. 전 구간 FFT·창 표준편차를 채널에 캐시하고 질의만 새로 변환한다.
+    위치 s ≤ limit-1 의 상관은 T[s:s+m] 만 쓰므로 prefix 로 계산한 값과 같다 (미래 데이터 누수 없음).
+    """
+    Q = np.asarray(Q, dtype=np.float64)
+    m = len(Q)
+    qs = Q.std()
+    Tn, ts = ch.norm(name)
+    n = len(Tn)
+    if m < 2 or n < m or qs < 1e-14 or ts <= 0:
+        return np.full(limit, -1.0), np.zeros(limit)
+    size = 1
+    while size < n + m:
+        size <<= 1
+    qz = (Q - Q.mean()) / qs
+    dot = np.fft.irfft(ch.fft(name, size) * np.fft.rfft(qz[::-1], size), size)[m - 1:m - 1 + limit]
+    sdn = ch.sliding_sd(name, m)[:limit]
+    with np.errstate(divide='ignore', invalid='ignore'):
+        r = np.where(sdn > 1e-13, dot / (m * sdn), -1.0)
+    return np.clip(np.nan_to_num(r, nan=-1.0), -1.0, 1.0), sdn * ts
+
+
+def row_quantile(a, q):
+    """axis=0 선형보간 분위수 (np.quantile 과 같은 값, 행 수가 적을 때 훨씬 빠름)."""
+    s = np.sort(a, axis=0)
+    pos = q * (s.shape[0] - 1)
+    lo = int(math.floor(pos))
+    hi = min(lo + 1, s.shape[0] - 1)
+    return s[lo] + (pos - lo) * (s[hi] - s[lo])
+
+
+@njit(cache=False)
+def dtw_batch(qz, W, band):
+    out = np.empty(W.shape[0])
+    for i in range(W.shape[0]):
+        out[i] = dtw_band(qz, W[i], band)
+    return out
+
+
+_TS_CACHE = {}
+
+
+def ts_ns_cached(df):
+    """1분봉 인덱스 → ns 변환을 프레임당 한 번만 (V612 초판은 scale 마다 350만 행을 다시 변환했다)."""
+    idx = df.index
+    key = (id(df), len(idx), int(idx[0].value) if len(idx) else 0, int(idx[-1].value) if len(idx) else 0)
+    v = _TS_CACHE.get(key)
+    if v is None:
+        if len(_TS_CACHE) > 4:
+            _TS_CACHE.clear()
+        v = _TS_CACHE[key] = ts_ns(idx)
+    return v
 
 
 def sr_levels(high, low, close, volume, lookback=1500, pivot_w=6, tol=0.0015, top_n=8):
@@ -1218,19 +1302,13 @@ def find_neighbors(ch, K, H, end=None, topk=36, cand_pool=CAND_POOL, use_dtw=Tru
         return None, '현재 변동성 0'
     if status:
         status(f'K={K}: 전 구간 analog 검색 (MASS)...', 'blue')
+    L = max_start + 1
     prof, sds = {}, {}
     for nm in names:
-        r, sd = corr_profile(q[nm], getattr(ch, nm)[:max_start + K])
-        prof[nm], sds[nm] = r[:max_start + 1], sd[:max_start + 1]
-    L = min(len(v) for v in prof.values())
-    for nm in names:
-        prof[nm], sds[nm] = prof[nm][:L], sds[nm][:L]
+        prof[nm], sds[nm] = corr_profile_ch(ch, nm, q[nm], L)
     idx = np.arange(L)
     span = K + H
-    era_chg = np.zeros(ch.n)
-    era_chg[1:] = (np.diff(ch.era) != 0)
-    ce = np.concatenate(([0.0], np.cumsum(era_chg)))
-    cb = np.concatenate(([0.0], np.cumsum(ch.bad)))
+    ce, cb = ch.cum_era, ch.cum_bad
     end_i = np.minimum(idx + span, ch.n)
     valid = ((ce[end_i] - ce[idx + 1]) == 0) & ((cb[end_i] - cb[idx]) == 0)
     volr = sds['ret'] / q_vol
@@ -1244,19 +1322,25 @@ def find_neighbors(ch, K, H, end=None, topk=36, cand_pool=CAND_POOL, use_dtw=Tru
 
     stack = np.vstack([prof[nm] for nm in ANALOG_WEIGHTS])
     wv = np.array([ANALOG_WEIGHTS[nm] for nm in ANALOG_WEIGHTS])[:, None]
-    core = 0.90 * (wv * stack).sum(0) + 0.10 * np.quantile(stack, 0.20, axis=0)
+    core = 0.90 * (wv * stack).sum(0) + 0.10 * row_quantile(stack, 0.20)
     if spot_fallback:
         core = core - SPOT_PENALTY * (ch.era[:L] == ERA_SPOT)
 
-    pre = pool[np.argsort(-core[pool])][:max(cand_pool * 3, topk * 12)]
+    kpre = max(cand_pool * 3, topk * 12)
+    cp = core[pool]
+    pre = pool[np.argpartition(-cp, kpre - 1)[:kpre]] if len(pool) > kpre else pool
     pre_score = core[pre] + 0.02 * _session_similarity(ch.ts, pre + K - 1, n - 1)
-    cand = pre[np.argsort(-pre_score)][:max(cand_pool, topk * 5)]
+    cand = pre[np.argsort(-pre_score, kind='stable')][:max(cand_pool, topk * 5)]
     if use_dtw:
         if status:
             status(f'K={K}: DTW 재순위 {len(cand)}개...', 'blue')
         qz = znorm(q['shape'])
         band = max(2, int(K * DTW_BAND_FRAC))
-        dtw = np.array([dtw_band(qz, znorm(ch.shape[int(s):int(s) + K]), band) for s in cand])
+        W = ch.shape[cand[:, None] + np.arange(K)[None, :]]
+        sdw = W.std(axis=1, keepdims=True)
+        W = np.where(sdw < 1e-14, W - W.mean(axis=1, keepdims=True),
+                     (W - W.mean(axis=1, keepdims=True)) / np.maximum(sdw, 1e-300))
+        dtw = dtw_batch(qz, np.ascontiguousarray(W), band)
         dn = (dtw - np.nanmin(dtw)) / max(np.nanstd(dtw), 1e-9)
         ordered = cand[np.argsort(-(core[cand] - 0.025 * dn))]
     else:
@@ -1267,7 +1351,7 @@ def find_neighbors(ch, K, H, end=None, topk=36, cand_pool=CAND_POOL, use_dtw=Tru
 
     exact = {nm: corr_exact(q[nm], getattr(ch, nm), starts) for nm in ANALOG_WEIGHTS}
     ex = np.vstack([exact[nm] for nm in ANALOG_WEIGHTS])
-    sim = 0.90 * (wv * ex).sum(0) + 0.10 * np.quantile(ex, 0.20, axis=0)
+    sim = 0.90 * (wv * ex).sum(0) + 0.10 * row_quantile(ex, 0.20)
     ends = starts + K - 1
     raw_w = (np.exp(np.clip(7.0 * (sim - sim.max()), -25, 0)) * _recency_factor(ch.ts, ends, n - 1)
              * (0.90 + 0.10 * _session_similarity(ch.ts, ends, n - 1)))
@@ -1303,7 +1387,7 @@ class PathMaker:
             self.b_hi = base1m['high'].values
             self.b_lo = base1m['low'].values
             self.b_cl = base1m['close'].values
-            self.b_ts = ts_ns(base1m.index)
+            self.b_ts = ts_ns_cached(base1m)
 
     def paths(self, starts, scales):
         starts = np.asarray(starts, dtype=np.int64)
@@ -1958,6 +2042,14 @@ def analyze_scale(snap, ch, tf, K, H, rules, end, topk, levels, use_1m, rng, sta
     return out
 
 
+def primary_gate(primary, tf, H):
+    """주 scale 만으로 판정 가능한 실패 사유. 하나라도 있으면 다른 scale 은 계산할 필요가 없다."""
+    if 'winner' not in primary:
+        return [primary.get('reason') or '주 신호 없음']
+    pc = precheck(primary, [primary, primary], tf, H)     # 투표는 자기 자신으로 채워 '주 scale 사유'만 남긴다
+    return [x for x in pc['reason'].split(' / ') if x]
+
+
 def precheck(primary, scales, tf, H):
     """단일 dict 반환: ok / reason / votes."""
     if 'winner' not in primary:
@@ -2032,21 +2124,34 @@ def scan_tf(snap, tf, seed, ctx, book=None, do_null=True, end=None, live=True, s
     ch = snap.channels(tf)
     rules = ctx.get('rules') or FALLBACK_RULES
     lv = sr_levels(ch.high[:n], ch.low[:n], ch.close[:n], ch.volume_raw[:n])
-    rng = rng or np.random.default_rng(NULL_SEED + INTERVALS[tf] + (n % 100_000))
-    scales = []
+    seed0 = NULL_SEED + INTERVALS[tf] + (n % 100_000)
+
+    def rng_for(kk):                         # scale 마다 독립 난수 → 계산 순서·생략과 무관하게 같은 결과
+        return np.random.default_rng(seed0 + 7919 * kk)
+    rng = rng or rng_for(K)
+    status(f'{tf} K={K}: analog + cross-fit...', 'blue')
+    primary = analyze_scale(snap, ch, tf, K, H, rules, n, topk, lv, use_1m, rng, status)
+    d = dict(tf=tf, K=K, H=H, trade=False, model_label=spec['label'], votes=[], precheck_ok=False,
+             bar_time=str(pd.Timestamp(ch.ts[n - 1])), primary_summary=_primary_summary(primary))
+    gate = primary_gate(primary, tf, H)
+    if gate:                                 # 주 scale 에서 이미 탈락 → 나머지 scale 생략 (판정 동일, 약 3배 빠름)
+        d['reason'] = ' / '.join(gate)
+        return d
+    scales = [primary]
     for f in SCALE_FACTORS:
         kk = max(30, int(round(K * f)))
+        if kk == K:
+            continue
         if stop and stop():
             return wait(tf, '중단됨', K=K, H=H)
         status(f'{tf} K={kk}: analog + cross-fit...', 'blue')
-        scales.append(analyze_scale(snap, ch, tf, kk, H, rules, n, topk, lv, use_1m, rng, status))
-    primary = next(x for x in scales if x['K'] == K)
+        scales.append(analyze_scale(snap, ch, tf, kk, H, rules, n, topk, lv, use_1m, rng_for(kk), status))
     pc = precheck(primary, scales, tf, H)
-    d = dict(tf=tf, K=K, H=H, trade=False, model_label=spec['label'], votes=pc['votes'],
-             bar_time=str(pd.Timestamp(ch.ts[n - 1])), primary_summary=_primary_summary(primary))
+    d['votes'] = pc['votes']
     if not pc['ok']:
         d['reason'] = pc['reason']
         return d
+    d['precheck_ok'] = True
     p, nb = primary['winner'], primary['nb']
 
     # 비싼 matched-null 은 1차 통과 후보만 (선별 후 검정이지만 무조건부 null 과 비교하므로 FPR ≤ α 유지)
@@ -2933,50 +3038,217 @@ def simulate_ticket(base1m, d, bar_close_time):
     return res
 
 
-def walk_forward(base1m, tf, start, end=None, step=None, seed=10000.0, do_null=False,
-                 status=None, stop=None, max_evals=None, use_1m=True):
+# ── 워크포워드 가속 ──────────────────────────────────────────────
+#  ① 판정 단계와 체결/복리 단계를 분리한다. 각 시점의 판정은 그 시점 이전 데이터만 보므로 서로 독립 →
+#     CPU 코어 수만큼 병렬로 계산하고, 체결·복리·포지션 겹침은 그 뒤에 순서대로 재생(replay)한다.
+#  ② 2단계 null: 1차(검색+교차검증)는 모든 시점, 비싼 matched-null 은 1차 통과 시점만.
+#     null 은 원래 1차 통과 후에만 돌기 때문에 결과는 전 시점 null 과 완전히 같다.
+#  ③ 디스크 캐시: (모델지문, TF, 봉시각) 단위로 판정을 저장 → 같은 구간 재실행·null ON 재실행·
+#     시드만 바꾼 재실행은 즉시 끝난다. 과거 데이터가 바뀌면 지문/체크섬 불일치로 자동 재계산.
+WF_REF_SEED = 1e6                 # 판정 단계용 기준 시드 (실제 시드 사이징은 replay 에서 다시 한다)
+WF_DEFAULT_WORKERS = max(1, min((os.cpu_count() or 2) - 1, 6))
+_WF_W = {}
+
+
+def _wf_compact(d):
+    keep = ('tf', 'trade', 'reason', 'side', 'entry', 'entry_ref', 'tp_px', 'sl_px', 'tp', 'sl', 'risk_frac',
+            'max_hold_min', 'H', 'K', 'p_raw', 'p_family', 'null_n', 'precheck_ok', 'rules', 'bar_time')
+    out = {k: d.get(k) for k in keep if k in d}
+    out['reason'] = str(out.get('reason') or '')[:200]
+    return json_safe(out)
+
+
+def _wf_init(base_path, now_iso):
+    base = pd.read_pickle(base_path)
+    _WF_W['snap'] = Snapshot(base, pd.Timestamp(now_iso).to_pydatetime())
+
+
+def _wf_eval_with(snap, tf, t, do_null, use_1m=True):
+    try:
+        d = scan_tf(snap, tf, WF_REF_SEED, NEUTRAL_CONTEXT, book={}, do_null=do_null, end=t, live=False, use_1m=use_1m)
+    except Exception as e:
+        d = wait(tf, f'스캔 오류: {type(e).__name__}: {e}')
+    out = _wf_compact(d)
+    ch = snap.channels(tf)
+    out['chk'] = float(np.round(np.sum(ch.close[max(0, t - 64):t]), 4))     # 국소 데이터 체크섬
+    return t, out
+
+
+def _wf_eval(args):
+    tf, t, do_null, use_1m = args
+    return _wf_eval_with(_WF_W['snap'], tf, t, do_null, use_1m)
+
+
+def _wf_fingerprint(base1m, anchor):
+    """WF 시작 이전 이력의 지문 (가짜 BTC·데이터 교체를 구별)."""
+    pre = base1m['close'].values[:max(1, int(anchor))]
+    h = hashlib.sha1()
+    h.update(str((len(pre), str(base1m.index[0]))).encode())
+    h.update(np.ascontiguousarray(pre[::997]).tobytes())
+    return h.hexdigest()[:16]
+
+
+def _wf_cache_path(tf, fp, do_null, use_1m):
+    d = Paths.p('wf_cache')
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, f'{MODEL_ID}_{tf}_{fp}_{"null" if do_null else "s1"}{"" if use_1m else "_tf"}.json')
+
+
+def _wf_cache_load(path):
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        HEALTH.set('wf_cache', 'WARN', f'워크포워드 캐시 손상 → 재계산: {e}')
+        return {}
+
+
+def _wf_cache_save(path, cache):
+    try:
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(cache, f, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception as e:
+        HEALTH.set('wf_cache', 'WARN', f'워크포워드 캐시 저장 실패 (결과는 정상): {e}')
+
+
+def wf_decisions(base1m, snap, tf, grid, do_null, workers=1, status=None, stop=None, use_1m=True,
+                 cache_path=None, stats=None):
+    """grid 시점들의 판정 {t: compact}. 캐시 → 병렬 → 순차 순서로 시도."""
     status = status or (lambda *a, **k: None)
+    stats = stats if stats is not None else {}
+    df = snap.tf(tf)
+    ch = snap.channels(tf)
+    cache = _wf_cache_load(cache_path) if cache_path else {}
+    out, todo = {}, []
+    for t in grid:
+        key = str(df.index[t - 1])
+        c = cache.get(key)
+        if c is not None and abs(c.get('chk', -1) - float(np.round(np.sum(ch.close[max(0, t - 64):t]), 4))) < 1e-6:
+            out[t] = c
+        else:
+            todo.append(t)
+    stats['cache_hits'] = stats.get('cache_hits', 0) + len(out)
+    stats['computed'] = stats.get('computed', 0) + len(todo)
+    t0 = time.time()
+
+    def note(i):
+        if i and (i % 20 == 0 or i == len(todo)):
+            rate = i / max(time.time() - t0, 1e-9)
+            status(f'워크포워드 {tf} {"null" if do_null else "1차"} {i}/{len(todo)} '
+                   f'({rate:.1f}개/초, 남은 {max(len(todo) - i, 0) / max(rate, 1e-9):.0f}초, 작업자 {workers})', 'blue')
+
+    done = 0
+    if workers > 1 and len(todo) > 2 * workers:
+        tmp = Paths.p(f'wf_base_{os.getpid()}.pkl')
+        try:
+            base1m.to_pickle(tmp)
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+            import multiprocessing
+            ctx = multiprocessing.get_context(os.environ.get('PATTERNEDGE_MP_START') or None)
+            with ProcessPoolExecutor(max_workers=workers, initializer=_wf_init, mp_context=ctx,
+                                     initargs=(tmp, str(pd.Timestamp(snap.now)))) as ex:
+                futs = [ex.submit(_wf_eval, (tf, t, do_null, use_1m)) for t in todo]
+                for f in as_completed(futs):
+                    t, d = f.result()
+                    out[t] = d
+                    cache[str(df.index[t - 1])] = d
+                    done += 1
+                    note(done)
+                    if stop and stop():
+                        for g in futs:
+                            g.cancel()
+                        break
+            todo = [t for t in todo if t not in out]
+        except Exception as e:
+            HEALTH.set('wf_parallel', 'WARN', f'병렬 실행 실패 → 순차로 계속: {type(e).__name__}: {e}')
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+    for t in todo:
+        if stop and stop():
+            break
+        t_, d = _wf_eval_with(snap, tf, t, do_null, use_1m)
+        out[t] = d
+        cache[str(df.index[t - 1])] = d
+        done += 1
+        note(done)
+    if cache_path:
+        _wf_cache_save(cache_path, cache)
+    return out
+
+
+def walk_forward(base1m, tf, start, end=None, step=None, seed=10000.0, do_null=False,
+                 status=None, stop=None, max_evals=None, use_1m=True, workers=None, use_cache=True):
+    """
+    생산엔진 워크포워드. 평가 시점 = start 부터 step 봉 간격의 고정 격자.
+    포지션이 열려 있는 동안의 시점은 건너뛴다 (겹치는 포지션 없음). 결과는 작업자 수·캐시와 무관하게 같다.
+    """
+    status = status or (lambda *a, **k: None)
+    t_start_wall = time.time()
     spec = MODELS[tf]
     K, H = spec['K'], spec['H']
     base1m = normalize_frame(base1m)
     snap = Snapshot(base1m, base1m.index[-1].to_pydatetime() + timedelta(minutes=1))
     df = snap.tf(tf)
     mins = INTERVALS[tf]
-    t = max(int(df.index.searchsorted(pd.Timestamp(start))), 3 * 2 * K + 2 * H + 100)
+    t0 = max(int(df.index.searchsorted(pd.Timestamp(start))), 3 * 2 * K + 2 * H + 100)
     t_end = len(df) - H - 2 if end is None else min(int(df.index.searchsorted(pd.Timestamp(end))), len(df) - H - 2)
-    step = int(step or H)
-    equity, trades, curve, reasons, evals = float(seed), [], [], {}, 0
+    step = int(step or max(1, H // 4))          # 기본: 보유기간의 1/4 간격 (15m 이면 1시간). 정밀 검증은 step=1
+    grid = list(range(t0, t_end, step))
+    if max_evals:
+        grid = grid[:int(max_evals)]
+    workers = WF_DEFAULT_WORKERS if workers is None else max(1, int(workers))
+    fp = _wf_fingerprint(base1m, int(base1m.index.searchsorted(df.index[t0 - 1])) if grid else 1)
+    stats = {}
+    cp1 = _wf_cache_path(tf, fp, False, use_1m) if use_cache else None
+    dec = wf_decisions(base1m, snap, tf, grid, False, workers, status, stop, use_1m, cp1, stats)
+    if do_null:
+        finalists = [t for t in grid if dec.get(t, {}).get('precheck_ok')]
+        status(f'워크포워드 {tf}: 1차 통과 {len(finalists)}/{len(grid)} 시점만 matched-null', 'blue')
+        cpn = _wf_cache_path(tf, fp, True, use_1m) if use_cache else None
+        dec.update(wf_decisions(base1m, snap, tf, finalists, True, workers, status, stop, use_1m, cpn, stats))
+    # replay — 실제 시드로 사이징·체결·복리, 포지션 겹침 금지
     ts = ts_ns(df.index)
-    while t < t_end:
-        if stop and stop():
-            break
-        if max_evals and evals >= max_evals:
-            break
-        evals += 1
-        if evals % 10 == 0:
-            status(f'워크포워드 {tf} {df.index[t]:%Y-%m-%d} | 평가 {evals} | 체결 {len(trades)} | 자산 {equity:,.0f}', 'blue')
-        d = scan_tf(snap, tf, equity, NEUTRAL_CONTEXT, book={}, do_null=do_null, end=t, live=False, use_1m=use_1m)
+    equity, trades, curve, reasons, next_free, last_t = float(seed), [], [], {}, 0, t0
+    for t in grid:
+        if t not in dec:
+            break                                            # 중단된 지점
+        last_t = t
+        if t < next_free:
+            continue
+        d = dec[t]
         if not d.get('trade'):
             key = (d.get('reason') or 'WAIT').split(' ')[0][:24]
             reasons[key] = reasons.get(key, 0) + 1
-            t += step
             continue
-        close_t = pd.Timestamp(ts[t - 1]) + pd.Timedelta(minutes=mins)
-        res = simulate_ticket(base1m, d, close_t)
+        sz = size_position(equity, d['entry'], d['sl'], d['risk_frac'], tf, H, d.get('rules') or FALLBACK_RULES)
+        if not sz['executable']:
+            reasons['사이징불가'] = reasons.get('사이징불가', 0) + 1
+            continue
+        dd = dict(d, sizing=sz)
+        res = simulate_ticket(base1m, dd, pd.Timestamp(ts[t - 1]) + pd.Timedelta(minutes=mins))
         if res is None:
             break
         pnl = float(res['pnl_usdt'])
         equity = max(equity + pnl, 0.0)
         trades.append(dict(time=str(df.index[t - 1]), side=d['side'], tf=tf, r=res['r_mult'], code=res['code'],
-                           reason=res['reason'], risk=d['risk_frac'], lev=d['sizing']['lev'], pnl=pnl,
+                           reason=res['reason'], risk=d['risk_frac'], lev=sz['lev'], pnl=pnl,
                            equity=equity, p_family=d.get('p_family')))
         curve.append((res['exit_time'], equity))
-        exit_t = pd.Timestamp(res['exit_time'])
-        t = max(t + 1, int(df.index.searchsorted(exit_t, side='right')) + 1)
+        next_free = int(df.index.searchsorted(pd.Timestamp(res['exit_time']), side='right')) + 1
         if equity <= seed * 0.2:
             break
+    evals = len([t for t in grid if t in dec])
     summary = wf_summary(trades, seed)
-    summary.update(tf=tf, evals=evals, start=str(start), end=str(df.index[min(t, len(df) - 1)]), do_null=bool(do_null))
+    summary.update(tf=tf, evals=evals, start=str(start), end=str(df.index[min(last_t, len(df) - 1)]),
+                   do_null=bool(do_null), step=step, workers=workers, seconds=round(time.time() - t_start_wall, 1),
+                   cache_hits=stats.get('cache_hits', 0), computed=stats.get('computed', 0))
     return dict(report=wf_report(trades, summary, seed, tf, evals, reasons, do_null),
                 trades=trades, curve=curve, evals=evals, summary=summary)
 
@@ -2997,7 +3269,8 @@ def wf_summary(trades, seed):
 
 def wf_report(trades, s, seed, tf, evals, reasons, do_null):
     L = [f'━━━ 생산엔진 워크포워드 · {SYMBOL} {tf} · model {MODEL_ID} · null {"ON" if do_null else "OFF(1차만)"} ━━━',
-         f'평가 시점 {evals}개 · 구간 {s.get("start")} ~ {s.get("end")}']
+         f'평가 시점 {evals}개 (step {s.get("step")}봉) · 구간 {s.get("start")} ~ {s.get("end")}',
+         f'속도: {s.get("seconds")}초 · 새로 계산 {s.get("computed")} · 캐시 재사용 {s.get("cache_hits")} · 작업자 {s.get("workers")}개']
     if not trades:
         L += ['체결 0건 — 게이트가 전부 걸렀습니다. 이것도 결과입니다.',
               'WAIT 사유 상위: ' + ', '.join(f'{k}×{v}' for k, v in sorted(reasons.items(), key=lambda x: -x[1])[:8])]
@@ -3023,8 +3296,64 @@ def wf_report(trades, s, seed, tf, evals, reasons, do_null):
         L.append('▶ 평균은 양(+)이나 CI 하한 ≤ 0 또는 표본/DSR 부족 — 엣지 입증 아님.')
     else:
         L.append('▶ 평균 R ≤ 0 — 이 설정은 실전 근거가 없습니다.')
+    L += growth_decomposition_lines(trades, s, seed)
     L.append('※ 컨텍스트 veto 는 과거값이 없어 중립. 체결 = 감지 직후 1분봉 시가, 동시도달 = 손절.')
     return '\n'.join(L)
+
+
+def _kelly_risk(R, cap=0.30):
+    grid = np.linspace(0.0, cap, 301)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        g = np.log1p(np.outer(grid, R))
+    g[~np.isfinite(g)] = -1e9
+    m = g.mean(axis=1)
+    j = int(np.argmax(m))
+    return float(grid[j]) if m[j] > 0 else 0.0
+
+
+def growth_decomposition(trades, s, seed):
+    """'왜 느린가'를 숫자로: 연 체결수 × 거래당 위험 × 평균R, 그리고 증거가 허용하는 최대 속도(반켈리)."""
+    if not trades:
+        return None
+    R = np.array([x['r'] for x in trades], dtype=np.float64)
+    risk = np.array([x['risk'] for x in trades], dtype=np.float64)
+    years = max((to_naive_utc(s['end']) - to_naive_utc(s['start'])).total_seconds() / (365.25 * 86400), 1e-6)
+    n_year = len(R) / years
+    eq_end = trades[-1]['equity']
+    cagr = (max(eq_end, 1e-9) / seed) ** (1 / years) - 1
+    g_trade = float(np.mean(np.log1p(np.clip(risk * R, -0.999, None))))
+    shift = float(R.mean() - s['ci_lo'])
+    f_rob = _kelly_risk(R - shift) if s['ci_lo'] > 0 else 0.0           # 참 평균R = CI 하한이라고 가정
+    half = 0.5 * f_rob
+    g_half = float(np.mean(np.log1p(half * (R - shift)))) if half > 0 else 0.0
+    cagr_half = math.exp(g_half * n_year) - 1
+    need = math.log(1.01) * 365 / max(n_year, 1e-9)                      # 하루 1% 에 필요한 거래당 로그성장
+    return dict(years=years, n_year=n_year, avg_risk=float(risk.mean()), mean_r=float(R.mean()),
+                cagr=cagr, daily=(1 + cagr) ** (1 / 365) - 1, g_trade=g_trade, ci_lo=s['ci_lo'],
+                robust_kelly=f_rob, half_kelly=half, cagr_half=cagr_half,
+                daily_half=(1 + cagr_half) ** (1 / 365) - 1, need_per_trade=need)
+
+
+def growth_decomposition_lines(trades, s, seed):
+    g = growth_decomposition(trades, s, seed)
+    if not g:
+        return []
+    L = ['── 성장 분해 (왜 이 속도인가) ──',
+         f"연 체결 {g['n_year']:.0f}건 × 평균위험 {g['avg_risk']:.2%} × 평균 {g['mean_r']:+.3f}R "
+         f"→ 연 {g['cagr']:+.1%} (하루 평균 {g['daily']:+.3%})"]
+    if g['ci_lo'] > 0:
+        L.append(f"증거가 허용하는 최대 속도: 평균R 을 CI 하한 {g['ci_lo']:+.3f} 로 낮춰 잡은 반켈리 = 거래당 위험 "
+                 f"{g['half_kelly']:.2%} → 같은 거래수면 연 {g['cagr_half']:+.1%} (하루 {g['daily_half']:+.3%})")
+        L.append(f'   ※ 이론 상한일 뿐 실전 적용 아님: 실전 위험은 상한 {RISK_CAP:.0%}·ST-09·증거 단계가 결정한다. '
+                 'prospective(E5)로 같은 edge 가 확인되기 전에는 이 숫자대로 걸지 말 것.')
+    else:
+        L.append('증거가 허용하는 최대 속도: 평균R 의 CI 하한 ≤ 0 → 위험을 올릴 통계적 근거 없음 '
+                 '(올리면 이익이 아니라 운의 크기만 같은 배율로 커진다)')
+    L.append(f"하루 1% (연 3,678%) 에 필요한 것: 연 {g['n_year']:.0f}건 기준 거래당 로그성장 {g['need_per_trade']:.2%} "
+             f"(현재 {g['g_trade']:+.3%}) — 거래 수를 늘리거나 거래당 edge 를 키워야 하며, 위험만 키우면 켈리 초과로 오히려 느려진다")
+    if (s.get('step') or 1) > 1:
+        L.append(f"※ 평가 간격 step {s.get('step')}봉: 실시간 감시는 매 봉 평가하므로 실제 거래 빈도를 보려면 --step 1 (캐시로 재실행 가능)")
+    return L
 
 
 # =============================================================================
@@ -3857,13 +4186,17 @@ def main(argv=None):
         i = argv.index('--walkforward')
         tf = argv[i + 1] if len(argv) > i + 1 else '15m'
         start = argv[i + 2] if len(argv) > i + 2 else (utcnow() - timedelta(days=365)).strftime('%Y-%m-%d')
+        def opt(name, default):
+            return argv[argv.index(name) + 1] if name in argv and len(argv) > argv.index(name) + 1 else default
         store = DataStore()
         store.refresh()
         base = store.base
         if '--surrogate' in argv:
-            base = make_surrogate_1m(base, seed=int(time.time()) % 100000)
+            base = make_surrogate_1m(base, seed=int(opt('--surrogate-seed', 1)))
             print('★ 가짜 BTC(하루 블록 셔플) — 여기서도 벌면 엣지가 아니라 곡선맞춤 ★')
-        res = walk_forward(base, tf, start, do_null='--null' in argv, status=lambda t, c='': print(t))
+        res = walk_forward(base, tf, start, do_null='--null' in argv, status=lambda t, c='': print(t),
+                           workers=int(opt('--workers', WF_DEFAULT_WORKERS)),
+                           step=int(opt('--step', 0)) or None, use_cache='--no-cache' not in argv)
         print(res['report'])
         cert = Engine(store=store).record_walkforward(tf, res, '--null' in argv, '--surrogate' in argv,
                                                       data_note='CLI · 로컬 캐시 1분봉')

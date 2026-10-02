@@ -19,6 +19,7 @@ python pattern_edge_v612.py --selftest                      # 오프라인 자�
 python pattern_edge_v612.py                                 # GUI (IDLE F5 와 동일)
 python pattern_edge_v612.py --walkforward 15m 2024-01-01    # 생산엔진 워크포워드
 python pattern_edge_v612.py --walkforward 15m 2024-01-01 --surrogate   # 가짜 BTC 대조군
+#   추가 옵션: --null (matched-null 포함) --workers 6 (병렬 작업자 수) --step 8 (평가 간격, 봉) --no-cache
 ```
 
 ## 테스트

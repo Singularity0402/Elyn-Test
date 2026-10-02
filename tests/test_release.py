@@ -11,6 +11,7 @@ STDLIB_OR_THIRD_PARTY = {
     '__future__', 'io', 'os', 'sys', 'json', 'math', 'time', 'copy', 'queue', 'random', 'zipfile', 'hashlib',
     'logging', 'threading', 'traceback', 'contextlib', 'datetime', 'urllib', 'importlib', 'zoneinfo',
     'numpy', 'pandas', 'requests', 'numba', 'tkinter', 'matplotlib', 'winsound', 'ctypes', 'tempfile',
+    'concurrent', 'multiprocessing',
 }
 
 
