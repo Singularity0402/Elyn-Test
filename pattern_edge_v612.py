@@ -297,6 +297,7 @@ class Paths:
     ledger = classmethod(lambda cls: cls.p(f'{SYMBOL}_v612_ledger.jsonl'))
     decisions = classmethod(lambda cls: cls.p(f'{SYMBOL}_v612_decisions.jsonl'))
     rules_cache = classmethod(lambda cls: cls.p(f'{SYMBOL}_v612_exchange_rules.json'))
+    funding = classmethod(lambda cls: cls.p(f'{SYMBOL}_funding_8h.csv'))
     log_file = classmethod(lambda cls: cls.p('pattern_edge_v612.log'))
     lock_file = classmethod(lambda cls: cls.p('pattern_edge_v612.lock'))
 
@@ -447,7 +448,8 @@ class PublicHttp:
     ALLOWED = {
         'fapi.binance.com': ('/fapi/v1/klines', '/fapi/v1/exchangeInfo', '/fapi/v1/premiumIndex',
                              '/fapi/v1/ticker/bookTicker', '/fapi/v1/openInterest',
-                             '/fapi/v1/ticker/24hr', '/fapi/v1/ticker/price', '/futures/data/'),
+                             '/fapi/v1/ticker/24hr', '/fapi/v1/ticker/price', '/fapi/v1/fundingRate',
+                             '/futures/data/'),
         'data.binance.vision': ('/data/',),
     }
 
@@ -4134,12 +4136,15 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
             with_sur = messagebox.askyesno('전략 탐색', '가짜 BTC 대조군도 같이 돌릴까요? (권장 — "운의 크기"를 함께 봅니다)')
 
             def work():
-                txt = lab_run(base, status=self.status)['report']
+                self.status('Lab: 펀딩비 내려받기...', 'blue')
+                funding = load_funding_history(self.engine.store.http)
+                txt = lab_run(base, status=self.status, funding=funding)['report']
                 if with_sur:
                     self.status('Lab: 가짜 BTC 대조군...', 'blue')
                     txt += '\n\n★ 가짜 BTC 대조군 — 아래 최고 성적이 "운으로도 나오는 수준"이다 ★\n'
-                    txt += lab_run(make_surrogate_1m(base, seed=1), status=self.status)['report']
-                return txt + '\n\n(holdout 공개는 명령행에서만: python pattern_edge_v612.py --lab --reveal-holdout)'
+                    txt += lab_run(make_surrogate_1m(base, seed=1), status=self.status, funding=funding)['report']
+                return txt + ('\n\n(가설 하나만 검증·holdout 공개·가짜 BTC p값은 명령행에서: python pattern_edge_v612.py '
+                              '--lab --only 4h:flow --surrogate-n 50 / --lab --only 4h:flow --reveal-holdout)')
             if not self.run_bg(work, done='lab', busy=True):
                 messagebox.showinfo('안내', '작업 실행 중입니다.')
 
@@ -4184,13 +4189,17 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
 # =============================================================================
 # [24] STRATEGY LAB — 여러 전략군을 빠르게 검증하되, 끼워맞추기(data mining)는 구조적으로 막는다
 # -----------------------------------------------------------------------------
-#  · 전략군: 추세(TSMOM, EMA 교차), 돌파(Donchian, Bollinger), 평균회귀(z-score)
+#  · 전략군: 추세(TSMOM, EMA 교차), 돌파(Donchian, Bollinger, Keltner), 일중(변동성 돌파, 뉴욕개장 레인지,
+#    테이커 체결강도), 평균회귀(z-score, RSI(2)), 선물 전용(펀딩비 역추세 — 공개 REST, 키 불필요)
 #  · 모든 전략은 진입 시 ATR 손절을 갖는다 → 결과를 R(1회 위험) 단위로 같은 잣대 비교
-#  · 진입·청산 = 신호 다음 봉 시가, 손절은 봉 안에서 먼저 처리, taker 비용·슬리피지·펀딩 차감
+#  · 진입·청산 = 신호 다음 봉 시가, 손절은 봉 안에서 먼저 처리, 수수료·슬리피지·펀딩 적립금 차감
+#  · 비용 시나리오(--cost): taker(기본) · maker_entry(지정가 진입 — 가격이 지정가를 관통해야 체결, 못 받으면
+#    다음 봉에 다시) · maker(청산까지 지정가 — 청산 체결을 가정한 낙관 상한). 손절은 언제나 시장가.
 #  · 롤링 워크포워드 최적화(WFO): 과거 train 구간에서 고른 파라미터를 '보지 않은' 다음 test 구간에만 적용
 #    → 보고되는 성과는 '파라미터 고르는 절차'의 표본외 성과다. 고를 게 없으면 그 구간은 쉰다.
 #  · 마지막 holdout 구간은 기본적으로 '봉인'. 공개(--reveal-holdout)하면 원장에 기록된다 (한 번 쓰면 끝).
-#  · DSR 은 시험한 절차 수(전략군 × TF)로 보정한다. 가짜 BTC(--surrogate)로 '운의 크기'를 함께 본다.
+#    탐색 결과를 보고 고른 가설은 --only 4h:flow 처럼 '하나만' 선언해서 공개한다 (표본외 DSR 은 탐색 전체 절차 수로 보정).
+#  · DSR 은 시험한 절차 수(전략군 × TF)로 보정한다. 가짜 BTC(--surrogate, --surrogate-n)로 '운의 크기'를 함께 본다.
 # =============================================================================
 LAB_TFS = ('5m', '15m', '1h', '4h')
 LAB_RISK = 0.01                 # 비교용 고정 위험 (거래당 계좌 1%)
@@ -4212,13 +4221,25 @@ LAB_GRIDS = {
     # 평균회귀
     'meanrev':  [dict(N=N, z=z, k=k) for N in (20, 50, 100) for z in (2.0, 2.5, 3.0) for k in (1.5, 3.0)],
     'rsi2':     [dict(th=th, k=k) for th in (5, 10, 20) for k in (2.0, 4.0)],
+    # 선물 전용
+    'funding':  [dict(q=q, H=H, k=k) for q in (0.90, 0.95) for H in (6, 24) for k in (2.0, 4.0)],
 }
 LAB_FAMILY_KO = {'tsmom': '시계열 모멘텀', 'ema': 'EMA 교차', 'donchian': 'Donchian 돌파',
                  'bollinger': 'Bollinger 돌파', 'keltner': 'Keltner+거래량 돌파',
                  'volbreak': '변동성 돌파(일중)', 'session': '뉴욕개장 레인지 돌파', 'flow': '테이커 체결강도',
-                 'meanrev': 'z-score 평균회귀', 'rsi2': 'RSI(2) 단기반전'}
-LAB_FAMILY_TFS = {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h')}   # 일중 구조가 의미 있는 TF 만
+                 'meanrev': 'z-score 평균회귀', 'rsi2': 'RSI(2) 단기반전', 'funding': '펀딩비 역추세'}
+LAB_FAMILY_TFS = {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h'),   # 일중 구조가 의미 있는 TF 만
+                  'funding': ('1h', '4h')}                                       # 8시간 정산 → 짧은 TF 는 같은 값 반복
 LAB_MAX_HOLD = {'rsi2': 10}
+LAB_FUNDING_WINDOW = 270        # 펀딩 정산 270회 ≈ 90일 롤링 백분위
+LAB_FUNDING_MAX_AGE_H = 16      # 정산 1회 누락까지만 허용, 더 비면 신호 없음
+LAB_COST_MODES = {              # (설명, 진입 비용, 신호·시간 청산 비용, 지정가 관통폭: <0 이면 시장가 진입)
+    'taker':       ('시장가 진입·시장가 청산', TAKER_FEE + SLIPPAGE_T, TAKER_FEE + SLIPPAGE_T, -1.0),
+    'maker_entry': ('지정가 진입(관통해야 체결, 못 받으면 다음 봉 재시도)·시장가 청산',
+                    MAKER_FEE, TAKER_FEE + SLIPPAGE_T, MAKER_TP_THROUGH),
+    'maker':       ('지정가 진입·지정가 청산 (청산 체결을 가정 = 낙관 상한)', MAKER_FEE, MAKER_FEE, MAKER_TP_THROUGH),
+}
+FUNDING_EPOCH_MS = 1567296000000   # 2019-09-01 UTC (BTCUSDT 무기한 상장 전) — 처음부터 받는다
 
 
 @njit(cache=False)
@@ -4241,10 +4262,14 @@ def lab_state(enter_long, enter_short, exit_long, exit_short):
 
 
 @njit(cache=False)
-def lab_sim(o, h, l, c, atr, target, stop_k, max_hold, cost_frac, fund_per_bar):
+def lab_sim_x(o, h, l, c, atr, target, stop_k, max_hold, c_in, c_out, c_stop, fund_per_bar, limit_through):
     """
     목표 포지션 → 거래 목록. target[i-1] 을 봉 i 시가에 실행, 진입 시 손절 = 진입가 ∓ k·ATR.
     손절 후 같은 방향 재진입은 신호가 한 번 바뀐 뒤에만 (같은 추세에 연속 손절 방지).
+    비용 = 진입 c_in + (신호·시간 청산 c_out | 손절 c_stop).
+    limit_through ≥ 0 이면 진입은 봉 시가 지정가: 그 봉에서 가격이 지정가를 limit_through 이상 관통해야 체결
+    (대기열 보수), 못 받으면 신호가 살아 있는 동안 다음 봉 시가로 재시도 → 바로 유리하게 달아나는 거래를
+    놓치는 '역선택'이 자연히 반영된다.
     반환 (진입봉, 청산봉, 방향, 순 R)
     """
     n = len(c)
@@ -4266,15 +4291,22 @@ def lab_sim(o, h, l, c, atr, target, stop_k, max_hold, cost_frac, fund_per_bar):
         if pos != 0 and want != pos:
             g = pos * (o[i] / entry - 1.0)
             ei[m] = t_in; xi[m] = i; sd[m] = pos
-            rr[m] = (g - cost_frac - fund_per_bar * (i - t_in)) / (dist / entry)
+            rr[m] = (g - c_in - c_out - fund_per_bar * (i - t_in)) / (dist / entry)
             m += 1
             pos = 0
         if pos == 0 and want != 0 and want != blocked and atr[i - 1] > 1e-5:
-            pos = want
-            entry = o[i]
-            dist = stop_k * atr[i - 1] * entry
-            stop = entry - pos * dist
-            t_in = i
+            fill = True
+            if limit_through >= 0.0:
+                if want > 0:
+                    fill = l[i] <= o[i] * (1.0 - limit_through)
+                else:
+                    fill = h[i] >= o[i] * (1.0 + limit_through)
+            if fill:
+                pos = want
+                entry = o[i]
+                dist = stop_k * atr[i - 1] * entry
+                stop = entry - pos * dist
+                t_in = i
         if pos != 0:
             hit = (pos > 0 and l[i] <= stop) or (pos < 0 and h[i] >= stop)
             if hit:
@@ -4283,18 +4315,105 @@ def lab_sim(o, h, l, c, atr, target, stop_k, max_hold, cost_frac, fund_per_bar):
                     px = o[i]
                 g = pos * (px / entry - 1.0)
                 ei[m] = t_in; xi[m] = i; sd[m] = pos
-                rr[m] = (g - cost_frac - fund_per_bar * (i - t_in + 1)) / (dist / entry)
+                rr[m] = (g - c_in - c_stop - fund_per_bar * (i - t_in + 1)) / (dist / entry)
                 m += 1
                 blocked = pos
                 pos = 0
             elif max_hold > 0 and i - t_in + 1 >= max_hold:
                 g = pos * (c[i] / entry - 1.0)
                 ei[m] = t_in; xi[m] = i; sd[m] = pos
-                rr[m] = (g - cost_frac - fund_per_bar * (i - t_in + 1)) / (dist / entry)
+                rr[m] = (g - c_in - c_out - fund_per_bar * (i - t_in + 1)) / (dist / entry)
                 m += 1
                 blocked = pos
                 pos = 0
     return ei[:m], xi[:m], sd[:m], rr[:m]
+
+
+def lab_sim(o, h, l, c, atr, target, stop_k, max_hold, cost_frac, fund_per_bar):
+    """시장가 진입·청산, 왕복 비용 cost_frac (lab_sim_x 의 단순형)."""
+    half = 0.5 * float(cost_frac)
+    return lab_sim_x(o, h, l, c, atr, target, float(stop_k), int(max_hold), half, half, half,
+                     float(fund_per_bar), -1.0)
+
+
+def _funding_from_rows(rows):
+    t = np.array([int(r['fundingTime']) for r in rows], dtype=np.int64)
+    v = np.array([float(r['fundingRate']) for r in rows], dtype=np.float64)
+    return pd.Series(v, index=pd.DatetimeIndex(pd.to_datetime(t, unit='ms')), name='rate')
+
+
+def load_funding_history(http=None, path=None, refresh=True, log=None):
+    """
+    BTCUSDT 8시간 정산 펀딩비 (공개 REST /fapi/v1/fundingRate — 키·서명 없음) → pd.Series(rate, index=정산시각 UTC).
+    로컬 CSV 캐시에 이어 받는다. 갱신 실패 시 캐시만 쓰고, 캐시도 없으면 None (펀딩비 전략군은 생략된다).
+    """
+    log = log or (lambda msg, color='black': LOG.info(msg))
+    path = path or Paths.funding()
+    s = None
+    if os.path.exists(path):
+        try:
+            df = pd.read_csv(path)
+            s = pd.Series(df['rate'].values.astype(np.float64),
+                          index=pd.DatetimeIndex(pd.to_datetime(df['time_ms'].values.astype(np.int64), unit='ms')),
+                          name='rate')
+        except Exception as e:
+            HEALTH.set('funding', 'WARN', f'펀딩비 캐시 손상 — 처음부터 다시 받습니다: {e}')
+            s = None
+    if refresh:
+        http = http or PublicHttp()
+        cursor = int(s.index[-1].value // 10 ** 6) + 1 if s is not None and len(s) else FUNDING_EPOCH_MS
+        got = []
+        try:
+            for _ in range(100):
+                rows = http.get_json(f'{FAPI_BASE}/fapi/v1/fundingRate?symbol={SYMBOL}&startTime={cursor}&limit=1000',
+                                     timeout=20)
+                if not rows:
+                    break
+                got.extend(rows)
+                newest = int(rows[-1]['fundingTime'])
+                if len(rows) < 1000 or newest < cursor:
+                    break
+                cursor = newest + 1
+                time.sleep(0.3)
+            HEALTH.clear('funding')
+        except Exception as e:
+            HEALTH.set('funding', 'WARN', f'펀딩비 갱신 실패 ({type(e).__name__}: {e}) — '
+                                          f'캐시 {0 if s is None else len(s)}건으로 진행')
+        if got:
+            new = _funding_from_rows(got)
+            s = new if s is None else pd.concat([s, new])
+            s = s[~s.index.duplicated(keep='last')].sort_index()
+            try:
+                tmp = path + '.tmp'
+                ms = s.index.values.astype('datetime64[ms]').astype(np.int64)
+                pd.DataFrame({'time_ms': ms, 'rate': s.values}).to_csv(tmp, index=False)
+                os.replace(tmp, path)
+            except Exception as e:
+                HEALTH.set('funding', 'WARN', f'펀딩비 캐시 저장 실패: {e}')
+            log(f'펀딩비 {len(got)}건 수신 → 총 {len(s)}건 ({s.index[0]:%Y-%m-%d} ~ {s.index[-1]:%Y-%m-%d %H:%M} UTC)',
+                'blue')
+    if s is None or len(s) == 0:
+        return None
+    return s
+
+
+def _lab_funding_pct(idx, bar_minutes, funding, window=LAB_FUNDING_WINDOW):
+    """
+    봉마다 '그 봉 마감 전에 이미 정산된' 마지막 펀딩비의 롤링 백분위 (인과적 — 봉 마감과 같은 시각 정산은
+    다음 봉부터 쓴다 = 보수). 정산이 LAB_FUNDING_MAX_AGE_H 넘게 비어 있으면 NaN (신호 없음).
+    """
+    if funding is None or len(funding) < window // 2:
+        return None
+    f = funding.sort_index()
+    pct = f.rolling(window, min_periods=window // 2).rank(pct=True).values
+    t = f.index.values.astype('datetime64[ns]')
+    close = (idx + pd.Timedelta(minutes=bar_minutes)).values.astype('datetime64[ns]')
+    j = np.searchsorted(t, close, side='left') - 1
+    jj = np.clip(j, 0, len(t) - 1)
+    ok = (j >= 0) & ((close - t[jj]) <= np.timedelta64(LAB_FUNDING_MAX_AGE_H, 'h'))
+    out = np.full(len(idx), np.nan)
+    out[ok] = pct[jj[ok]]
+    return out
 
 
 def _lab_indicators(df):
@@ -4372,6 +4491,15 @@ def _lab_target(fam, p, ind):
         imb = ((2 * ind['tb'] - ind['v']).rolling(N).sum() / ind['v'].rolling(N).sum()).fillna(0).values
         trend = (c > c.ewm(span=100, adjust=False).mean()).values
         return lab_state((imb > p['th']) & trend, (imb < -p['th']) & ~trend, imb < 0, imb > 0)
+    if fam == 'funding':
+        # 펀딩비가 최근 90일 중 극단(상위/하위 1−q) = 한쪽으로 쏠린 레버리지 → 반대 방향.
+        # 백분위가 50% 로 돌아오면, 또는 H 봉·손절로 청산
+        fp = ind.get('fpct')
+        if fp is None:
+            return zeros.astype(np.int64)
+        valid = ~np.isnan(fp)
+        f0 = np.where(valid, fp, 0.5)
+        return lab_state(valid & (f0 <= 1 - p['q']), valid & (f0 >= p['q']), f0 >= 0.5, f0 <= 0.5)
     if fam == 'rsi2':
         # Connors RSI(2): 장기 추세 방향의 단기 과매도/과매수 되돌림
         d = c.diff()
@@ -4409,21 +4537,62 @@ def _lab_metrics(R, years, risk=LAB_RISK, n_trials=1):
                 mdd=float((1 - eq / np.maximum.accumulate(eq)).max()), dsr=float(dsr))
 
 
+def lab_pairs(only=None):
+    """'4h:flow,1h:funding' 또는 [('4h','flow')] → 검증된 (TF, 전략군) 목록. None → None."""
+    if not only:
+        return None
+    out = []
+    for x in (only.split(',') if isinstance(only, str) else only):
+        tf, fam = (x.split(':') if isinstance(x, str) else x)
+        tf, fam = tf.strip(), fam.strip()
+        if fam not in LAB_GRIDS or tf not in LAB_FAMILY_TFS.get(fam, LAB_TFS):
+            ok = ', '.join(f'{t}:{f}' for f in LAB_GRIDS for t in LAB_FAMILY_TFS.get(f, LAB_TFS))
+            raise ValueError(f'알 수 없는 조합 {tf}:{fam} — 가능한 값: {ok}')
+        if (tf, fam) not in out:
+            out.append((tf, fam))
+    return out
+
+
+def lab_trial_count(tfs=LAB_TFS, families=None):
+    """탐색 전체의 절차 수 (전략군 × 적용 TF)."""
+    families = list(families or LAB_GRIDS)
+    return sum(1 for tf in tfs for fam in families if tf in LAB_FAMILY_TFS.get(fam, LAB_TFS))
+
+
 def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTHS, train_years=LAB_TRAIN_YEARS,
-            test_months=LAB_TEST_MONTHS, reveal_holdout=False, status=None, futures_only=True):
-    """반환 dict(rows=[...], holdout_start, report)."""
+            test_months=LAB_TEST_MONTHS, reveal_holdout=False, status=None, futures_only=True,
+            cost_mode='taker', only=None, funding=None, n_trials_declared=None):
+    """
+    반환 dict(rows=[...], holdout_start, report).
+    only='4h:flow' — 탐색 결과를 보고 고른 가설만 검증. 표본외 DSR 은 n_trials_declared(그 가설을 고른 탐색의
+    전체 절차 수)로 보정하고, holdout 은 선언된 가설만 보므로 n_trials=1.
+    funding=None 이면 펀딩비 전략군은 생략한다 (절차 수에도 넣지 않는다).
+    """
     status = status or (lambda *a, **k: None)
+    if cost_mode not in LAB_COST_MODES:
+        raise ValueError(f'알 수 없는 비용 시나리오 {cost_mode} — 가능한 값: {", ".join(LAB_COST_MODES)}')
+    _, c_in, c_out, limit_through = LAB_COST_MODES[cost_mode]
+    c_stop = TAKER_FEE + SLIPPAGE_T
     t_wall = time.time()
     base1m = normalize_frame(base1m)
     if futures_only and (base1m['era'].values == ERA_FUT).any():
         base1m = base1m[base1m['era'].values == ERA_FUT]
     snap = Snapshot(base1m, base1m.index[-1].to_pydatetime() + timedelta(minutes=1))
-    families = list(families or LAB_GRIDS)
+    has_funding = funding is not None and len(funding) >= LAB_FUNDING_WINDOW // 2
+    families = [f for f in (families or LAB_GRIDS) if f != 'funding' or has_funding]
+    pairs = lab_pairs(only)
+    if pairs:
+        if any(f == 'funding' for _, f in pairs) and not has_funding:
+            raise ValueError('펀딩비 데이터가 없어 펀딩비 전략군을 검증할 수 없습니다 (네트워크 확인 후 다시)')
+        tfs = tuple(t for t in INTERVALS if any(t == a for a, _ in pairs))
+        families = [f for f in LAB_GRIDS if any(f == b for _, b in pairs)]
     hold_start = base1m.index[-1] - pd.DateOffset(months=int(holdout_months))
     rows, n_sims = [], 0
+
     def applies(fam, tf):
-        return tf in LAB_FAMILY_TFS.get(fam, LAB_TFS)
+        return tf in LAB_FAMILY_TFS.get(fam, LAB_TFS) and (pairs is None or (tf, fam) in pairs)
     n_trials = sum(1 for tf in tfs for fam in families if applies(fam, tf))
+    n_dsr = max(n_trials, int(n_trials_declared or 0))
     for tf in tfs:
         df = snap.tf(tf)
         df = df[df['complete'].values > 0.5]
@@ -4433,7 +4602,8 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
         o, h, l, c, atr = (ind[k].values for k in ('o', 'h', 'l', 'c', 'atr'))
         idx = df.index
         bar_h = INTERVALS[tf] / 60.0
-        cost = 2 * (TAKER_FEE + SLIPPAGE_T)
+        if has_funding and applies('funding', tf):
+            ind['fpct'] = _lab_funding_pct(idx, INTERVALS[tf], funding)
         fund = FUNDING_PER_8H * bar_h / 8.0
         i_hold = int(idx.searchsorted(hold_start))
         train_n = int(train_years * 365.25 * 24 / bar_h)
@@ -4446,8 +4616,10 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
             sims = []
             for p in LAB_GRIDS[fam]:
                 tgt = _lab_target(fam, p, ind)
-                mh = int(p['N']) if fam == 'meanrev' else int(LAB_MAX_HOLD.get(fam, 0))
-                ei, xi, sd, rr = lab_sim(o, h, l, c, atr, tgt, float(p['k']), mh, cost, fund)
+                mh = int(p['N']) if fam == 'meanrev' else int(p['H']) if fam == 'funding' \
+                    else int(LAB_MAX_HOLD.get(fam, 0))
+                ei, xi, sd, rr = lab_sim_x(o, h, l, c, atr, tgt, float(p['k']), mh, c_in, c_out, c_stop, fund,
+                                           limit_through)
                 sims.append((p, ei, rr))
                 n_sims += 1
             oos_r, oos_i, hold_r, chosen = [], [], [], []
@@ -4462,7 +4634,7 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
                     score = x.mean() - x.std(ddof=1) / math.sqrt(len(x))     # 평균 R 의 1σ 하한
                     if score > best_score:
                         best, best_score = (p, ei, rr), score
-                chosen.append((str(idx[s])[:10], None if best is None else best[0]))
+                chosen.append((str(idx[s])[:10], None if best is None else best[0], e > i_hold))
                 if best is None:
                     continue                                                # 고를 게 없으면 쉰다
                 p, ei, rr = best
@@ -4473,29 +4645,53 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
                         oos_i.append(int(ei[j]))
             years = max((idx[min(i_hold, len(idx) - 1)] - idx[min(train_n, len(idx) - 1)]).days / 365.25, 1e-6)
             hold_years = max((idx[-1] - idx[min(i_hold, len(idx) - 1)]).days / 365.25, 1e-6)
-            met = _lab_metrics(oos_r, years, n_trials=n_trials)
+            met = _lab_metrics(oos_r, years, n_trials=n_dsr)
             hmet = _lab_metrics(hold_r, hold_years, n_trials=1)
-            last = next((pp for _, pp in reversed(chosen) if pp is not None), None)
+            last = next((pp for _, pp, _ in reversed(chosen) if pp is not None), None)
             rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last, oos_r=oos_r,
-                             windows=len(chosen), idle_windows=sum(1 for _, pp in chosen if pp is None)))
+                             windows=len(chosen), idle_windows=sum(1 for _, pp, _ in chosen if pp is None),
+                             hold_windows=sum(1 for _, _, hh in chosen if hh),
+                             hold_idle=sum(1 for _, pp, hh in chosen if hh and pp is None)))
     rows.sort(key=lambda r: (np.nan_to_num(r['oos']['ci_lo'], nan=-9), r['oos']['n']), reverse=True)
-    out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_sims=n_sims,
-               n_families=len(families), tfs=list(tfs),
+    out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_dsr=n_dsr, n_sims=n_sims,
+               n_families=len(families), tfs=list(tfs), cost_mode=cost_mode,
+               declared=[f'{a}:{b}' for a, b in pairs] if pairs else None,
+               funding_info=(f'{funding.index[0]:%Y-%m-%d} ~ {funding.index[-1]:%Y-%m-%d} · {len(funding):,}회 정산'
+                             if has_funding else None),
                seconds=round(time.time() - t_wall, 1), revealed=bool(reveal_holdout),
                data=f'{base1m.index[0]:%Y-%m-%d} ~ {base1m.index[-1]:%Y-%m-%d} (선물 {"만" if futures_only else "+스팟"})')
     out['report'] = lab_report(out)
     return out
 
 
+def lab_holdout_verdict(hm):
+    """사전에 고정한 holdout 판정 규칙 — 결과를 보기 전에 정해 둔다."""
+    if hm['n'] == 0:
+        return '판정 불가 (holdout 체결 0건)'
+    if not hm['mean_r'] > 0:
+        return '반증 — 실전 신호원으로 연결하지 않는다'
+    if hm['ci_lo'] > 0:
+        return '확인 — prospective 추적(E5)으로 넘어갈 가치가 있다'
+    return '반증 안 됨 — 아직 입증은 아니다, prospective 추적으로 증거를 더 쌓는다'
+
+
 def lab_report(res):
+    mode = res.get('cost_mode', 'taker')
+    desc, c_in, c_out, _ = LAB_COST_MODES[mode]
     L = [f'━━━ STRATEGY LAB · {SYMBOL} · {res["data"]} ━━━',
          f'전략군 {res.get("n_families", len(LAB_GRIDS))}개 × TF {"/".join(res.get("tfs", LAB_TFS))} = 절차 {res["n_trials"]}개 · '
          f'파라미터 백테스트 {res["n_sims"]}회 · {res["seconds"]}초',
          f'롤링 WFO: train {LAB_TRAIN_YEARS:g}년 → test {LAB_TEST_MONTHS}개월 · 위험 거래당 {LAB_RISK:.0%} 고정 · '
          f'holdout {res["holdout_start"][:10]} 이후 {"공개됨(원장 기록)" if res["revealed"] else "봉인"}',
-         '─' * 96,
-         f'{"순위":<4}{"TF":<5}{"전략군":<16}{"OOS체결":>8}{"연간":>7}{"승률":>7}{"평균R":>8}{"90%CI 하한":>11}{"PF":>6}'
-         f'{"연복리(1%)":>11}{"MDD":>7}{"DSR":>7}' + ('  holdout평균R/건수' if res['revealed'] else '')]
+         f'비용 [{mode}] {desc}: 진입 {c_in:.3%} + 청산 {c_out:.3%} (손절은 항상 시장가 {TAKER_FEE + SLIPPAGE_T:.3%})'
+         + (' — 지정가 체결은 보장되지 않는다, 실제 체결률을 따로 기록해 확인할 것' if mode != 'taker' else ''),
+         f'펀딩비: {res["funding_info"]}' if res.get('funding_info') else '펀딩비: 데이터 없음 → 펀딩비 전략군 생략']
+    if res.get('declared'):
+        L.append(f'사전 선언 가설: {", ".join(res["declared"])} · 표본외 DSR 은 탐색 전체 절차 {res["n_dsr"]}개로 보정 '
+                 f'(가설을 고른 선택까지 반영)')
+    L += ['─' * 96,
+          f'{"순위":<4}{"TF":<5}{"전략군":<16}{"OOS체결":>8}{"연간":>7}{"승률":>7}{"평균R":>8}{"90%CI 하한":>11}{"PF":>6}'
+          f'{"연복리(1%)":>11}{"MDD":>7}{"DSR":>7}' + ('  holdout평균R/건수' if res['revealed'] else '')]
     for k, r in enumerate(res['rows'], 1):
         m = r['oos']
         line = (f'{k:<4}{r["tf"]:<5}{LAB_FAMILY_KO[r["family"]]:<16}{m["n"]:>8}{m["n_year"]:>7.0f}'
@@ -4518,21 +4714,102 @@ def lab_report(res):
             day_half = math.exp(g_half * m['n_year'] / 365.0) - 1
             L.append(f'   {g["tf"]} {LAB_FAMILY_KO[g["family"]]}: 1% 위험 기준 연 {m["cagr"]:+.1%} (하루 {m["daily"]:+.3%}) · '
                      f'증거 기반 반켈리 위험 {half:.2%} → 하루 {day_half:+.3%} (이론 상한) · 최근 파라미터 {g["last_params"]}')
-        L.append('  다음 단계: 가짜 BTC 대조군(--surrogate)에서 같은 수준이 안 나오는지 확인 → holdout 1회 공개로 최종 확인 → '
+        L.append('  다음 단계: 가짜 BTC 대조군(--surrogate-n)에서 같은 수준이 안 나오는지 확인 → holdout 1회 공개로 최종 확인 → '
                  'prospective 추적. 통과해야 실전 신호원으로 연결할 가치가 있다.')
     else:
         L.append('▶ 사전 기준(표본외 체결 ≥ 50, CI 하한 > 0, DSR ≥ 0.9)을 통과한 절차 없음 — 이 데이터·비용에서 입증된 edge 없음.')
+    if res.get('declared'):
+        L.append('▶ holdout 판정 규칙 (실행 전에 고정): 평균R ≤ 0 → 반증 · 평균R > 0 → 반증 안 됨 · 90% CI 하한 > 0 → 확인')
+        for r in res['rows']:
+            name = f'{r["tf"]} {LAB_FAMILY_KO[r["family"]]}'
+            if not res['revealed']:
+                L.append(f'   {name}: holdout 봉인 — 같은 명령에 --reveal-holdout 을 붙이면 1회 공개(원장 기록)')
+                continue
+            hm = r['holdout']
+            L.append(f'   {name}: holdout 체결 {hm["n"]}건 · 평균R {np.nan_to_num(hm["mean_r"]):+.3f} · '
+                     f'90%CI [{np.nan_to_num(hm["ci_lo"]):+.3f}, {np.nan_to_num(hm["ci_hi"]):+.3f}] · '
+                     f'승률 {np.nan_to_num(hm["win"]):.0%} · PF {np.nan_to_num(hm["pf"]):.2f} → {lab_holdout_verdict(hm)}')
+            if 0 < hm['n'] < 30:
+                L.append(f'     ※ 체결 {hm["n"]}건은 적다 — 평균R 의 오차가 커서 "확인"은 어렵고 "반증"이 더 강한 신호다.')
+            if r.get('hold_windows'):
+                L.append(f'     holdout 에 걸친 test 창 {r["hold_windows"]}개 중 {r["hold_idle"]}개는 쉼 '
+                         f'(직전 train 에서 1σ 하한이 양수인 파라미터가 없었음)')
     L.append('※ 성과는 "과거 train 으로 고른 파라미터를 보지 않은 다음 구간에 적용한" 표본외 성과다. 최상위 1개만 보고 고르면 '
              '그 자체가 선택이므로 DSR(절차 수 보정)과 가짜 BTC 결과를 함께 볼 것.')
     L.append('※ 거래소 최소주문·레버리지 한도는 반영하지 않은 연구용 결과다 (R 단위 비교가 목적).')
     return '\n'.join(L)
 
 
+def lab_surrogate_test(base1m, n=20, only=None, seed0=100, cost_mode='taker', funding=None, n_trials_declared=None,
+                       status=None, futures_only=True):
+    """
+    같은 탐색 절차를 가짜 BTC n 개에서 반복해 '운으로 이만큼 나올 확률'을 잰다.
+      p(같은 절차) = (1 + #{가짜에서 같은 TF·전략군의 CI 하한 ≥ 실제}) / (n + 1)
+      p(최고 절차) = (1 + #{가짜에서 전체 절차 중 최고 CI 하한 ≥ 실제}) / (n + 1)   ← 여러 개 중 고른 선택까지 반영
+    가짜 BTC 는 하루 블록 셔플 → 날을 넘는 가격 구조와 펀딩비-가격 관계(펀딩비는 시각 고정)가 끊긴다.
+    """
+    status = status or (lambda *a, **k: None)
+    t_wall = time.time()
+    base1m = normalize_frame(base1m)
+    if futures_only and (base1m['era'].values == ERA_FUT).any():
+        base1m = base1m[base1m['era'].values == ERA_FUT]
+    kw = dict(only=only, cost_mode=cost_mode, funding=funding, n_trials_declared=n_trials_declared,
+              futures_only=futures_only)
+    status('실제 데이터로 탐색...', 'blue')
+    real = lab_run(base1m, **kw)
+    same, best = {}, []
+    for k in range(int(n)):
+        status(f'가짜 BTC {k + 1}/{n} 탐색...', 'blue')
+        res = lab_run(make_surrogate_1m(base1m, seed=seed0 + k), **kw)
+        los = []
+        for r in res['rows']:
+            lo = float(r['oos']['ci_lo'])                     # 체결이 거의 없으면 NaN = 아무것도 못 이긴다
+            same.setdefault((r['tf'], r['family']), []).append(lo)
+            los.append(lo)
+        best.append(np.nanmax(los) if np.isfinite(los).any() else float('nan'))
+    best = np.asarray(best, dtype=np.float64)
+
+    def fmt(x, w):
+        return f'{x:>+{w}.3f}' if np.isfinite(x) else f'{"체결부족":>{w - 2}}'
+
+    def p_of(xs, lo):
+        if not np.isfinite(lo):
+            return 1.0                                        # 실제가 체결 부족이면 증거 없음
+        return (1 + int((np.nan_to_num(xs, nan=-np.inf) >= lo).sum())) / (len(xs) + 1)
+
+    def q(xs, f):
+        xs = xs[np.isfinite(xs)]
+        return f(xs) if len(xs) else float('nan')
+    L = [f'━━━ LAB 운의 크기 · 가짜 BTC {n}개 × 절차 {real["n_trials"]}개 · 비용 [{cost_mode}] · '
+         f'{round(time.time() - t_wall, 1)}초 ━━━',
+         f'가짜 BTC 최고 CI 하한: 중앙 {fmt(q(best, np.median), 7)} · 90% 분위 {fmt(q(best, lambda v: np.quantile(v, 0.9)), 7)}'
+         f' · 최고 {fmt(q(best, np.max), 7)}',
+         f'{"TF":<5}{"전략군":<16}{"실제 CI하한":>11}{"가짜(같은절차) 중앙/최고":>24}{"p(같은 절차)":>13}{"p(최고 절차)":>13}']
+    for r in real['rows'][:10]:
+        lo = float(r['oos']['ci_lo'])
+        xs = np.asarray(same.get((r['tf'], r['family']), [float('nan')]), dtype=np.float64)
+        L.append(f'{r["tf"]:<5}{LAB_FAMILY_KO[r["family"]]:<16}{fmt(lo, 11)}'
+                 f'{fmt(q(xs, np.median), 13)} / {fmt(q(xs, np.max), 8)}{p_of(xs, lo):>13.3f}{p_of(best, lo):>13.3f}')
+    L.append('※ 탐색 결과를 보고 고른 절차라면 p(최고 절차)가 맞는 값이다. p < 0.05 이어도 holdout·prospective 는 그대로 필요하다.')
+    if only:
+        L.append('※ --only 로 돌리면 가짜 BTC 에서도 선언한 절차만 돌리므로 "여러 개 중 고른 선택"은 보정되지 않는다. '
+                 '선택까지 보정한 p 는 --only 없이 --surrogate-n 으로 낸다.')
+    L.append(f'※ 가짜 {n}개로 낼 수 있는 가장 작은 p 는 {1 / (n + 1):.3f} 다 (더 정밀하게: --surrogate-n 50).')
+    return dict(real=real, best=best.tolist(), same={f'{a}:{b}': v for (a, b), v in same.items()}, report='\n'.join(L))
+
+
+def lab_prior_reveals(engine):
+    return [ev for ev in engine.state.ledger.read()
+            if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
+
+
 def lab_record_holdout(engine, res):
     """holdout 공개는 되돌릴 수 없다 → 원장에 남긴다 (몇 번 엿봤는지가 증거의 일부)."""
     with engine.state.tx() as st:
         engine.state.emit(st, 'SYSTEM', what='lab_holdout_revealed', holdout_start=res['holdout_start'],
-                          top=[dict(tf=r['tf'], family=r['family'], oos=r['oos'], holdout=r['holdout'])
+                          declared=res.get('declared'), cost_mode=res.get('cost_mode', 'taker'),
+                          top=[dict(tf=r['tf'], family=r['family'], oos=r['oos'], holdout=r['holdout'],
+                                    verdict=lab_holdout_verdict(r['holdout']) if res.get('declared') else None)
                                for r in res['rows'][:5]])
 
 
@@ -4558,18 +4835,56 @@ def main(argv=None):
         eng.store.persist(force=True)
         return 0
     if '--lab' in argv:
+        def lopt(name, default):
+            return argv[argv.index(name) + 1] if name in argv and len(argv) > argv.index(name) + 1 else default
+        cost, only = lopt('--cost', 'taker'), lopt('--only', None)
+        try:
+            lab_pairs(only)
+            if cost not in LAB_COST_MODES:
+                raise ValueError(f'알 수 없는 비용 시나리오 {cost} — 가능한 값: {", ".join(LAB_COST_MODES)}')
+        except ValueError as e:
+            print(f'[LAB] {e}')
+            return 2
         store = DataStore()
         store.refresh()
         base = store.base
-        sur = '--surrogate' in argv
-        if sur:
-            base = make_surrogate_1m(base, seed=1)
-            print('★ 가짜 BTC(하루 블록 셔플) — 여기서 나오는 최고 성적이 "운의 크기"다 ★')
-        reveal = '--reveal-holdout' in argv and not sur
-        res = lab_run(base, reveal_holdout=reveal, status=lambda t, c='': print(t))
+        funding = None if '--no-funding' in argv else load_funding_history(store.http, log=lambda t, c='': print(t))
+        if funding is None:
+            print('[LAB] 펀딩비 데이터 없음 → 펀딩비 전략군 생략')
+        fams = [f for f in LAB_GRIDS if f != 'funding' or funding is not None]
+        n_decl = lab_trial_count(LAB_TFS, fams) if only else None      # 가설을 고른 탐색의 전체 절차 수
+        status = lambda t, c='': print(t)
+        try:
+            n_sur = int(lopt('--surrogate-n', 0))
+            if n_sur > 0:
+                res = lab_surrogate_test(base, n_sur, only=only, cost_mode=cost, funding=funding,
+                                         n_trials_declared=n_decl, status=status)
+                print(res['real']['report'])
+                print(res['report'])
+                return 0
+            sur = '--surrogate' in argv
+            if sur:
+                base = make_surrogate_1m(base, seed=1)
+                print('★ 가짜 BTC(하루 블록 셔플) — 여기서 나오는 최고 성적이 "운의 크기"다 ★')
+            reveal = '--reveal-holdout' in argv and not sur
+            eng = Engine(store=store) if reveal else None
+            if reveal:
+                prior = lab_prior_reveals(eng)
+                if prior:
+                    print(f'⚠ holdout 은 이미 {len(prior)}회 공개되었습니다 '
+                          f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
+                          '이번 결과는 이미 본 데이터 위의 결과입니다.')
+                if not only:
+                    print('⚠ --only 없이 공개 = 모든 절차의 holdout 을 한꺼번에 봅니다. 여기서 좋은 것을 고르면 '
+                          'holdout 도 오염됩니다. 가설 하나만 보려면 --only 4h:flow 처럼 지정하세요.')
+            res = lab_run(base, reveal_holdout=reveal, status=status, cost_mode=cost, only=only, funding=funding,
+                          n_trials_declared=n_decl)
+        except ValueError as e:
+            print(f'[LAB] {e}')
+            return 2
         print(res['report'])
         if reveal:
-            lab_record_holdout(Engine(store=store), res)
+            lab_record_holdout(eng, res)
             print('[LAB] holdout 공개가 원장에 기록되었습니다. 이 구간은 이제 "본 데이터"입니다.')
         return 0
     if '--walkforward' in argv:
