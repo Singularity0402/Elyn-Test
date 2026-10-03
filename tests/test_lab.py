@@ -407,3 +407,90 @@ def test_cli_universe_argument_validation(pe):
     assert pe.main(['--lab', '--universe', '--symbols', 'ETHUSDT', '--only', '4h:flow']) == 2
     assert pe.main(['--lab', '--universe', 'default', '--tfs', '5m']) == 2
     assert pe.main(['--lab', '--universe', 'ETH-USDT']) == 2
+
+
+# ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
+def test_journal_seed_holds_full_history_and_persists(pe):
+    j = pe.ResearchJournal.load()
+    assert j.n_trials() == 104 and str(j.anchor.date()) == '2026-01-01' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.state('btc_presample|4h:keltner') == 'preregistered' and j.state('wf|15m:analog_engine') == 'refuted'
+    assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
+    assert len(pe.RESEARCH_LESSONS) == 10 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 104 and j.n_trials(['btc|4h:consensus|taker']) == 105
+    j.record('lab', ['btc|4h:consensus|taker'], title='t')
+    j2 = pe.ResearchJournal.load()
+    assert j2.n_trials() == 105 and j2.d['entries'][-1]['title'] == 't'
+    text = j2.text()
+    assert 'L7' in text and 'P1' in text and '반증' in text
+    assert os.path.exists(j2.export_md())
+    with open(j2.path, 'w', encoding='utf-8') as f:
+        f.write('{broken')
+    j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
+    assert j3.n_trials() == 104 and 'journal' in pe.HEALTH.items
+
+
+def test_journal_blocks_refuted_and_repeated_tests(pe):
+    j = pe.ResearchJournal.load()
+    j.set_status('btc|4h:flow', 'refuted', '테스트')
+    block, warn = j.check('btc', [('4h', 'flow'), ('5m', 'tsmom')])
+    assert len(block) == 1 and '반증' in block[0] and any('근거 없음' in w for w in warn)
+    block, warn = j.check('btc', [('4h', 'flow')], retest='새 데이터 1년 추가')
+    assert not block and warn                                                  # 사유가 있으면 경고만 (일지에 남는다)
+    assert not j.check('btc_presample', [('4h', 'keltner')], once=True)[0]     # 등록 대기 → 실행 가능
+    pe.research_apply_presample(j, [dict(pair='4h:keltner', n=40, mean_r=-0.1, lo=-0.5, verdict='반증 — x'),
+                                    dict(pair='4h:consensus', n=0, mean_r=float('nan'), lo=float('nan'),
+                                         verdict='판정 불가 (거래 < 10)')])
+    assert j.state('btc_presample|4h:keltner') == 'refuted' and j.state('btc|4h:keltner') == 'refuted'
+    assert j.state('btc_presample|4h:consensus') == 'preregistered'          # 거래 0건은 시험이 아니다
+    assert j.check('btc_presample', [('4h', 'keltner')], once=True)[0]         # 같은 구간 재시험 금지
+    j.save()
+    assert pe.main(['--lab', '--only', '4h:flow']) == 2                        # 네트워크 전에 거절
+    assert pe.main(['--lab', '--reveal-holdout']) == 2                         # L9
+    assert pe.main(['--lab', '--presample', '--universe']) == 2
+
+
+def test_consume_holdout_moves_anchor_forward_only(pe):
+    j = pe.ResearchJournal.load()
+    from conftest import Clock
+    pe.utcnow = Clock('2026-11-15 12:00')
+    j.consume_holdout(['4h:flow'], {'4h:flow': '반증 — x'})
+    assert str(j.anchor.date()) == '2026-11-15' and len(j.d['holdout_history']) == 2
+
+
+def test_fixed_anchor_makes_holdout_independent_of_data_end(pe):
+    base = _trend_1m(1300, 0.0)
+    a = pe.lab_run(base, tfs=('4h',), families=['donchian'], holdout_start='2022-06-01')
+    b = pe.lab_run(base.iloc[:-30 * 1440], tfs=('4h',), families=['donchian'], holdout_start='2022-06-01')
+    assert a['holdout_start'] == b['holdout_start']
+    assert a['rows'][0]['oos']['n'] == b['rows'][0]['oos']['n']               # 데이터가 늘어도 표본외는 그대로
+
+
+def test_planned_keys_match_trial_counting(pe):
+    fams = pe.lab_available_families(None)
+    keys = pe.lab_planned_keys('btc', pe.LAB_TFS, fams, 'taker')
+    assert len(keys) == pe.lab_trial_count(pe.LAB_TFS, fams) and all(k.startswith('btc|') for k in keys)
+    uk = pe.lab_planned_keys('universe', pe.LAB_UNIVERSE_TFS, pe.lab_available_families(None, True), 'taker', universe=True)
+    assert len(uk) == pe.lab_universe_trial_count(pe.LAB_UNIVERSE_TFS, pe.lab_available_families(None, True))
+    assert 'universe|1h:analog|taker' not in uk
+
+
+def test_consensus_family_is_causal_and_needs_all_four_votes(pe):
+    f = _frame_4h(4000)
+    full = pe._lab_target('consensus', dict(k=3.0), pe._lab_indicators(f))
+    part = pe._lab_target('consensus', dict(k=3.0), pe._lab_indicators(f.iloc[:3000]))
+    assert np.array_equal(full[:3000], part) and set(np.unique(full)) <= {-1, 0, 1} and np.abs(full).sum() > 0
+    assert pe.LAB_FAMILY_TFS['consensus'] == ('4h',) and len(pe.LAB_GRIDS['consensus']) == 1
+
+
+def test_presample_uses_only_unseen_window_with_spot_history(pe):
+    base = _trend_1m(1500, 0.0000004, seed=5)
+    base.index = pd.date_range('2018-01-01', periods=len(base), freq='1min')
+    base['era'] = np.where(base.index < pd.Timestamp('2020-01-01'), 0.0, 1.0)            # 2018~2019 스팟 이력
+    res = pe.lab_presample(base, '4h:donchian,4h:consensus', seen_from='2021-06-01')
+    v = {x['pair']: x for x in res['presample']}
+    assert v['4h:donchian']['n'] > 0 and v['4h:donchian']['oos_start'].startswith('2020-01-01')
+    r = next(x for x in res['rows'] if x['family'] == 'donchian')
+    assert (r['oos_t'] < np.datetime64('2021-06-01')).all()                  # 처음 보는 구간 거래만
+    assert '처음 보는 BTC 구간 검증' in res['report'] and '2.50%' in res['report']   # 가설 2개 → 단측 2.5%
+    fut = pe.lab_presample(base[base['era'] == 1.0], '4h:donchian', seen_from='2021-06-01')
+    assert fut['presample'][0]['n'] == 0                                       # 스팟 이력이 없으면 처음 보는 구간도 없다

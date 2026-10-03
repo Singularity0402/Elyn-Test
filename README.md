@@ -8,6 +8,7 @@ BTCUSDT 무기한선물용 Analog-first 의사결정 지원 도구입니다. **�
 | `pattern_edge_v612.py` | 최종 단일 파일. Windows → IDLE → F5 로 실행하면 GUI가 뜹니다. |
 | `01_BASELINE/pattern_edge_v611_visual_audit.py` | V611 원본. 수정 금지이며 SHA256 `6078…775e`로 테스트가 확인합니다. |
 | `AUDIT_V611_V612.md` | 객관 감사 보고서: 결함 재현 증거, 수정 내역, 남은 한계, 다음 단계 |
+| `RESEARCH_LOG.md` | **연구 일지·패인 기록** (덧붙이기만 함). 교훈 L1~L10, 가설 상태, 사전등록, 모든 실험 결과 |
 | `tests/` | V611 결함 재현 + V612 수정 검증 + 수명주기/GUI 스모크 (pytest) |
 | `experiments/` | 감사 보고서 숫자를 재현하는 스크립트 (null 보정도, 무엣지 시장 거짓 신호율) |
 
@@ -31,6 +32,10 @@ python pattern_edge_v612.py --lab --only 4h:flow --symbols default  # 그 가설
 python pattern_edge_v612.py --lab --universe                # 코인 묶음(BTC+알트 8개) 탐색: 모든 코인 거래를 합쳐 고르고 하루 복리로 순위
 python pattern_edge_v612.py --lab --universe --surrogate-n 20 # 같은 날짜 순서로 섞은 가짜 코인 묶음 20개와 비교 (약 6분)
 #   --universe ETHUSDT,SOLUSDT : 코인 직접 지정 (BTC 는 항상 포함) · --tfs 1h,4h : 시간봉 (15m 도 가능, 첫 다운로드가 김)
+python pattern_edge_v612.py --journal                       # 연구 일지: 교훈·가설 상태·사전등록·모든 실행 기록 (md 로도 저장)
+python pattern_edge_v612.py --lab --presample               # 사전등록 P1: BTC 전체 이력에서 처음 보는 구간(2020-01~2021-11)만으로 판정 (가설마다 1회)
+#   모든 Lab 실행은 연구 일지에 자동 기록되고, DSR 은 누적 시험 절차 수로 보정되며, holdout 시작은 2026-01-01 로 고정된다.
+#   반증된 가설의 재시험은 --retest "사유" 가 있어야 하고, holdout 공개는 --only 로 선언한 가설에만 된다.
 #   --no-funding : 펀딩비를 받지 않고 실행
 ```
 
