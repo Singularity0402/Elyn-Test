@@ -28,6 +28,9 @@ python pattern_edge_v612.py --lab --only 4h:flow            # 탐색에서 고�
 python pattern_edge_v612.py --lab --only 4h:flow --surrogate-n 50     # 그 가설의 운의 크기 (약 2분)
 python pattern_edge_v612.py --lab --only 4h:flow --reveal-holdout     # 그 가설만 봉인된 최근 9개월 공개 (1회, 원장 기록)
 python pattern_edge_v612.py --lab --only 4h:flow --symbols default  # 그 가설을 알트 8개에 그대로 적용 (재현 검증, 원장 기록)
+python pattern_edge_v612.py --lab --universe                # 코인 묶음(BTC+알트 8개) 탐색: 모든 코인 거래를 합쳐 고르고 하루 복리로 순위
+python pattern_edge_v612.py --lab --universe --surrogate-n 20 # 같은 날짜 순서로 섞은 가짜 코인 묶음 20개와 비교 (약 6분)
+#   --universe ETHUSDT,SOLUSDT : 코인 직접 지정 (BTC 는 항상 포함) · --tfs 1h,4h : 시간봉 (15m 도 가능, 첫 다운로드가 김)
 #   --no-funding : 펀딩비를 받지 않고 실행
 ```
 

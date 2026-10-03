@@ -321,3 +321,89 @@ def test_replication_verdict_rule(pe):
 def test_cli_symbols_requires_declared_hypothesis(pe):
     assert pe.main(['--lab', '--symbols', 'default']) == 2
     assert pe.main(['--lab', '--only', '4h:flow', '--symbols', 'ETH/USDT']) == 2
+
+
+# ── 하루 복리 목표 ─────────────────────────────────────────────────────
+def test_daily_growth_bets_only_on_evidence_and_respects_concurrency(pe):
+    g = np.random.default_rng(0)
+    days = pd.date_range('2024-01-01', periods=400, freq='D').values
+    R = g.choice([-1.0, 1.5], size=400, p=[0.5, 0.5])                   # 평균 약 +0.25R (상한 25% 안쪽)
+    f, d = pe.lab_daily_growth(R, days, days[0], days[-1])
+    assert 0 < f < pe.LAB_F_MAX and d > 0
+    assert pe.lab_daily_growth(R, days, days[0], days[-1], haircut=R.mean() + 0.05) == (0.0, 0.0)   # 하한 < 0 → 0
+    assert pe.lab_daily_growth(R, days, days[0], days[-1], haircut=float('nan')) == (0.0, 0.0)
+    f2, _ = pe.lab_daily_growth(np.r_[R, R], np.r_[days, days], days[0], days[-1])       # 같은 날 두 배로 들고 있으면
+    assert f2 < f and abs(f2 - f / 2) <= 0.01                                              # 거래당 위험은 절반
+    f_gap, d_gap = pe.lab_daily_growth(R, days, days[0], days[0] + np.timedelta64(799, 'D'))
+    assert d_gap < d                                                                       # 거래 없는 날도 하루로 센다
+
+
+def test_single_lab_reports_daily_growth_column(pe):
+    res = pe.lab_run(_trend_1m(1300, 0.0), tfs=('4h',), families=['donchian'])
+    assert '보수 하루복리@위험' in res['report'] and 'g_day' in res['rows'][0]['oos']
+    import pytest
+    with pytest.raises(ValueError):
+        pe.lab_run(_trend_1m(1300, 0.0), only='4h:xsmom')                 # 코인간 상대강도는 묶음 전용
+
+
+# ── 코인 묶음 ──────────────────────────────────────────────────────────
+def test_universe_pools_coins_and_finds_shared_structure(pe):
+    coins = {s: {'4h': _frame_4h(7800, seed=k)} for k, s in enumerate(('BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT'))}
+    res = pe.lab_run_universe(coins, tfs=('4h',), families=['tsmom'])
+    r = res['rows'][0]
+    assert pe.lab_universe_passed(r) and r['oos']['g_day'] > 0 and r['oos']['f_star'] > 0
+    assert r['tot'] == 4 and '코인 묶음 4개' in res['report'] and '사전 기준 통과' in res['report']
+    flat = {s: {'4h': _frame_4h(7800, motif=0.0, noise=0.008, seed=20 + k)}
+            for k, s in enumerate(('BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'XRPUSDT'))}
+    res0 = pe.lab_run_universe(flat, tfs=('4h',), families=['tsmom', 'donchian'])
+    assert not any(pe.lab_universe_passed(x) for x in res0['rows']) and '통과한 절차 없음' in res0['report']
+    assert all(x['oos']['g_day'] == 0.0 or x['oos']['ci_lo'] > 0 for x in res0['rows'])
+
+
+def _xs_coins(n=7800, k=6, seed=0):
+    g = np.random.default_rng(seed)
+    out = {}
+    for j in range(k):
+        reg = np.repeat(g.choice([-1.0, 1.0], size=n // 360 + 1), 360)[:n]          # 60일마다 바뀌는 코인별 추세
+        r = 0.0015 * reg + g.normal(0, 0.008, n) + g.normal(0, 0.004, n)
+        c = 100 * np.exp(np.cumsum(r))
+        o = np.r_[c[0], c[:-1]]
+        out[f'C{j}USDT'] = {'4h': pd.DataFrame(dict(open=o, high=np.maximum(o, c) * 1.002, low=np.minimum(o, c) * 0.998,
+                                                    close=c, volume=1.0, taker_buy_base=0.5, trades=1.0, era=1.0),
+                                               index=pd.date_range('2019-09-09', periods=n, freq='4h'))}
+    return out
+
+
+def test_xs_momentum_ranks_are_causal_and_find_relative_trends(pe):
+    coins = _xs_coins()
+    ftf = {s: v['4h'] for s, v in coins.items()}
+    full = pe._lab_xs_ranks(ftf, [42])
+    cut = {s: df.iloc[:5000] for s, df in ftf.items()}
+    part = pe._lab_xs_ranks(cut, [42])
+    for s in ftf:
+        a, b = full[s][42][:5000], part[s][42]
+        assert np.allclose(np.nan_to_num(a, nan=-1), np.nan_to_num(b, nan=-1))       # 미래가 바뀌어도 과거 순위 불변
+        v = a[~np.isnan(a)]
+        assert v.min() >= 0 and v.max() <= 1
+    res = pe.lab_run_universe(coins, tfs=('4h',), families=['xsmom'])
+    m = res['rows'][0]['oos']
+    assert m['n'] >= 20 and m['mean_r'] > 0 and m['ci_lo'] > 0           # 선택 규칙은 긴 추세(L=168, 적은 거래·큰 R)를 고른다
+
+
+def test_universe_surrogate_keeps_coins_in_sync_and_returns(pe):
+    f = _frame_4h(3000)
+    sf = pe.make_surrogate_frames({'A': {'4h': f}, 'B': {'4h': f.copy()}}, seed=3)
+    a, b = sf['A']['4h'], sf['B']['4h']
+    assert np.allclose(a['close'].values, b['close'].values)                       # 같은 날짜 순서 → 동조 유지
+    r0 = np.diff(np.log(f['close'].values))
+    r1 = np.diff(np.log(a['close'].values))
+    assert abs(r1.std() / r0.std() - 1) < 0.01 and not np.allclose(r0, r1)       # 같은 수익률 분포, 다른 순서
+    res = pe.lab_universe_surrogate_test({'BTCUSDT': {'4h': f}, 'ETHUSDT': {'4h': _frame_4h(3000, seed=4)}}, n=2,
+                                         tfs=('4h',), families=['tsmom'])
+    assert 'p(최고 절차)' in res['report'] and len(res['best']) == 2
+
+
+def test_cli_universe_argument_validation(pe):
+    assert pe.main(['--lab', '--universe', '--symbols', 'ETHUSDT', '--only', '4h:flow']) == 2
+    assert pe.main(['--lab', '--universe', 'default', '--tfs', '5m']) == 2
+    assert pe.main(['--lab', '--universe', 'ETH-USDT']) == 2
