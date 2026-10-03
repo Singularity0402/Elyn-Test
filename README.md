@@ -20,13 +20,14 @@ python pattern_edge_v612.py                                 # GUI (IDLE F5 와 �
 python pattern_edge_v612.py --walkforward 15m 2024-01-01    # 생산엔진 워크포워드
 python pattern_edge_v612.py --walkforward 15m 2024-01-01 --surrogate   # 가짜 BTC 대조군
 #   추가 옵션: --null (matched-null 포함) --workers 6 (병렬 작업자 수) --step 8 (평가 간격, 봉) --no-cache
-python pattern_edge_v612.py --lab                           # 전략 탐색기: 11개 전략군(펀딩비 포함) × 5m/15m/1h/4h 롤링 WFO (약 20초)
+python pattern_edge_v612.py --lab                           # 전략 탐색기: 12개 전략군(펀딩비·패턴반복 포함) × 5m/15m/1h/4h 롤링 WFO (약 20초)
 python pattern_edge_v612.py --lab --surrogate               # 같은 탐색을 가짜 BTC 에서 (운의 크기)
 python pattern_edge_v612.py --lab --surrogate-n 20          # 가짜 BTC 20개로 p값 (선택까지 보정한 p(최고 절차), 약 4분)
 python pattern_edge_v612.py --lab --cost maker_entry        # 지정가 진입 비용 시나리오 (taker / maker_entry / maker)
 python pattern_edge_v612.py --lab --only 4h:flow            # 탐색에서 고른 가설 하나만 (표본외 DSR 은 전체 절차 수로 보정)
 python pattern_edge_v612.py --lab --only 4h:flow --surrogate-n 50     # 그 가설의 운의 크기 (약 2분)
 python pattern_edge_v612.py --lab --only 4h:flow --reveal-holdout     # 그 가설만 봉인된 최근 9개월 공개 (1회, 원장 기록)
+python pattern_edge_v612.py --lab --only 4h:flow --symbols default  # 그 가설을 알트 8개에 그대로 적용 (재현 검증, 원장 기록)
 #   --no-funding : 펀딩비를 받지 않고 실행
 ```
 

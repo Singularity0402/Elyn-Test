@@ -104,10 +104,11 @@ import importlib.util
 PARQUET_OK = importlib.util.find_spec('pyarrow') is not None
 
 try:
-    from numba import njit
+    from numba import njit, prange
     NUMBA_OK = True
 except Exception:
     NUMBA_OK = False
+    prange = range
 
     def njit(*a, **k):
         def wrap(fn):
@@ -4190,7 +4191,8 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
 # [24] STRATEGY LAB — 여러 전략군을 빠르게 검증하되, 끼워맞추기(data mining)는 구조적으로 막는다
 # -----------------------------------------------------------------------------
 #  · 전략군: 추세(TSMOM, EMA 교차), 돌파(Donchian, Bollinger, Keltner), 일중(변동성 돌파, 뉴욕개장 레인지,
-#    테이커 체결강도), 평균회귀(z-score, RSI(2)), 선물 전용(펀딩비 역추세 — 공개 REST, 키 불필요)
+#    테이커 체결강도), 평균회귀(z-score, RSI(2)), 선물 전용(펀딩비 역추세 — 공개 REST, 키 불필요),
+#    패턴 반복(지금과 가장 비슷했던 과거 차트들 뒤에 무슨 일이 있었나 — k-NN 아날로그)
 #  · 모든 전략은 진입 시 ATR 손절을 갖는다 → 결과를 R(1회 위험) 단위로 같은 잣대 비교
 #  · 진입·청산 = 신호 다음 봉 시가, 손절은 봉 안에서 먼저 처리, 수수료·슬리피지·펀딩 적립금 차감
 #  · 비용 시나리오(--cost): taker(기본) · maker_entry(지정가 진입 — 가격이 지정가를 관통해야 체결, 못 받으면
@@ -4200,6 +4202,7 @@ def run_gui(engine=None, autoclose_ms=None, on_ready=None):
 #  · 마지막 holdout 구간은 기본적으로 '봉인'. 공개(--reveal-holdout)하면 원장에 기록된다 (한 번 쓰면 끝).
 #    탐색 결과를 보고 고른 가설은 --only 4h:flow 처럼 '하나만' 선언해서 공개한다 (표본외 DSR 은 탐색 전체 절차 수로 보정).
 #  · DSR 은 시험한 절차 수(전략군 × TF)로 보정한다. 가짜 BTC(--surrogate, --surrogate-n)로 '운의 크기'를 함께 본다.
+#  · 선언한 가설은 다른 코인에 그대로 적용해 재현되는지 본다 (--symbols, 같은 격자·규칙·비용, BTC holdout 날짜 봉인).
 # =============================================================================
 LAB_TFS = ('5m', '15m', '1h', '4h')
 LAB_RISK = 0.01                 # 비교용 고정 위험 (거래당 계좌 1%)
@@ -4223,14 +4226,20 @@ LAB_GRIDS = {
     'rsi2':     [dict(th=th, k=k) for th in (5, 10, 20) for k in (2.0, 4.0)],
     # 선물 전용
     'funding':  [dict(q=q, H=H, k=k) for q in (0.90, 0.95) for H in (6, 24) for k in (2.0, 4.0)],
+    # 역사는 반복된다: 지금과 가장 비슷했던 과거 차트들 뒤에 무슨 일이 있었나 (k-NN 아날로그)
+    'analog':   [dict(K=K, H=H, th=th, k=k) for K in (24, 48) for H in (6, 12) for th in (1.5, 3.0) for k in (2.0, 4.0)],
 }
 LAB_FAMILY_KO = {'tsmom': '시계열 모멘텀', 'ema': 'EMA 교차', 'donchian': 'Donchian 돌파',
                  'bollinger': 'Bollinger 돌파', 'keltner': 'Keltner+거래량 돌파',
                  'volbreak': '변동성 돌파(일중)', 'session': '뉴욕개장 레인지 돌파', 'flow': '테이커 체결강도',
-                 'meanrev': 'z-score 평균회귀', 'rsi2': 'RSI(2) 단기반전', 'funding': '펀딩비 역추세'}
+                 'meanrev': 'z-score 평균회귀', 'rsi2': 'RSI(2) 단기반전', 'funding': '펀딩비 역추세',
+                 'analog': '패턴 반복(유사차트)'}
 LAB_FAMILY_TFS = {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h'),   # 일중 구조가 의미 있는 TF 만
-                  'funding': ('1h', '4h')}                                       # 8시간 정산 → 짧은 TF 는 같은 값 반복
+                  'funding': ('1h', '4h'),                                       # 8시간 정산 → 짧은 TF 는 같은 값 반복
+                  'analog': ('1h', '4h')}                                        # 과거 전체와 비교 (n² 계산) → 1h 이상
 LAB_MAX_HOLD = {'rsi2': 10}
+LAB_ANALOG_KNN = 30             # 서로 다른 과거 사건 30곳
+LAB_ANALOG_PAA = 8              # K봉 모양을 8구간 평균으로 요약 (z-정규화 → 가격 수준·변동폭과 무관한 '모양')
 LAB_FUNDING_WINDOW = 270        # 펀딩 정산 270회 ≈ 90일 롤링 백분위
 LAB_FUNDING_MAX_AGE_H = 16      # 정산 1회 누락까지만 허용, 더 비면 신호 없음
 LAB_COST_MODES = {              # (설명, 진입 비용, 신호·시간 청산 비용, 지정가 관통폭: <0 이면 시장가 진입)
@@ -4342,13 +4351,13 @@ def _funding_from_rows(rows):
     return pd.Series(v, index=pd.DatetimeIndex(pd.to_datetime(t, unit='ms')), name='rate')
 
 
-def load_funding_history(http=None, path=None, refresh=True, log=None):
+def load_funding_history(http=None, path=None, refresh=True, log=None, symbol=SYMBOL):
     """
-    BTCUSDT 8시간 정산 펀딩비 (공개 REST /fapi/v1/fundingRate — 키·서명 없음) → pd.Series(rate, index=정산시각 UTC).
+    symbol(기본 BTCUSDT) 8시간 정산 펀딩비 (공개 REST /fapi/v1/fundingRate — 키·서명 없음) → pd.Series(rate, index=정산시각 UTC).
     로컬 CSV 캐시에 이어 받는다. 갱신 실패 시 캐시만 쓰고, 캐시도 없으면 None (펀딩비 전략군은 생략된다).
     """
     log = log or (lambda msg, color='black': LOG.info(msg))
-    path = path or Paths.funding()
+    path = path or (Paths.funding() if symbol == SYMBOL else Paths.p(f'{symbol}_funding_8h.csv'))
     s = None
     if os.path.exists(path):
         try:
@@ -4365,7 +4374,7 @@ def load_funding_history(http=None, path=None, refresh=True, log=None):
         got = []
         try:
             for _ in range(100):
-                rows = http.get_json(f'{FAPI_BASE}/fapi/v1/fundingRate?symbol={SYMBOL}&startTime={cursor}&limit=1000',
+                rows = http.get_json(f'{FAPI_BASE}/fapi/v1/fundingRate?symbol={symbol}&startTime={cursor}&limit=1000',
                                      timeout=20)
                 if not rows:
                     break
@@ -4390,7 +4399,7 @@ def load_funding_history(http=None, path=None, refresh=True, log=None):
                 os.replace(tmp, path)
             except Exception as e:
                 HEALTH.set('funding', 'WARN', f'펀딩비 캐시 저장 실패: {e}')
-            log(f'펀딩비 {len(got)}건 수신 → 총 {len(s)}건 ({s.index[0]:%Y-%m-%d} ~ {s.index[-1]:%Y-%m-%d %H:%M} UTC)',
+            log(f'{symbol} 펀딩비 {len(got)}건 수신 → 총 {len(s)}건 ({s.index[0]:%Y-%m-%d} ~ {s.index[-1]:%Y-%m-%d %H:%M} UTC)',
                 'blue')
     if s is None or len(s) == 0:
         return None
@@ -4413,6 +4422,155 @@ def _lab_funding_pct(idx, bar_minutes, funding, window=LAB_FUNDING_WINDOW):
     ok = (j >= 0) & ((close - t[jj]) <= np.timedelta64(LAB_FUNDING_MAX_AGE_H, 'h'))
     out = np.full(len(idx), np.nan)
     out[ok] = pct[jj[ok]]
+    return out
+
+
+LAB_ALT_SYMBOLS = ('ETHUSDT', 'BNBUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT', 'SOLUSDT', 'LTCUSDT', 'LINKUSDT')
+KLINE_COLS = ['open', 'high', 'low', 'close', 'volume', 'taker_buy_base', 'trades']
+
+
+def fetch_klines_tf(http, symbol, tf, path=None, log=None):
+    """
+    공개 REST /fapi/v1/klines (키·서명 없음) 로 symbol 의 tf 봉 전체 이력 → DataFrame(STORE_COLS). 로컬 CSV 캐시에
+    이어 받는다. 진행 중인 마지막 봉은 저장하지 않는다 (다음에 그 봉부터 다시 받음). 실패하면 캐시만, 없으면 None.
+    """
+    log = log or (lambda msg, color='black': LOG.info(msg))
+    path = path or Paths.p(f'{symbol}_{tf}_klines.csv')
+    step = INTERVALS[tf] * 60_000
+    df = None
+    if os.path.exists(path):
+        try:
+            raw = pd.read_csv(path)
+            df = pd.DataFrame({k: raw[k].values.astype(np.float64) for k in KLINE_COLS},
+                              index=pd.DatetimeIndex(pd.to_datetime(raw['time_ms'].values.astype(np.int64), unit='ms')))
+        except Exception as e:
+            HEALTH.set(f'klines:{symbol}', 'WARN', f'{symbol} {tf} 캐시 손상 — 다시 받습니다: {e}')
+            df = None
+    cursor = int(df.index[-1].value // 10 ** 6) + step if df is not None and len(df) else FUNDING_EPOCH_MS
+    got = []
+    try:
+        for _ in range(500):
+            data = http.get_json(f'{FAPI_BASE}/fapi/v1/klines?symbol={symbol}&interval={tf}&startTime={cursor}'
+                                 f'&limit=1000', timeout=30)
+            if not data:
+                break
+            got.extend(data)
+            newest = int(data[-1][0])
+            if len(data) < 1000 or newest < cursor:
+                break
+            cursor = newest + step
+            time.sleep(0.35)
+        HEALTH.clear(f'klines:{symbol}')
+    except Exception as e:
+        HEALTH.set(f'klines:{symbol}', 'WARN', f'{symbol} {tf} 봉 갱신 실패 ({type(e).__name__}: {e})')
+    if got:
+        arr = np.array(got, dtype=object)
+        new = pd.DataFrame({k: arr[:, i].astype(np.float64) for k, i in
+                            zip(KLINE_COLS, (1, 2, 3, 4, 5, 9, 8))},
+                           index=pd.DatetimeIndex(pd.to_datetime(arr[:, 0].astype(np.int64), unit='ms')))
+        df = new if df is None else pd.concat([df, new])
+        df = df[~df.index.duplicated(keep='last')].sort_index()
+        df = df[df.index + pd.Timedelta(minutes=INTERVALS[tf]) <= pd.Timestamp(utcnow())]   # 진행 중인 봉 제외
+        try:
+            tmp = path + '.tmp'
+            out = df.copy()
+            out.insert(0, 'time_ms', df.index.values.astype('datetime64[ms]').astype(np.int64))
+            out.to_csv(tmp, index=False)
+            os.replace(tmp, path)
+        except Exception as e:
+            HEALTH.set(f'klines:{symbol}', 'WARN', f'{symbol} {tf} 캐시 저장 실패: {e}')
+        log(f'{symbol} {tf} 봉 {len(got)}개 수신 → 총 {len(df)}개 ({df.index[0]:%Y-%m-%d} ~ {df.index[-1]:%Y-%m-%d})', 'blue')
+    if df is None or len(df) == 0:
+        return None
+    df = df.copy()
+    df['era'] = ERA_FUT
+    return df[STORE_COLS]
+
+
+def _lab_analog_features(c, K, D=LAB_ANALOG_PAA):
+    """각 봉 t 에서 끝나는 K봉 로그가격 경로 → z-정규화 → D 구간 평균(PAA). 앞쪽 K−1 봉과 평평한 구간은 NaN."""
+    lp = np.log(np.maximum(np.asarray(c, dtype=np.float64), 1e-12))
+    n = len(lp)
+    out = np.full((n, D), np.nan)
+    if n < K or K % D:
+        return out
+    w = np.lib.stride_tricks.sliding_window_view(lp, K)
+    mu = w.mean(axis=1, keepdims=True)
+    sd = w.std(axis=1, keepdims=True)
+    z = (w - mu) / np.where(sd > 1e-12, sd, np.nan)
+    out[K - 1:] = z.reshape(len(w), D, K // D).mean(axis=2)
+    return out
+
+
+@njit(cache=False, parallel=True)
+def lab_analog_scores(feat, fwds, K, knn, stride, sep):
+    """
+    '역사는 반복된다'를 그대로 계산: 봉 t 의 K봉 모양과 가장 가까운 과거 모양 knn 곳을 찾고, 그 뒤 H봉 움직임의
+    t-통계(평균 / 표준오차)를 낸다. feat (n, D) 모양, fwds (m, n) H 별 '봉 j 이후 H봉 수익 / ATR_j'.
+    후보 j 는 t−K 이하만 → 모양이 겹치지 않고, H ≤ K 이므로 그 결과도 t 시점에 이미 확정된 과거다 (미래 누설 없음).
+    서로 sep 봉 안의 후보는 같은 사건으로 보고 더 가까운 하나만 남긴다. 반환 (m, n), 이웃이 모자라면 0.
+    """
+    n, D = feat.shape
+    m = fwds.shape[0]
+    out = np.zeros((m, n))
+    for t in prange(n):                     # 봉마다 독립 → CPU 코어 수만큼 병렬
+        if np.isnan(feat[t, 0]):
+            continue
+        bd = np.empty(knn)
+        bj = np.empty(knn, dtype=np.int64)
+        cnt = 0
+        wi = 0
+        wd = np.inf
+        for j in range(K - 1, t - K + 1, stride):
+            if np.isnan(feat[j, 0]):
+                continue
+            d = 0.0
+            for q in range(D):
+                x = feat[t, q] - feat[j, q]
+                d += x * x
+            if cnt == knn and d >= wd:
+                continue
+            near = -1
+            for a in range(cnt):
+                if j - bj[a] < sep:
+                    near = a
+                    break
+            if near >= 0:
+                if d >= bd[near]:
+                    continue
+                bd[near] = d
+                bj[near] = j
+            elif cnt < knn:
+                bd[cnt] = d
+                bj[cnt] = j
+                cnt += 1
+            else:
+                bd[wi] = d
+                bj[wi] = j
+            if cnt == knn:
+                wi = 0
+                wd = bd[0]
+                for a in range(1, cnt):
+                    if bd[a] > wd:
+                        wd = bd[a]
+                        wi = a
+        if cnt < knn:
+            continue
+        for hh in range(m):
+            s1 = 0.0
+            s2 = 0.0
+            k = 0
+            for a in range(cnt):
+                v = fwds[hh, bj[a]]
+                if not np.isnan(v):
+                    s1 += v
+                    s2 += v * v
+                    k += 1
+            if k >= knn // 2:
+                mu = s1 / k
+                var = (s2 - k * mu * mu) / max(k - 1, 1)
+                if var > 1e-12:
+                    out[hh, t] = mu / np.sqrt(var / k)
     return out
 
 
@@ -4500,6 +4658,22 @@ def _lab_target(fam, p, ind):
         valid = ~np.isnan(fp)
         f0 = np.where(valid, fp, 0.5)
         return lab_state(valid & (f0 <= 1 - p['q']), valid & (f0 >= p['q']), f0 >= 0.5, f0 <= 0.5)
+    if fam == 'analog':
+        # 지금과 모양이 가장 비슷했던 과거 30곳(서로 다른 사건)에서 그 뒤 H봉이 어떻게 움직였는지 →
+        # t-통계가 th 를 넘으면 그 방향으로 진입, 부호가 바뀌거나 H봉이 지나면 청산. 이웃 탐색은 K 별로 한 번만.
+        cache = ind.setdefault('_analog', {})
+        if (p['K'], p['H']) not in cache:
+            K = int(p['K'])
+            Hs = sorted({q['H'] for q in LAB_GRIDS['analog'] if q['K'] == K})
+            cv, av = c.values, np.maximum(ind['atr'].values, 1e-6)
+            fw = np.full((len(Hs), len(cv)), np.nan)
+            for a, H in enumerate(Hs):
+                fw[a, :len(cv) - H] = (cv[H:] / cv[:-H] - 1.0) / av[:-H]
+            sc = lab_analog_scores(_lab_analog_features(cv, K), fw, K, LAB_ANALOG_KNN, max(1, K // 8), max(1, K // 4))
+            for a, H in enumerate(Hs):
+                cache[(K, H)] = sc[a]
+        sc = cache[(p['K'], p['H'])]
+        return lab_state(sc > p['th'], sc < -p['th'], sc < 0, sc > 0)
     if fam == 'rsi2':
         # Connors RSI(2): 장기 추세 방향의 단기 과매도/과매수 되돌림
         d = c.diff()
@@ -4553,6 +4727,12 @@ def lab_pairs(only=None):
     return out
 
 
+def lab_available_families(funding=None):
+    """이 실행에서 돌릴 수 있는 전략군: 펀딩비는 데이터가 있을 때만, 패턴 반복은 numba 가 있을 때만 (없으면 n² 계산이 수십 분)."""
+    has_funding = funding is not None and len(funding) >= LAB_FUNDING_WINDOW // 2
+    return [f for f in LAB_GRIDS if (f != 'funding' or has_funding) and (f != 'analog' or NUMBA_OK)]
+
+
 def lab_trial_count(tfs=LAB_TFS, families=None):
     """탐색 전체의 절차 수 (전략군 × 적용 TF)."""
     families = list(families or LAB_GRIDS)
@@ -4561,9 +4741,12 @@ def lab_trial_count(tfs=LAB_TFS, families=None):
 
 def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTHS, train_years=LAB_TRAIN_YEARS,
             test_months=LAB_TEST_MONTHS, reveal_holdout=False, status=None, futures_only=True,
-            cost_mode='taker', only=None, funding=None, n_trials_declared=None):
+            cost_mode='taker', only=None, funding=None, n_trials_declared=None, tf_frames=None,
+            holdout_start=None, symbol=SYMBOL):
     """
     반환 dict(rows=[...], holdout_start, report).
+    tf_frames={'4h': df, ...} 이면 1분봉 대신 그 봉을 그대로 쓴다 (다른 코인 재현 검증용 REST 봉).
+    holdout_start 를 주면 그 날짜부터 봉인 (알트에서도 BTC 와 같은 날짜를 봉인해야 상관으로 엿보지 않는다).
     only='4h:flow' — 탐색 결과를 보고 고른 가설만 검증. 표본외 DSR 은 n_trials_declared(그 가설을 고른 탐색의
     전체 절차 수)로 보정하고, holdout 은 선언된 가설만 보므로 n_trials=1.
     funding=None 이면 펀딩비 전략군은 생략한다 (절차 수에도 넣지 않는다).
@@ -4574,19 +4757,38 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
     _, c_in, c_out, limit_through = LAB_COST_MODES[cost_mode]
     c_stop = TAKER_FEE + SLIPPAGE_T
     t_wall = time.time()
-    base1m = normalize_frame(base1m)
-    if futures_only and (base1m['era'].values == ERA_FUT).any():
-        base1m = base1m[base1m['era'].values == ERA_FUT]
-    snap = Snapshot(base1m, base1m.index[-1].to_pydatetime() + timedelta(minutes=1))
+    if tf_frames is None:
+        base1m = normalize_frame(base1m)
+        if futures_only and (base1m['era'].values == ERA_FUT).any():
+            base1m = base1m[base1m['era'].values == ERA_FUT]
+        snap = Snapshot(base1m, base1m.index[-1].to_pydatetime() + timedelta(minutes=1))
+
+        def get_tf(tf):
+            d = snap.tf(tf)
+            return d[d['complete'].values > 0.5]
+        t_first, t_last = base1m.index[0], base1m.index[-1]
+        src = f'선물 {"만" if futures_only else "+스팟"}'
+    else:
+        frames = {k: normalize_frame(v) for k, v in tf_frames.items() if v is not None and len(v)}
+        if not frames:
+            raise ValueError(f'{symbol}: 봉 데이터 없음')
+        get_tf = frames.get
+        t_first = min(v.index[0] for v in frames.values())
+        t_last = max(v.index[-1] + pd.Timedelta(minutes=INTERVALS[k] - 1) for k, v in frames.items())
+        src = f'REST {"/".join(sorted(frames, key=INTERVALS.get))} 봉'
     has_funding = funding is not None and len(funding) >= LAB_FUNDING_WINDOW // 2
-    families = [f for f in (families or LAB_GRIDS) if f != 'funding' or has_funding]
+    avail = set(lab_available_families(funding))
+    families = [f for f in (families or LAB_GRIDS) if f in avail]
     pairs = lab_pairs(only)
     if pairs:
         if any(f == 'funding' for _, f in pairs) and not has_funding:
             raise ValueError('펀딩비 데이터가 없어 펀딩비 전략군을 검증할 수 없습니다 (네트워크 확인 후 다시)')
+        if any(f == 'analog' for _, f in pairs) and not NUMBA_OK:
+            raise ValueError('패턴 반복 전략군은 numba 가 필요합니다 (pip install numba)')
         tfs = tuple(t for t in INTERVALS if any(t == a for a, _ in pairs))
         families = [f for f in LAB_GRIDS if any(f == b for _, b in pairs)]
-    hold_start = base1m.index[-1] - pd.DateOffset(months=int(holdout_months))
+    hold_start = pd.Timestamp(holdout_start) if holdout_start is not None \
+        else t_last - pd.DateOffset(months=int(holdout_months))
     rows, n_sims = [], 0
 
     def applies(fam, tf):
@@ -4594,9 +4796,8 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
     n_trials = sum(1 for tf in tfs for fam in families if applies(fam, tf))
     n_dsr = max(n_trials, int(n_trials_declared or 0))
     for tf in tfs:
-        df = snap.tf(tf)
-        df = df[df['complete'].values > 0.5]
-        if len(df) < 500:
+        df = get_tf(tf)
+        if df is None or len(df) < 500:
             continue
         ind = _lab_indicators(df)
         o, h, l, c, atr = (ind[k].values for k in ('o', 'h', 'l', 'c', 'atr'))
@@ -4616,7 +4817,7 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
             sims = []
             for p in LAB_GRIDS[fam]:
                 tgt = _lab_target(fam, p, ind)
-                mh = int(p['N']) if fam == 'meanrev' else int(p['H']) if fam == 'funding' \
+                mh = int(p['N']) if fam == 'meanrev' else int(p['H']) if fam in ('funding', 'analog') \
                     else int(LAB_MAX_HOLD.get(fam, 0))
                 ei, xi, sd, rr = lab_sim_x(o, h, l, c, atr, tgt, float(p['k']), mh, c_in, c_out, c_stop, fund,
                                            limit_through)
@@ -4649,17 +4850,17 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
             hmet = _lab_metrics(hold_r, hold_years, n_trials=1)
             last = next((pp for _, pp, _ in reversed(chosen) if pp is not None), None)
             rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last, oos_r=oos_r,
-                             windows=len(chosen), idle_windows=sum(1 for _, pp, _ in chosen if pp is None),
+                             oos_t=idx[np.asarray(oos_i, dtype=np.int64)].values, windows=len(chosen), idle_windows=sum(1 for _, pp, _ in chosen if pp is None),
                              hold_windows=sum(1 for _, _, hh in chosen if hh),
                              hold_idle=sum(1 for _, pp, hh in chosen if hh and pp is None)))
     rows.sort(key=lambda r: (np.nan_to_num(r['oos']['ci_lo'], nan=-9), r['oos']['n']), reverse=True)
-    out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_dsr=n_dsr, n_sims=n_sims,
+    out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_dsr=n_dsr, n_sims=n_sims, symbol=symbol,
                n_families=len(families), tfs=list(tfs), cost_mode=cost_mode,
                declared=[f'{a}:{b}' for a, b in pairs] if pairs else None,
                funding_info=(f'{funding.index[0]:%Y-%m-%d} ~ {funding.index[-1]:%Y-%m-%d} · {len(funding):,}회 정산'
                              if has_funding else None),
                seconds=round(time.time() - t_wall, 1), revealed=bool(reveal_holdout),
-               data=f'{base1m.index[0]:%Y-%m-%d} ~ {base1m.index[-1]:%Y-%m-%d} (선물 {"만" if futures_only else "+스팟"})')
+               data=f'{t_first:%Y-%m-%d} ~ {t_last:%Y-%m-%d} ({src})')
     out['report'] = lab_report(out)
     return out
 
@@ -4678,7 +4879,7 @@ def lab_holdout_verdict(hm):
 def lab_report(res):
     mode = res.get('cost_mode', 'taker')
     desc, c_in, c_out, _ = LAB_COST_MODES[mode]
-    L = [f'━━━ STRATEGY LAB · {SYMBOL} · {res["data"]} ━━━',
+    L = [f'━━━ STRATEGY LAB · {res.get("symbol", SYMBOL)} · {res["data"]} ━━━',
          f'전략군 {res.get("n_families", len(LAB_GRIDS))}개 × TF {"/".join(res.get("tfs", LAB_TFS))} = 절차 {res["n_trials"]}개 · '
          f'파라미터 백테스트 {res["n_sims"]}회 · {res["seconds"]}초',
          f'롤링 WFO: train {LAB_TRAIN_YEARS:g}년 → test {LAB_TEST_MONTHS}개월 · 위험 거래당 {LAB_RISK:.0%} 고정 · '
@@ -4692,7 +4893,8 @@ def lab_report(res):
     L += ['─' * 96,
           f'{"순위":<4}{"TF":<5}{"전략군":<16}{"OOS체결":>8}{"연간":>7}{"승률":>7}{"평균R":>8}{"90%CI 하한":>11}{"PF":>6}'
           f'{"연복리(1%)":>11}{"MDD":>7}{"DSR":>7}' + ('  holdout평균R/건수' if res['revealed'] else '')]
-    for k, r in enumerate(res['rows'], 1):
+    idle = [r for r in res['rows'] if r['oos']['n'] == 0]
+    for k, r in enumerate([r for r in res['rows'] if r['oos']['n'] > 0], 1):
         m = r['oos']
         line = (f'{k:<4}{r["tf"]:<5}{LAB_FAMILY_KO[r["family"]]:<16}{m["n"]:>8}{m["n_year"]:>7.0f}'
                 f'{np.nan_to_num(m["win"]):>7.0%}{np.nan_to_num(m["mean_r"]):>+8.3f}{np.nan_to_num(m["ci_lo"], nan=0):>+11.3f}'
@@ -4701,6 +4903,9 @@ def lab_report(res):
             hm = r['holdout']
             line += f'  {np.nan_to_num(hm["mean_r"]):+.3f}/{hm["n"]}'
         L.append(line)
+    if idle:
+        L.append(f'거래 0건 = 모든 test 구간에서 쉼 ({len(idle)}개 — 직전 train 에서 1σ 하한이 양수인 파라미터가 한 번도 없었음, '
+                 f'즉 비용을 넘는 근거가 없어 스스로 거래를 거부): ' + ', '.join(f'{r["tf"]} {LAB_FAMILY_KO[r["family"]]}' for r in idle))
     L.append('─' * 96)
     good = [r for r in res['rows'] if r['oos']['n'] >= 50 and r['oos']['ci_lo'] > 0 and r['oos']['dsr'] >= 0.9]
     if good:
@@ -4798,6 +5003,126 @@ def lab_surrogate_test(base1m, n=20, only=None, seed0=100, cost_mode='taker', fu
     return dict(real=real, best=best.tolist(), same={f'{a}:{b}': v for (a, b), v in same.items()}, report='\n'.join(L))
 
 
+def _month_cluster_ci(R, T, n_boot=3000, q=0.05, seed=0):
+    """같은 달 거래는 코인이 달라도 같이 움직이므로 '달' 단위로 묶어 부트스트랩한 평균 R 의 하한."""
+    R = np.asarray(R, dtype=np.float64)
+    if len(R) < 5:
+        return float('nan')
+    mon = np.asarray(T).astype('datetime64[M]')
+    _, g = np.unique(mon, return_inverse=True)
+    sums, cnts = np.bincount(g, weights=R), np.bincount(g).astype(np.float64)
+    if len(sums) < 3:
+        return float('nan')
+    draw = np.random.default_rng(seed).integers(0, len(sums), size=(n_boot, len(sums)))
+    return float(np.quantile(sums[draw].sum(1) / np.maximum(cnts[draw].sum(1), 1), q))
+
+
+def lab_replication_verdict(n, mean_r, ci_lo, pos, tot):
+    """사전에 고정한 재현 판정 규칙."""
+    if n == 0:
+        return '판정 불가 (체결 없음)'
+    if not mean_r > 0:
+        return '재현 실패 — BTC 결과는 BTC 한 시장의 우연일 가능성이 크다'
+    if n >= 100 and ci_lo > 0 and tot > 0 and 3 * pos >= 2 * tot:
+        return '재현 확인 — 여러 시장에서 반복되는 구조다 (holdout·prospective 로 최종 확인)'
+    return '불충분 — 방향은 같지만 아직 입증은 아니다'
+
+
+def lab_cross_asset(base1m, only, symbols=LAB_ALT_SYMBOLS, http=None, cost_mode='taker', funding=None,
+                    n_trials_declared=None, frames_by_symbol=None, funding_by_symbol=None, status=None):
+    """
+    BTC 에서 고른 가설을 다른 코인에 '그대로' 적용한다 — 같은 파라미터 격자, 같은 WFO 선택 규칙, 같은 비용.
+    가설을 고를 때 쓰지 않은 시장이라 진짜 표본외 검증이고("역사는 반복된다"가 사람 심리 때문이라면 다른 코인에서도
+    반복돼야 한다), 통과하면 같은 규칙의 거래 기회가 코인 수만큼 늘어 성장 속도가 빨라진다.
+    BTC holdout 과 같은 날짜 이후는 알트에서도 봉인한다 (알트는 BTC 와 같이 움직여서, 열면 BTC holdout 을 엿보는 셈).
+    """
+    status = status or (lambda *a, **k: None)
+    pairs = lab_pairs(only)
+    if not pairs:
+        raise ValueError('다른 코인 재현 검증은 --only 로 선언한 가설에만 씁니다 (다시 탐색하면 표본외가 아니다)')
+    t_wall = time.time()
+    http = http or PublicHttp()
+    tfs = sorted({tf for tf, _ in pairs}, key=INTERVALS.get)
+    need_funding = any(f == 'funding' for _, f in pairs)
+    btc = lab_run(base1m, only=pairs, cost_mode=cost_mode, funding=funding, n_trials_declared=n_trials_declared)
+    hold = btc['holdout_start']
+    per, skipped = {}, []
+    for sym in symbols:
+        status(f'{sym}: 봉 데이터 준비...', 'blue')
+        frames = (frames_by_symbol or {}).get(sym) if frames_by_symbol is not None else \
+            {tf: fetch_klines_tf(http, sym, tf) for tf in tfs}
+        frames = {k: v for k, v in (frames or {}).items() if v is not None and len(v)}
+        f = None
+        if need_funding:
+            f = (funding_by_symbol or {}).get(sym) if funding_by_symbol is not None else \
+                load_funding_history(http, symbol=sym)
+        use = [(tf, fam) for tf, fam in pairs if tf in frames and (fam != 'funding' or f is not None)]
+        if not use:
+            skipped.append(sym)
+            continue
+        try:
+            res = lab_run(None, tf_frames=frames, only=use, cost_mode=cost_mode, funding=f, holdout_start=hold,
+                          symbol=sym)
+        except ValueError as e:
+            skipped.append(f'{sym}({e})')
+            continue
+        for r in res['rows']:
+            per.setdefault((r['tf'], r['family']), []).append((sym, r))
+    summary, L = [], [f'━━━ 다른 코인 재현 검증 · 가설 {", ".join(f"{a}:{b}" for a, b in pairs)} · 코인 {len(symbols)}개 · '
+                      f'비용 [{cost_mode}] · {round(time.time() - t_wall, 1)}초 ━━━',
+                      'BTC 에서 고른 가설을 같은 격자·같은 선택 규칙·같은 비용으로 그대로 적용 (선택에 쓰지 않은 시장 = 진짜 표본외)',
+                      f'holdout {hold[:10]} 이후는 알트에서도 봉인 · 판정 규칙(사전 고정): 알트 합산 체결 ≥ 100 · 달 단위 묶음 '
+                      f'부트스트랩 90% CI 하한 > 0 · 체결 10건 이상 코인의 2/3 이상이 평균R > 0 → 재현 확인 / 합산 평균R ≤ 0 → 재현 실패 / '
+                      f'그 외 → 불충분']
+    for tf, fam in pairs:
+        b = next((r for r in btc['rows'] if (r['tf'], r['family']) == (tf, fam)), None)
+        L += ['', f'── {tf} {LAB_FAMILY_KO[fam]} ──',
+              f'{"코인":<11}{"체결":>6}{"연간":>6}{"승률":>6}{"평균R":>8}{"90%CI하한":>10}{"PF":>6}{"연복리(1%)":>11}']
+
+        def row_line(sym, m, note=''):
+            return (f'{sym:<11}{m["n"]:>6}{m["n_year"]:>6.0f}{np.nan_to_num(m["win"]):>6.0%}{np.nan_to_num(m["mean_r"]):>+8.3f}'
+                    f'{np.nan_to_num(m["ci_lo"]):>+10.3f}{np.nan_to_num(m["pf"]):>6.2f}{m["cagr"]:>+11.1%}{note}')
+        if b is not None:
+            L.append(row_line(SYMBOL, b['oos'], '   ← 가설을 고른 데이터 (표본외 아님)'))
+        R, T, n_year, pos, tot = [], [], 0.0, 0, 0
+        for sym, r in per.get((tf, fam), []):
+            m = r['oos']
+            L.append(row_line(sym, m))
+            R += list(r['oos_r'])
+            T += list(r['oos_t'])
+            n_year += m['n_year']
+            if m['n'] >= 10:
+                tot += 1
+                pos += int(m['mean_r'] > 0)
+        R = np.asarray(R, dtype=np.float64)
+        lo = _month_cluster_ci(R, np.asarray(T, dtype='datetime64[ns]')) if len(R) else float('nan')
+        mean = float(R.mean()) if len(R) else float('nan')
+        pf = float(R[R > 0].sum() / max(-R[R <= 0].sum(), 1e-9)) if len(R) else float('nan')
+        verdict = lab_replication_verdict(len(R), mean, lo, pos, tot)
+        L.append(f'{"알트 합산":<9}{len(R):>6}{n_year:>6.0f}{np.nan_to_num(np.mean(R > 0) if len(R) else 0):>6.0%}'
+                 f'{np.nan_to_num(mean):>+8.3f}{np.nan_to_num(lo):>+10.3f}{np.nan_to_num(pf):>6.2f}   '
+                 f'평균R>0 코인 {pos}/{tot} → {verdict}')
+        if b is not None and b['oos']['n_year'] > 0 and n_year > 0:
+            L.append(f'   빈도: BTC 연 {b["oos"]["n_year"]:.0f}건 + 알트 연 {n_year:.0f}건 → 같은 규칙의 기회가 약 '
+                     f'{(b["oos"]["n_year"] + n_year) / b["oos"]["n_year"]:.1f}배 (코인끼리 같이 움직여서 실제 분산 효과는 그보다 작다)')
+        summary.append(dict(pair=f'{tf}:{fam}', n=int(len(R)), mean_r=mean, ci_lo=lo, pos=pos, tot=tot, verdict=verdict,
+                            per_symbol={sym: r['oos'] for sym, r in per.get((tf, fam), [])}))
+    if skipped:
+        L.append(f'\n데이터가 없거나 적용할 수 없어 건너뜀: {", ".join(skipped)}')
+    L.append('※ 알트 결과는 가설 선택에 쓰지 않은 데이터라 DSR 대신 사전 고정 규칙으로 판정한다. 같은 가설로 코인 목록을 바꿔 가며 '
+             '여러 번 돌리면 그것도 선택이다 — 첫 실행 결과를 기준으로 삼을 것.')
+    return dict(btc=btc, summary=summary, holdout_start=hold, symbols=list(symbols), skipped=skipped,
+                cost_mode=cost_mode, report='\n'.join(L))
+
+
+def lab_record_cross_asset(engine, res):
+    """다른 코인 재현 검증도 원장에 남긴다 (몇 번, 어떤 가설로 시험했는지가 증거의 일부)."""
+    with engine.state.tx() as st:
+        engine.state.emit(st, 'SYSTEM', what='lab_cross_asset', holdout_start=res['holdout_start'],
+                          symbols=res['symbols'], cost_mode=res['cost_mode'],
+                          summary=[{k: v for k, v in x.items() if k != 'per_symbol'} for x in res['summary']])
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -4837,11 +5162,20 @@ def main(argv=None):
     if '--lab' in argv:
         def lopt(name, default):
             return argv[argv.index(name) + 1] if name in argv and len(argv) > argv.index(name) + 1 else default
-        cost, only = lopt('--cost', 'taker'), lopt('--only', None)
+        cost, only, syms = lopt('--cost', 'taker'), lopt('--only', None), lopt('--symbols', None)
+        symbols = None
         try:
             lab_pairs(only)
             if cost not in LAB_COST_MODES:
                 raise ValueError(f'알 수 없는 비용 시나리오 {cost} — 가능한 값: {", ".join(LAB_COST_MODES)}')
+            if syms:
+                if not only:
+                    raise ValueError('--symbols 는 --only 로 선언한 가설에만 씁니다. 예: --only 4h:flow --symbols default')
+                symbols = LAB_ALT_SYMBOLS if syms.lower() in ('default', 'alts') else \
+                    tuple(x.strip().upper() for x in syms.split(',') if x.strip())
+                bad = [x for x in symbols if not (x.endswith('USDT') and x[:-4].isalnum() and 2 <= len(x) - 4 <= 15)]
+                if bad or not symbols:
+                    raise ValueError(f'코인 이름 형식 오류: {bad or syms} (예: ETHUSDT,SOLUSDT)')
         except ValueError as e:
             print(f'[LAB] {e}')
             return 2
@@ -4851,10 +5185,19 @@ def main(argv=None):
         funding = None if '--no-funding' in argv else load_funding_history(store.http, log=lambda t, c='': print(t))
         if funding is None:
             print('[LAB] 펀딩비 데이터 없음 → 펀딩비 전략군 생략')
-        fams = [f for f in LAB_GRIDS if f != 'funding' or funding is not None]
-        n_decl = lab_trial_count(LAB_TFS, fams) if only else None      # 가설을 고른 탐색의 전체 절차 수
+        n_decl = lab_trial_count(LAB_TFS, lab_available_families(funding)) if only else None   # 가설을 고른 탐색의 절차 수
         status = lambda t, c='': print(t)
         try:
+            if symbols:
+                res = lab_cross_asset(base, only, symbols, http=store.http, cost_mode=cost, funding=funding,
+                                      n_trials_declared=n_decl, status=status)
+                print(res['report'])
+                if any(x['n'] > 0 for x in res['summary']):
+                    lab_record_cross_asset(Engine(store=store), res)
+                    print('[LAB] 재현 검증 결과가 원장에 기록되었습니다.')
+                else:
+                    print('[LAB] 알트 봉을 하나도 받지 못해 기록하지 않았습니다 (네트워크 확인 후 다시).')
+                return 0
             n_sur = int(lopt('--surrogate-n', 0))
             if n_sur > 0:
                 res = lab_surrogate_test(base, n_sur, only=only, cost_mode=cost, funding=funding,
