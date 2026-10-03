@@ -412,21 +412,22 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 104 and str(j.anchor.date()) == '2026-01-01' and str(j.seen_from.date()) == '2021-11-27'
-    assert j.state('btc_presample|4h:keltner') == 'preregistered' and j.state('wf|15m:analog_engine') == 'refuted'
+    assert j.n_trials() == 107 and str(j.anchor.date()) == '2026-01-01' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
-    assert len(pe.RESEARCH_LESSONS) == 10 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 104 and j.n_trials(['btc|4h:consensus|taker']) == 105
+    assert j.state('final|4h:keltner') == 'preregistered' and [p['id'] for p in j.d['prereg']] == ['P1', 'P2']
+    assert len(pe.RESEARCH_LESSONS) == 12 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 107 and j.n_trials(['btc|4h:consensus|taker']) == 108
     j.record('lab', ['btc|4h:consensus|taker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 105 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 108 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 104 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 107 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -436,7 +437,9 @@ def test_journal_blocks_refuted_and_repeated_tests(pe):
     assert len(block) == 1 and '반증' in block[0] and any('근거 없음' in w for w in warn)
     block, warn = j.check('btc', [('4h', 'flow')], retest='새 데이터 1년 추가')
     assert not block and warn                                                  # 사유가 있으면 경고만 (일지에 남는다)
+    j.set_status('btc_presample|4h:keltner', 'preregistered', '테스트용 재등록')
     assert not j.check('btc_presample', [('4h', 'keltner')], once=True)[0]     # 등록 대기 → 실행 가능
+    j.set_status('btc_presample|4h:consensus', 'preregistered', '테스트용 재등록')
     pe.research_apply_presample(j, [dict(pair='4h:keltner', n=40, mean_r=-0.1, lo=-0.5, verdict='반증 — x'),
                                     dict(pair='4h:consensus', n=0, mean_r=float('nan'), lo=float('nan'),
                                          verdict='판정 불가 (거래 < 10)')])
@@ -494,3 +497,56 @@ def test_presample_uses_only_unseen_window_with_spot_history(pe):
     assert '처음 보는 BTC 구간 검증' in res['report'] and '2.50%' in res['report']   # 가설 2개 → 단측 2.5%
     fut = pe.lab_presample(base[base['era'] == 1.0], '4h:donchian', seen_from='2021-06-01')
     assert fut['presample'][0]['n'] == 0                                       # 스팟 이력이 없으면 처음 보는 구간도 없다
+
+
+# ── 최종 검증 (사전등록 P2) ───────────────────────────────────────────
+def test_final_verdict_rule(pe):
+    v = pe.lab_final_verdict
+    m = lambda n, mean, lo: dict(n=n, mean_r=mean, ci_lo=lo, ci_hi=lo + 1)
+    assert v(m(0, float('nan'), float('nan')), m(0, float('nan'), float('nan'))).startswith('판정 불가')
+    assert v(m(15, 0.3, -0.5), m(200, -0.02, -0.2)).startswith('반증 —')          # 묶음 평균 ≤ 0
+    assert v(m(12, -0.1, -0.9), m(200, 0.2, 0.05)).startswith('반증 —')            # BTC 10건 이상 평균 ≤ 0
+    assert v(m(8, -0.1, -0.9), m(200, 0.2, 0.05)).startswith('반증 안 됨')         # BTC 10건 미만은 묶음 하한만으론 확인 안 됨
+    assert v(m(15, 0.3, -0.5), m(200, 0.2, 0.05)).startswith('확인')
+    assert v(m(15, 0.3, -0.5), m(200, 0.2, -0.05)).startswith('반증 안 됨')
+    assert v(m(15, 0.3, 0.1), None).startswith('확인')                             # 알트 없으면 BTC 단독 규칙
+
+
+def test_final_test_reads_only_holdout_and_both_scopes(pe):
+    base = _trend_1m(1500, 0.0000004, seed=6)
+    base.index = pd.date_range('2018-01-01', periods=len(base), freq='1min')
+    coins = {'BTCUSDT': pe.lab_btc_frames(base, ('4h',))}
+    for k, sym in enumerate(('ETHUSDT', 'SOLUSDT', 'XRPUSDT')):
+        coins[sym] = {'4h': _frame_4h(len(coins['BTCUSDT']['4h']), seed=k, start='2018-01-01')}
+    hs = pd.Timestamp('2021-06-01')
+    res = pe.lab_final_test(base, coins, '4h:tsmom', hs)
+    assert res['pair'] == '4h:tsmom' and res['uni'] is not None and res['b']['n'] > 0 and res['u']['n'] > 0
+    rb = res['btc']['rows'][0]
+    assert (rb['oos_t'] < np.datetime64(hs)).all() and res['btc']['revealed'] and res['uni']['revealed']
+    assert '최종 검증 (사전등록 P2)' in res['report'] and '▶ 판정' in res['report'] and res['verdict']
+    import pytest
+    with pytest.raises(ValueError):
+        pe.lab_final_test(base, coins, '4h:tsmom,4h:ema', hs)
+
+
+def test_journal_sync_adds_new_preregistration_to_old_journals(pe):
+    j = pe.ResearchJournal.load()
+    j.d['prereg'] = [p for p in j.d['prereg'] if p['id'] != 'P2']
+    j.d['status'].pop('final|4h:keltner')
+    j.d['entries'] = [e for e in j.d['entries'] if not e['title'].startswith('P1 결과')]
+    j.save()
+    j2 = pe.ResearchJournal.load()
+    assert 'P2' in [p['id'] for p in j2.d['prereg']] and j2.state('final|4h:keltner') == 'preregistered'
+    assert any(e['title'].startswith('P1 결과') and e.get('synced_from_code') for e in j2.d['entries'])
+    n = len(j2.d['entries'])
+    assert len(pe.ResearchJournal.load().d['entries']) == n                   # 두 번 덧붙이지 않는다
+
+
+def test_cli_final_guards(pe):
+    assert pe.main(['--lab', '--final', '4h:flow']) == 2                      # P2 에 등록되지 않은 가설
+    assert pe.main(['--lab', '--final', '4h:keltner', '--universe']) == 2
+    assert pe.main(['--lab', '--final']) == 2
+    j = pe.ResearchJournal.load()
+    j.set_status('final|4h:keltner', 'refuted', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--final', '4h:keltner']) == 2                   # 이미 판정됨 → 다시 열지 않음

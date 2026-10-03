@@ -4948,7 +4948,7 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
                                idx[min(train_n, len(idx) - 1)], idx[max(min(i_hold, len(idx)) - 1, 0)])
             hmet = _lab_metrics(hold_r, hold_years, n_trials=1)
             last = next((pp for _, pp, _ in reversed(chosen) if pp is not None), None)
-            rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last, oos_r=oos_r,
+            rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last, oos_r=oos_r, hold_r_list=hold_r,
                              oos_start=str(idx[min(train_n, len(idx) - 1)]),
                              oos_t=idx[np.asarray(oos_i, dtype=np.int64)].values, windows=len(chosen),
                              idle_windows=sum(1 for _, pp, _ in chosen if pp is None),
@@ -5432,7 +5432,7 @@ def lab_run_universe(frames_by_symbol, tfs=LAB_UNIVERSE_TFS, families=None, hold
             pos = sum(1 for n_, mr in per.values() if n_ >= 10 and mr > 0)
             last = next((pp for _, pp, _ in reversed(chosen) if pp is not None), None)
             rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, per_symbol=per, pos=pos, tot=tot,
-                             last_params=last, oos_r=oR, oos_t=oE, windows=len(chosen),
+                             last_params=last, oos_r=oR, oos_t=oE, hold_r_list=hR, windows=len(chosen),
                              idle_windows=sum(1 for _, pp, _ in chosen if pp is None),
                              hold_windows=sum(1 for _, _, hh in chosen if hh),
                              hold_idle=sum(1 for _, pp, hh in chosen if hh and pp is None)))
@@ -5545,6 +5545,10 @@ RESEARCH_LESSONS = [
     ('L8', '반증된 가설을 새 이름·새 설정으로 다시 시험하지 않는다. 재시험은 사유와 함께 일지에 남긴다 (--retest).'),
     ('L9', 'holdout 은 선언한 가설에만, 한 번만 연다 (--only 없는 공개는 거부).'),
     ('L10', '증거가 없으면 거래당 위험 0 이 정답이다. 하루 복리 목표도 증거의 하한으로만 계산한다.'),
+    ('L11', '같은 데이터에서 끝없이 찾으면 언젠가 반드시 가짜가 통과한다. 탐색은 계속해도 되지만 확인은 새 데이터'
+            '(holdout·앞으로 쌓일 미래·다른 시장)로만 하고, 시험 수가 늘수록 기준도 올라간다 (L6).'),
+    ('L12', '한 국면의 성과는 다른 국면에서 다시 확인해야 한다. — BTC 4h Keltner: 2019-08~2021-11(강세장 위주) +0.866R(58건), '
+            '2022~2025 +0.070R(86건)'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5552,7 +5556,15 @@ RESEARCH_PREREG = [dict(
          f'(표본외 시작 ~ {RESEARCH_SEEN_FROM} 전날)의 거래만으로 판정한다. 가설 3개 → 단측 {RESEARCH_PRESAMPLE_ALPHA / 3:.2%} '
          '하한(블록 부트스트랩). 거래 < 10 → 판정 불가 · 평균R ≤ 0 → 반증 · 하한 > 0 → 확인(holdout 후보) · 그 외 → 반증 안 됨',
     why='H1 4h Keltner+거래량 = 코인 묶음 1위 (8/9 코인 양수, CI 하한 −0.009). H2 4h 체결강도 = BTC 단독 1위 '
-        '(알트 재현 불충분 → BTC 고유 효과인지 확인). H3 4h 추세 합의 = 꼬리 잡음을 줄이려고 만든 새 절차 (격자 없음, 시험 1회).')]
+        '(알트 재현 불충분 → BTC 고유 효과인지 확인). H3 4h 추세 합의 = 꼬리 잡음을 줄이려고 만든 새 절차 (격자 없음, 시험 1회).'),
+    dict(id='P2', registered='2026-10-03', scope='final', pairs=['4h:keltner'],
+         rule=f'봉인 구간({RESEARCH_HOLDOUT_ANCHOR}~)을 단 한 번 연다. 같은 가설을 BTC(전체 이력 WFO)와 코인 묶음 9개(합산 WFO)로 '
+              '동시에 판정한다. 반증: 묶음 holdout 평균R ≤ 0, 또는 BTC holdout 거래 ≥ 10 이고 평균R ≤ 0 · '
+              '확인: 묶음 달묶음 90% CI 하한 > 0 이고 BTC 평균R > 0 · 그 외: 반증 안 됨. 공개하면 holdout 은 소진되고, '
+              '그 뒤 쌓이는 데이터가 새 holdout(앞으로의 검증)이 된다.',
+         why='P1-H1 확인 (처음 보는 BTC 구간 58건 +0.866R, 단측 1.67% 하한 +0.270). 다만 그 구간은 2020-21 강세장 위주였고 '
+             '2022~2025 BTC 단독은 86건 +0.070R 로 약했다 (L12) → 지금 국면에서도 살아 있는지가 핵심이다. BTC 단독 9개월은 '
+             '15건 안팎이라 검정력이 낮아 코인 묶음을 함께 본다.')]
 RESEARCH_HISTORY = [
     dict(date='2026-10-01', kind='audit', title='V611 객관 감사 → V612',
          summary='알려진 결함 전부 재현·수정, 새 결함 20개(N-01~N-20), null 이 약 1.4배 관대함을 측정, 미검증 신호 위험 25% 로 축소 '
@@ -5579,6 +5591,13 @@ RESEARCH_HISTORY = [
          lessons=['L6', 'L7']),
     dict(date='2026-10-03', kind='prereg', title='사전등록 P1 (실행 전 기록)', summary=RESEARCH_PREREG[0]['rule'],
          lessons=['L1', 'L8']),
+    dict(date='2026-10-03', kind='review', title='P1 결과 — 처음 보는 BTC 구간 (2019-08-24 ~ 2021-11-26, 스팟 2017-08~ 포함)',
+         summary='H1 4h Keltner+거래량 58건 승률 43% 평균 +0.866R 단측 1.67% 하한 +0.270 PF 3.34 → 확인 (보수 하루복리 +0.102% @ '
+                 '거래당 8%). H2 4h 체결강도 22건 +0.239R 하한 −0.316 → 반증 안 됨. H3 4h 추세 합의 91건 +0.439R 하한 −0.089 → '
+                 '반증 안 됨. 주의: 이 구간은 2020-21 강세장 위주이고, 같은 전략의 BTC 2022~2025 는 86건 +0.070R 이었다 (L12).',
+         lessons=['L1', 'L12']),
+    dict(date='2026-10-03', kind='prereg', title='사전등록 P2 (실행 전 기록)', summary=RESEARCH_PREREG[1]['rule'],
+         lessons=['L9', 'L11', 'L12']),
 ]
 
 
@@ -5597,6 +5616,7 @@ def _research_seed_keys():
     add('btc', base10 + ['funding'], 'maker_entry')                           # 지정가 진입 시나리오: 39
     add('universe', ['tsmom', 'ema', 'donchian', 'bollinger', 'keltner', 'volbreak', 'flow', 'meanrev', 'rsi2', 'funding',
                      'analog', 'xsmom'], 'taker', tfs=('1h', '4h'), skip={('1h', 'analog')})   # 코인 묶음: 22
+    keys += [f'btc_presample|4h:{f}|taker' for f in ('keltner', 'flow', 'consensus')]          # P1: 3 (누적 107)
     return sorted(set(keys))
 
 
@@ -5624,8 +5644,10 @@ def _research_seed_status():
     put('btc|4h:bollinger', 'candidate', '+0.702R(70건) CI 하한 +0.104, p(최고)=0.095')
     put('universe|4h:keltner', 'candidate', '1404건 +0.245R, 8/9 코인, CI 하한 −0.009, p(최고) 0.43 → P1-H1')
     put('universe|4h:ema', 'candidate', '785건 +0.437R, 6/9 코인, CI 하한 −0.055')
-    for pair, h in zip(RESEARCH_PREREG[0]['pairs'], ('H1', 'H2', 'H3')):
-        put(f'btc_presample|{pair}', 'preregistered', f'P1-{h}: 실행 전 등록 (판정 규칙 고정)')
+    put('btc_presample|4h:keltner', 'confirmed', 'P1-H1: 처음 보는 BTC 구간 58건 평균R +0.866 하한 +0.270 → 확인')
+    put('btc_presample|4h:flow', 'not_refuted', 'P1-H2: 처음 보는 BTC 구간 22건 평균R +0.239 하한 −0.316 → 반증 안 됨')
+    put('btc_presample|4h:consensus', 'not_refuted', 'P1-H3: 처음 보는 BTC 구간 91건 평균R +0.439 하한 −0.089 → 반증 안 됨')
+    put('final|4h:keltner', 'preregistered', 'P2: 실행 전 등록 (판정 규칙 고정)')
     return st
 
 
@@ -5640,6 +5662,27 @@ def research_seed():
                                       why='L7 — 미끄러지던 봉인 시작일을 그동안의 모든 봉인 시작보다 앞 날짜로 고정')],
                 seen_oos_from=RESEARCH_SEEN_FROM, procedures=_research_seed_keys(), status=_research_seed_status(),
                 prereg=copy.deepcopy(RESEARCH_PREREG), entries=copy.deepcopy(RESEARCH_HISTORY))
+
+
+def _research_sync(d, seed):
+    """코드에 새로 들어온 사전등록·분석 기록을 기존 일지에 덧붙인다 (지우거나 고치지 않음). 바뀐 게 있으면 True."""
+    changed = False
+    have = {p.get('id') for p in d.get('prereg', [])}
+    for p in seed['prereg']:
+        if p['id'] not in have:
+            d['prereg'].append(p)
+            for pair in p['pairs']:
+                key = f'{p["scope"]}|{pair}'
+                if key not in d['status']:
+                    d['status'][key] = seed['status'].get(key, dict(state='preregistered', why=f'{p["id"]}: 실행 전 등록',
+                                                                    date=p['registered']))
+            changed = True
+    seen = {(e.get('date', '')[:10], e.get('title')) for e in d.get('entries', [])}
+    for e in seed['entries']:
+        if (e['date'][:10], e['title']) not in seen:
+            d['entries'].append(dict(e, synced_from_code=True))
+            changed = True
+    return changed
 
 
 class ResearchJournal:
@@ -5658,8 +5701,12 @@ class ResearchJournal:
                     d = json.load(f)
                 if not isinstance(d, dict) or not isinstance(d.get('procedures'), list):
                     raise ValueError('형식 오류')
-                for k, v in research_seed().items():
+                seed = research_seed()
+                for k, v in seed.items():
                     d.setdefault(k, v)
+                if _research_sync(d, seed):
+                    j.d = d
+                    j.save()
                 j.d = d
                 return j
             except Exception as e:
@@ -5856,6 +5903,72 @@ def lab_presample(base1m, pairs, seen_from=RESEARCH_SEEN_FROM, funding=None, cos
     return res
 
 
+def lab_final_verdict(b, u):
+    """사전등록 P2 의 판정 규칙. b = BTC holdout 지표, u = 코인 묶음 holdout 지표 (없으면 None)."""
+    if u is None:
+        return lab_holdout_verdict(b)
+    if u['n'] == 0 and b['n'] == 0:
+        return '판정 불가 (holdout 거래 없음)'
+    if (u['n'] > 0 and not u['mean_r'] > 0) or (b['n'] >= 10 and not b['mean_r'] > 0):
+        return '반증 — 지금 국면에서는 살아 있지 않다'
+    if u['n'] > 0 and u['ci_lo'] > 0 and b['mean_r'] > 0:
+        return '확인 — 앞으로의 데이터(새 holdout)로 계속 추적하며 소액 실전 단계로'
+    return '반증 안 됨 — 방향은 맞지만 입증은 아니다, 앞으로의 데이터로 계속 추적'
+
+
+def lab_final_test(base1m, frames_by_symbol, pair, holdout_start, funding=None, funding_by_symbol=None,
+                   cost_mode='taker', n_trials_declared=None, status=None):
+    """
+    사전등록 P2: 가설 하나를 봉인 구간에서 BTC(전체 이력 WFO)와 코인 묶음(합산 WFO)으로 동시에 판정한다.
+    holdout 은 이 한 번으로 소진된다. 표본외 보수 위험(f*)으로 걸었다면 holdout 동안 계좌가 몇 배가 됐는지도 보인다.
+    """
+    pairs = lab_pairs(pair)
+    if not pairs or len(pairs) != 1:
+        raise ValueError('최종 검증은 가설 하나만 (예: --final 4h:keltner)')
+    tf, fam = pairs[0]
+    btc = lab_run(base1m, only=pairs, futures_only=False, holdout_start=holdout_start, reveal_holdout=True,
+                  cost_mode=cost_mode, funding=funding, n_trials_declared=n_trials_declared, status=status)
+    uni = None
+    if frames_by_symbol and sum(1 for fr in frames_by_symbol.values() if fr and tf in fr and fr[tf] is not None) >= 2:
+        uni = lab_run_universe(frames_by_symbol, tfs=(tf,), only=pairs, holdout_start=holdout_start, reveal_holdout=True,
+                               cost_mode=cost_mode, funding_by_symbol=funding_by_symbol,
+                               n_trials_declared=n_trials_declared, status=status)
+    rb = next((r for r in btc['rows'] if (r['tf'], r['family']) == (tf, fam)), None)
+    ru = next((r for r in (uni or {}).get('rows', []) if (r['tf'], r['family']) == (tf, fam)), None) if uni else None
+    empty = _lab_metrics([], 1.0)
+    b, u = (rb or {}).get('holdout', empty), (ru['holdout'] if ru else (empty if uni else None))
+    verdict = lab_final_verdict(b, u)
+
+    def growth(r):
+        if not r or not r['oos'].get('f_star'):
+            return '표본외 증거 하한이 0 이하 → 거래당 위험 0 (걸지 않음)'
+        f = r['oos']['f_star']
+        R = np.asarray(r.get('hold_r_list', []), dtype=np.float64)
+        mult = float(np.prod(1.0 + f * np.clip(R, -50, 50))) if len(R) else 1.0
+        return f'표본외 보수 위험 {f:.1%} 로 걸었다면 holdout 동안 계좌 ×{mult:.3f}'
+    L = [f'━━━ 최종 검증 (사전등록 P2) · {tf} {LAB_FAMILY_KO[fam]} · holdout {str(holdout_start)[:10]} ~ ━━━',
+         '봉인 구간을 단 한 번 연다. 판정 규칙(사전 고정): 반증 = 묶음 holdout 평균R ≤ 0 또는 BTC holdout 거래 ≥ 10 이고 평균R ≤ 0 · '
+         '확인 = 묶음 달묶음 90% CI 하한 > 0 이고 BTC 평균R > 0 · 그 외 = 반증 안 됨',
+         '─' * 100,
+         f'{"범위":<22}{"표본외 체결":>10}{"표본외 평균R":>12}{"holdout 체결":>12}{"holdout 평균R":>13}{"90% CI":>20}{"승률":>6}{"PF":>6}']
+    for name, r, m in (('BTC (전체 이력)', rb, b), (f'코인 묶음 {len((uni or {}).get("symbols", []))}개', ru, u)):
+        if m is None:
+            L.append(f'{name:<22}  (알트 봉이 없어 BTC 만으로 판정)')
+            continue
+        o = (r or {}).get('oos', empty)
+        ci = f'[{np.nan_to_num(m["ci_lo"]):+.3f}, {np.nan_to_num(m["ci_hi"]):+.3f}]'
+        L.append(f'{name:<22}{o["n"]:>10}{np.nan_to_num(o["mean_r"]):>+12.3f}{m["n"]:>12}{np.nan_to_num(m["mean_r"]):>+13.3f}'
+                 f'{ci:>20}{np.nan_to_num(m["win"]):>6.0%}{np.nan_to_num(m["pf"]):>6.2f}')
+    L += ['─' * 100, f'▶ 판정: {verdict}', f'  BTC: {growth(rb)}']
+    if ru:
+        L.append(f'  코인 묶음: {growth(ru)}')
+    if 0 < b['n'] < 30:
+        L.append(f'  ※ BTC holdout 거래 {b["n"]}건은 적다 — 그래서 코인 묶음을 함께 본다.')
+    L.append('※ 공개한 구간은 이제 "본 데이터"다. 다음 확인은 오늘 이후 쌓이는 데이터로만 한다 (L11).')
+    return dict(btc=btc, uni=uni, verdict=verdict, pair=f'{tf}:{fam}', holdout_start=str(holdout_start),
+                b=b, u=u, report='\n'.join(L))
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -5911,6 +6024,7 @@ def main(argv=None):
             return tuple(x for x in out if x != SYMBOL)
         cost, only, syms, retest = lopt('--cost', 'taker'), lopt('--only', None), lopt('--symbols', None), lopt('--retest', None)
         presample = '--presample' in argv
+        final = lopt('--final', None) if '--final' in argv else None
         symbols = universe = None
         tfs_u = LAB_UNIVERSE_TFS
         try:
@@ -5935,6 +6049,12 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if '--final' in argv:
+                if not final or final.startswith('--') or only or universe or symbols or presample or '--reveal-holdout' in argv:
+                    raise ValueError('최종 검증은 단독으로 가설 하나만: --final 4h:keltner')
+                pairs = lab_pairs(final)
+                if len(pairs) != 1:
+                    raise ValueError('최종 검증은 가설 하나만 (예: --final 4h:keltner)')
         except ValueError as e:
             print(f'[LAB] {e}')
             return 2
@@ -5948,9 +6068,22 @@ def main(argv=None):
                 return 2
             pairs = lab_pairs(','.join(x for x in reg['pairs'] if journal.state(f'btc_presample|{x}') == 'preregistered'))
             print(f'[LAB] 사전등록 {reg["id"]} ({reg["registered"]}) 실행: {", ".join(f"{a}:{b}" for a, b in pairs)}')
-        scope = 'universe' if universe else 'cross' if symbols else 'btc_presample' if presample else 'btc'
+        scope = 'final' if final else 'universe' if universe else 'cross' if symbols else 'btc_presample' if presample else 'btc'
+        if final:
+            pr = f'{pairs[0][0]}:{pairs[0][1]}'
+            reg = next((p_ for p_ in journal.d.get('prereg', []) if p_.get('scope') == 'final' and pr in p_['pairs']), None)
+            prev = journal.state(f'btc_presample|{pr}')
+            if reg is None and not retest:
+                print(f'[LAB] {pr} 는 최종 검증에 사전등록되어 있지 않습니다 (L9·L11). 판정 규칙을 먼저 등록해야 합니다.')
+                return 2
+            if prev not in ('confirmed', 'not_refuted') and not retest:
+                print(f'[LAB] {pr} 는 처음 보는 구간 검증을 통과하지 않았습니다 (일지: {RESEARCH_STATE_KO.get(prev, prev)}) → '
+                      '최종 검증 대상이 아닙니다 (L1).')
+                return 2
+            if reg:
+                print(f'[LAB] 사전등록 {reg["id"]} ({reg["registered"]}) 규칙: {reg["rule"]}')
         if pairs:
-            block, warn = journal.check(scope, pairs, retest, once=presample)
+            block, warn = journal.check(scope, pairs, retest, once=presample or bool(final))
             for w in warn:
                 print(f'⚠ {w}')
             if block:
@@ -5976,7 +6109,9 @@ def main(argv=None):
                 print(f'⚠ holdout 은 이미 {len(prior)}회 공개되었습니다 '
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
-        if universe:
+        if final:
+            keys = [f'final|{a}:{b}|{cost}' for a, b in pairs]
+        elif universe:
             keys = lab_planned_keys('universe', tfs_u, lab_available_families(funding, universe=True), cost, pairs, True)
         elif symbols:
             keys = [f'cross|{a}:{b}|{cost}' for a, b in pairs]
@@ -5993,6 +6128,36 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if final:
+                tf_f = pairs[0][0]
+                frames, fund_by = {SYMBOL: lab_btc_frames(base, (tf_f,))}, {SYMBOL: funding}
+                for sym in LAB_ALT_SYMBOLS:
+                    status(f'{sym}: 봉 데이터 준비...')
+                    frames[sym] = {tf_f: fetch_klines_tf(store.http, sym, tf_f, log=log)}
+                    if funding is not None:
+                        fund_by[sym] = load_funding_history(store.http, symbol=sym, log=log)
+                res = lab_final_test(base, frames, final, anchor, funding=funding, funding_by_symbol=fund_by, cost_mode=cost,
+                                     n_trials_declared=n_cum, status=status)
+                print(res['report'])
+                if res['b']['n'] + (res['u']['n'] if res['u'] else 0) == 0:
+                    print('[LAB] holdout 거래가 없어 소진하지 않았습니다.')
+                    return 0
+                eng_f = Engine(store=store)
+                for part in (res['btc'], res['uni']):
+                    if part:
+                        lab_record_holdout(eng_f, part)
+                v = res['verdict']
+                st_ = 'refuted' if v.startswith('반증 —') else 'holdout_passed' if v.startswith('확인') else 'not_refuted' \
+                    if v.startswith('반증 안 됨') else 'inconclusive'
+                why = (f'holdout BTC {res["b"]["n"]}건 {np.nan_to_num(res["b"]["mean_r"]):+.3f}R'
+                       + (f' · 묶음 {res["u"]["n"]}건 {np.nan_to_num(res["u"]["mean_r"]):+.3f}R 하한 '
+                          f'{np.nan_to_num(res["u"]["ci_lo"]):+.3f}' if res['u'] else '') + f' → {v}')
+                for sc in ('final', 'btc', 'universe'):
+                    journal.set_status(f'{sc}|{res["pair"]}', st_, why)
+                journal.consume_holdout([res['pair']], {res['pair']: v})
+                note('final', f'최종 검증 {res["pair"]} (holdout {res["holdout_start"][:10]}~)', summary=why)
+                print('[LAB] 최종 판정이 원장과 연구 일지에 기록되었고 holdout 이 소진되었습니다. 오늘 이후 데이터가 새 holdout 입니다.')
+                return 0
             if universe:
                 frames, fund_by = {SYMBOL: lab_btc_frames(base, tfs_u)}, {SYMBOL: funding}
                 for sym in universe:
