@@ -4291,6 +4291,26 @@ LAB_COST_MODES = {              # (설명, 진입 비용, 신호·시간 청산 
     'maker':       ('지정가 진입·지정가 청산 (청산 체결을 가정 = 낙관 상한)', MAKER_FEE, MAKER_FEE, MAKER_TP_THROUGH),
 }
 FUNDING_EPOCH_MS = 1567296000000   # 2019-09-01 UTC (BTCUSDT 무기한 상장 전) — 처음부터 받는다
+LAB_DEFAULT_FEES = (TAKER_FEE, MAKER_FEE, SLIPPAGE_T)
+
+
+def lab_set_fees(taker=None, maker=None):
+    """실제 계정 수수료(VIP·BNB 할인·USDC 계약 프로모션 등)로 Lab 을 돌릴 때: 전역 수수료와 비용 시나리오 표를 다시 만든다."""
+    global TAKER_FEE, MAKER_FEE
+    if taker is not None:
+        TAKER_FEE = float(taker)
+    if maker is not None:
+        MAKER_FEE = float(maker)
+    LAB_COST_MODES['taker'] = (LAB_COST_MODES['taker'][0], TAKER_FEE + SLIPPAGE_T, TAKER_FEE + SLIPPAGE_T, -1.0)
+    LAB_COST_MODES['maker_entry'] = (LAB_COST_MODES['maker_entry'][0], MAKER_FEE, TAKER_FEE + SLIPPAGE_T, MAKER_TP_THROUGH)
+    LAB_COST_MODES['maker'] = (LAB_COST_MODES['maker'][0], MAKER_FEE, MAKER_FEE, MAKER_TP_THROUGH)
+
+
+def lab_fee_tag():
+    """기본 수수료가 아니면 일지 키에 붙일 꼬리표 (수수료를 바꾼 실행도 별개의 시험으로 센다)."""
+    if (TAKER_FEE, MAKER_FEE, SLIPPAGE_T) == LAB_DEFAULT_FEES:
+        return ''
+    return f'|fee{TAKER_FEE * 1e4:g}/{MAKER_FEE * 1e4:g}/{SLIPPAGE_T * 1e4:g}bp'
 
 
 @njit(cache=False)
@@ -5681,6 +5701,9 @@ RESEARCH_LESSONS = [
             '알트만 보여 준 실수'),
     ('L17', '여러 국면에서 모두 양수인 것만 후보로 남긴다. 한 국면(2020-21 강세장)에서만 강했던 추세 전략은 다른 국면에서 무너졌다. '
             '— 4h Keltner(P2)·4h 추세 합의(P4: BTC 2021-11~ 55건 −0.197R) 반증, BTC 4h 체결강도만 세 구간 모두 양수'),
+    ('L18', '레버리지(계좌 위험)는 엣지를 만들지 못한다. 켈리 지점을 넘으면 성장은 멈추고 낙폭만 커진다. 가격 1% 고정 손절로 수수료 '
+            '비중을 1R 의 14% 로 낮춰도 짧은 시간봉 신호는 비용을 넘지 못했다. — 1h Keltner(32개 중 최고, +0.081R): 계좌 1% ×1.23 '
+            '낙폭 26% · 2% ×1.35 낙폭 46% · 3% ×1.34 낙폭 62%'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5785,6 +5808,13 @@ RESEARCH_HISTORY = [
                  '표본외 결과(배수·하루 복리·최대 낙폭·최장 연속 손실)를 함께 본다. 탐색이므로 새 절차로 누적 집계하고, 통과하면 '
                  '사전등록 후 앞으로의 데이터로 확인한다. 실행: --lab --stop-pct 1',
          lessons=['L2', 'L10', 'L15']),
+    dict(date='2026-10-05', kind='review', title='가격 1% 고정 손절 결과 (5m/15m/1h, 32개 절차) · 날짜 섞은 BTC 20개 비교',
+         summary='통과 0. 최고 1h Keltner+거래량 328건 승률 33% +0.081R CI 하한 −0.085, 샤프 0.36(하루 1% 필요량의 2%). 계좌 위험 1%: '
+                 '×1.23(낙폭 26%) · 2%: ×1.35(46%) · 3%: ×1.34(62%) — 2배를 넘기면 성장은 멈추고 낙폭만 커짐. 15m 변동성 돌파 443건 '
+                 '+0.023R · 15m Bollinger +0.003R · 5m 변동성 돌파 −0.036R, 나머지는 쉬거나 음수. 날짜 섞은 BTC 20개: 최고 CI 하한 '
+                 '중앙 −0.136 · 최고 +0.175, 1h Keltner p(최고 절차) 0.238. 15m·5m 변동성 돌파는 같은 절차의 섞은 차트 20개를 모두 '
+                 '이겼지만(p 0.048) 실제도 손실 근처 → 실제 차트의 구조는 있으나 비용을 넘지 못함. 남은 지렛대 = 실제 수수료(--fees).',
+         lessons=['L2', 'L15', 'L18']),
 ]
 
 
@@ -5808,6 +5838,10 @@ def _research_seed_keys():
     keys += [f'alt_presample|4h:{f}|taker' for f in ('flow', 'consensus')]                     # P3: 2 (누적 110)
     keys += ['regime|4h:consensus|taker', 'btc|1m:wick|maker', 'btc|1h:tod|taker',
              'btc|4h:consensus|taker']                                                       # P4·꼬리·시간대·Lab #4 (누적 114)
+    fixed = {'5m': base10, '15m': base10,                                                     # 가격 1% 고정 손절 (누적 146)
+             '1h': [f for f in base10 if f != 'session'] + ['funding', 'analog', 'tod']}
+    keys += [f'btc|{tf}:{f}|taker|stop1' for tf, fams in fixed.items() for f in fams
+             if tf in {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h')}.get(f, ('5m', '15m', '1h'))]
     return sorted(set(keys))
 
 
@@ -5850,6 +5884,8 @@ def _research_seed_status():
                                             '국면을 버티지 못했다', '2026-10-05')
     put('btc|1m:wick', 'no_evidence', '81건 승률 69% · 평균 −0.035R, CI [−0.142, +0.076] — 높은 승률, 음의 기대값', '2026-10-05')
     put('btc|1h:tod', 'no_evidence', '전 구간 쉼 (train 근거 없음)', '2026-10-05')
+    put('btc_stop1|short:all', 'no_evidence', '가격 1% 고정 손절 5m/15m/1h 32개: 통과 0, 최고 1h Keltner +0.081R CI 하한 −0.085 · '
+                                              'p(최고) 0.238', '2026-10-05')
     put('btc|4h:flow', 'candidate', '세 구간 모두 양수: 2019-21 +0.239R(22) · 2022-25 +0.459R(67) · 2026 약 +0.46R(24). '
                                     '샤프 0.85, DSR(누적) 0.14 → 앞으로의 검증 중', '2026-10-05')
     put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
@@ -6788,6 +6824,7 @@ def main(argv=None):
         alt_pre, prosp, wick = '--alt-presample' in argv, '--prospective' in argv, '--wick' in argv
         signal = '--signal' in argv
         stop_pct = None
+        fees = None
         tfs_x, tp_x = LAB_FIXED_TFS, LAB_FIXED_TP
         regime = lopt('--regime', None) if '--regime' in argv else None
         symbols = universe = None
@@ -6814,6 +6851,16 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if '--fees' in argv:
+                try:
+                    fees = tuple(float(x) / 100.0 for x in lopt('--fees', '').split(','))
+                except ValueError:
+                    fees = ()
+                if len(fees) != 2 or not (0 <= fees[0] <= 0.002 and 0 <= fees[1] <= 0.001):
+                    raise ValueError('--fees 는 "시장가%,지정가%" 입니다 (예: --fees 0.045,0.018 · 바이낸스 선물 수수료 등급에서 확인)')
+                if universe or symbols or presample or alt_pre or prosp or signal or '--final' in argv \
+                        or '--regime' in argv or '--reveal-holdout' in argv:
+                    raise ValueError('--fees 는 BTC 탐색(--stop-pct·--cost·--wick·--only·--surrogate-n)에만 씁니다')
             if '--stop-pct' in argv:
                 try:
                     stop_pct = float(lopt('--stop-pct', ''))
@@ -6856,6 +6903,10 @@ def main(argv=None):
             return 2
         journal = ResearchJournal.load()
         print(journal.banner())
+        if fees:
+            lab_set_fees(*fees)
+            print(f'[LAB] 수수료: 시장가 {TAKER_FEE:.3%} · 지정가 {MAKER_FEE:.3%} · 슬리피지 {SLIPPAGE_T:.3%} '
+                  '(기본값과 다른 수수료로 돌린 실행은 일지에 별개의 시험으로 센다)')
         if presample and not pairs:
             reg = next((p_ for p_ in journal.d.get('prereg', []) if p_.get('scope') == 'btc_presample'
                         and any(journal.state(f'btc_presample|{x}') == 'preregistered' for x in p_['pairs'])), None)
@@ -6922,12 +6973,13 @@ def main(argv=None):
                 print(f'⚠ holdout 은 이미 {len(prior)}회 공개되었습니다 '
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
+        cost_key = f'{cost}{lab_fee_tag()}'
         if signal:
             keys = []                                       # 신호 보기 = 시험이 아니다
         elif regime:
             keys = [f'regime|{a}:{b}|{cost}' for a, b in pairs]
         elif wick:
-            keys = ['btc|1m:wick|maker']
+            keys = [f'btc|1m:wick|maker{lab_fee_tag()}']
         elif prosp:
             keys = []                                       # 같은 절차를 새 데이터로 채점 → 새 시험이 아니다
         elif alt_pre:
@@ -6941,9 +6993,9 @@ def main(argv=None):
         elif presample:
             keys = lab_planned_keys('btc_presample', LAB_TFS, list(LAB_GRIDS), cost, pairs)
         elif stop_pct:
-            keys = lab_planned_keys('btc', tfs_x, lab_available_families(funding), f'{cost}|stop{stop_pct:g}', pairs)
+            keys = lab_planned_keys('btc', tfs_x, lab_available_families(funding), f'{cost_key}|stop{stop_pct:g}', pairs)
         else:
-            keys = lab_planned_keys('btc', LAB_TFS, lab_available_families(funding), cost, pairs)
+            keys = lab_planned_keys('btc', LAB_TFS, lab_available_families(funding), cost_key, pairs)
         n_cum = journal.n_trials([] if sur else keys)
 
         def note(kind, title, summary='', top=(), **extra):

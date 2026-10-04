@@ -412,26 +412,27 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 114 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 146 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
     assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
+    assert j.state('btc_stop1|short:all') == 'no_evidence'
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger')]
-    assert len(pe.RESEARCH_LESSONS) == 17 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 114 and j.n_trials(['btc|4h:keltner|maker']) == 115
+    assert len(pe.RESEARCH_LESSONS) == 18 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 146 and j.n_trials(['btc|4h:keltner|maker']) == 147
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 115 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 147 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 114 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 146 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -920,3 +921,25 @@ def test_cli_stop_pct_guards(pe):
     assert pe.main(['--lab', '--stop-pct', '1', '--universe']) == 2
     assert pe.main(['--lab', '--stop-pct', '1', '--tp', 'x']) == 2
     assert pe.main(['--lab', '--stop-pct', '1', '--tfs', '1m']) == 2
+
+
+# ── 실제 계정 수수료로 다시 돌리기 (--fees) ────────────────────────────
+def test_fee_override_rebuilds_costs_and_tags_journal_keys(pe):
+    try:
+        assert pe.lab_fee_tag() == ''
+        pe.lab_set_fees(0.00045, 0.00018)
+        assert abs(pe.LAB_COST_MODES['taker'][1] - (0.00045 + pe.SLIPPAGE_T)) < 1e-12
+        assert abs(pe.LAB_COST_MODES['maker_entry'][1] - 0.00018) < 1e-12
+        assert pe.lab_fee_tag() == '|fee4.5/1.8/2bp'
+        res = pe.lab_run(_trend_1m(1300, 0.0), tfs=('4h',), families=['donchian'])
+        assert '진입 0.065%' in res['report']                                   # 보고서에 바뀐 수수료가 보인다
+    finally:
+        pe.lab_set_fees(*pe.LAB_DEFAULT_FEES[:2])
+    assert pe.lab_fee_tag() == '' and abs(pe.LAB_COST_MODES['taker'][1] - 0.0007) < 1e-12
+
+
+def test_cli_fees_guards(pe):
+    assert pe.main(['--lab', '--fees', 'x']) == 2
+    assert pe.main(['--lab', '--fees', '0.045']) == 2
+    assert pe.main(['--lab', '--fees', '0.045,0.018', '--universe']) == 2
+    assert pe.lab_fee_tag() == ''                                                # 거절된 실행은 수수료를 바꾸지 않는다
