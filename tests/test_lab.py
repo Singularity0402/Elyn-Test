@@ -412,26 +412,26 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 110 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 114 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
     assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4'] and j.state('alt_presample|4h:consensus') == 'confirmed'
-    assert j.state('regime|4h:consensus') == 'preregistered' and len(j.d['holdout_history']) == 2
-    assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:consensus'),
-                                                                  ('eth', '4h:consensus')]
-    assert len(pe.RESEARCH_LESSONS) == 16 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 110 and j.n_trials(['btc|4h:consensus|taker']) == 111
-    j.record('lab', ['btc|4h:consensus|taker'], title='t')
+    assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
+    assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
+    assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger')]
+    assert len(pe.RESEARCH_LESSONS) == 17 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 114 and j.n_trials(['btc|4h:keltner|maker']) == 115
+    j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 111 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 115 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 110 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 114 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -802,3 +802,47 @@ def test_cli_regime_guards(pe):
     j.set_status('regime|4h:consensus', 'refuted', '테스트')
     j.save()
     assert pe.main(['--lab', '--regime', '4h:consensus']) == 2                # 이미 판정됨
+
+
+# ── 지금 신호 (종이 매매·연구 추적) ────────────────────────────────────
+def test_live_state_matches_the_simulator(pe):
+    n = 50
+    o = np.full(n, 100.0)
+    c = o.copy()
+    h = o + 0.5
+    lo = o - 0.5
+    atr = np.full(n, 0.01)
+    tgt = np.zeros(n, dtype=np.int64)
+    tgt[8:] = 1
+    st = pe.lab_live_state(o, h, lo, c, atr, tgt, 2.0, 0)
+    assert st['pos'] == 1 and st['t_in'] == 9 and abs(st['stop'] - 98.0) < 1e-9 and st['want_next'] == 1   # 보유 중
+    lo2 = lo.copy()
+    lo2[10] = 90.0
+    st2 = pe.lab_live_state(o, h, lo2, c, atr, tgt, 2.0, 0)
+    assert st2['pos'] == 0 and st2['blocked'] == 1                                # 손절 후 같은 방향 막힘 (lab_sim 과 같음)
+    ei, xi, sd, rr = pe.lab_sim(o, h, lo2, c, atr, tgt, 2.0, 0, 0.0014, 0.0)
+    assert len(rr) == 1 and xi[0] == 10
+    g = np.random.default_rng(4)                                                  # 무작위 경로에서도 거래 수가 같다
+    cc = 100 * np.exp(np.cumsum(g.normal(0, 0.01, 2000)))
+    oo = np.r_[cc[0], cc[:-1]]
+    hh, ll = np.maximum(oo, cc) * 1.003, np.minimum(oo, cc) * 0.997
+    tt = np.sign(np.sin(np.arange(2000) / 15.0)).astype(np.int64)
+    aa = np.full(2000, 0.01)
+    ei2, _, _, _ = pe.lab_sim(oo, hh, ll, cc, aa, tt, 1.5, 0, 0.0, 0.0)
+    st3 = pe.lab_live_state(oo, hh, ll, cc, aa, tt, 1.5, 0)
+    assert st3['entries'] == len(ei2) + (1 if st3['pos'] != 0 else 0) and len(ei2) > 20
+    assert st3['pos'] != 0 or st3['t_in'] == ei2[-1]                              # 마지막 진입 봉도 같다
+
+
+def test_live_signal_report_for_small_seed(pe):
+    base = _trend_1m(1300, 0.0000004, seed=8)
+    res = pe.lab_live_signal(base, '4h:tsmom,4h:donchian', seed=70.0)
+    assert '지금 신호' in res['report'] and len(res['rows']) == 2
+    assert all(r['state'] in ('rest', 'flat', 'position') for r in res['rows'])
+    if any(r['state'] != 'rest' for r in res['rows']):
+        assert '최소주문' in res['report'] or '격리' in res['report']
+
+
+def test_cli_signal_guards(pe):
+    assert pe.main(['--lab', '--signal', '--universe']) == 2
+    assert pe.main(['--lab', '--signal', '--wick']) == 2

@@ -158,3 +158,21 @@ def test_stale_data_blocks_new_signals(traded):
     clock.t = clock.t + pd.Timedelta(minutes=30).to_pytimedelta()
     out = eng.cycle(1000.0, tfs=['15m'])
     assert out['trade'] is False and '지연' in out['reason']
+
+
+def test_refuted_model_gets_no_order_ticket(pe):
+    """실데이터·null ON 워크포워드에서 반증된 TF 는 위험을 줄여 내보내는 대신 주문표를 만들지 않는다 (연구 일지 L8·L14)."""
+    df, starts, cut = planted_cached(days=800)
+    eng, store, clock = offline_engine(pe, df.iloc[:cut], df.index[cut - 1] + pd.Timedelta(minutes=1, seconds=20))
+    eng.record_walkforward('15m', dict(summary=dict(passed=False, n=19)), do_null=True, surrogate=False)
+    out = eng.cycle(1000.0, tfs=['15m'])
+    assert out['trade'] is False and '반증' in (out.get('reason') or '')
+
+
+def test_failed_run_without_null_is_not_a_refutation(pe):
+    """null 없이 돌린 워크포워드의 실패는 인증 시도로 인정되지 않을 뿐 반증이 아니다 → 미검증(25%)으로 계속."""
+    df, starts, cut = planted_cached(days=800)
+    eng, store, clock = offline_engine(pe, df.iloc[:cut], df.index[cut - 1] + pd.Timedelta(minutes=1, seconds=20))
+    eng.record_walkforward('15m', dict(summary=dict(passed=False, n=19)), do_null=False, surrogate=False)
+    out = eng.cycle(1000.0, tfs=['15m'])
+    assert out['trade'] is True and out['evidence_level'].startswith('E3')

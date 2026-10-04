@@ -2193,6 +2193,13 @@ def scan_tf(snap, tf, seed, ctx, book=None, do_null=True, end=None, live=True, s
     if book.get('evidence_gate'):
         cert = (book.get('evidence') or {}).get(tf) or {}
         verified = cert.get('model_id') == MODEL_ID and cert.get('level') == 'E4'
+        refuted = (cert.get('model_id') == MODEL_ID and cert.get('level') == 'FAILED' and cert.get('do_null')
+                   and not cert.get('surrogate') and not (cert.get('summary') or {}).get('passed'))
+        if refuted:                          # 실데이터·null ON 에서 사전 기준을 못 넘음 = 반증 → 위험만 줄여 내보내지 않는다 (L8·L14)
+            d['evidence_level'] = '반증(E4 실패)'
+            d['reason'] = (f'{tf} 모델은 실데이터 워크포워드(null ON)에서 반증되었습니다 → 주문표를 만들지 않습니다 '
+                           f'(다시 인증받기 전까지)')
+            return d
         ev_level = 'E4' if verified else 'E3(미검증)'
         mults['evidence_ladder'] = 1.0 if verified else UNVERIFIED_RISK_MULT
     d['evidence_level'] = ev_level
@@ -4995,6 +5002,7 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
             hmet = _lab_metrics(hold_r, hold_years, n_trials=1)
             last = next((pp for _, pp, _ in reversed(chosen) if pp is not None), None)
             rows.append(dict(tf=tf, family=fam, oos=met, holdout=hmet, last_params=last, oos_r=oos_r, hold_r_list=hold_r,
+                             current_params=chosen[-1][1] if chosen else None,
                              oos_start=str(idx[min(train_n, len(idx) - 1)]),
                              oos_t=idx[np.asarray(oos_i, dtype=np.int64)].values, windows=len(chosen),
                              idle_windows=sum(1 for _, pp, _ in chosen if pp is None),
@@ -5608,6 +5616,8 @@ RESEARCH_LESSONS = [
     ('L16', '판정과 실전은 BTC 가 1순위, ETH 가 2순위다. 알트는 신뢰성과 변동성 문제로 보조 증거일 뿐 매매 대상이 아니다. '
             '알트를 쓰는 검증은 실행 전에 그 이유를 밝히고, BTC·ETH 결과를 항상 같은 화면에 함께 보인다. — P3 에서 BTC 를 빼고 '
             '알트만 보여 준 실수'),
+    ('L17', '여러 국면에서 모두 양수인 것만 후보로 남긴다. 한 국면(2020-21 강세장)에서만 강했던 추세 전략은 다른 국면에서 무너졌다. '
+            '— 4h Keltner(P2)·4h 추세 합의(P4: BTC 2021-11~ 55건 −0.197R) 반증, BTC 4h 체결강도만 세 구간 모두 양수'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5640,10 +5650,9 @@ RESEARCH_PREREG = [dict(
              '2026 에 죽었으므로(L12·L13), 다른 국면에서 버티는지가 실전 여부를 가른다. 이 구간은 다른 전략들이 이미 본 데이터지만 '
              '이 규칙(격자 없음)으로는 한 번도 계산하지 않았다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
-                     dict(pair='4h:consensus', scope='btc', since=RESEARCH_HOLDOUT_CURRENT,
-                          why='P1-H3 반증 안 됨 → 앞으로의 데이터로 채점'),
-                     dict(pair='4h:consensus', scope='eth', since=RESEARCH_HOLDOUT_CURRENT,
-                          why='P3 확인(ETH 105건 +0.435R) → ETH 도 앞으로의 데이터로 채점 (L16: BTC 1순위, ETH 2순위)')]
+                     dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
+                          why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
+                     ]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
 RESEARCH_HISTORY = [
     dict(date='2026-10-01', kind='audit', title='V611 객관 감사 → V612',
          summary='알려진 결함 전부 재현·수정, 새 결함 20개(N-01~N-20), null 이 약 1.4배 관대함을 측정, 미검증 신호 위험 25% 로 축소 '
@@ -5698,6 +5707,14 @@ RESEARCH_HISTORY = [
          lessons=['L12', 'L16']),
     dict(date='2026-10-04', kind='prereg', title='사전등록 P4 (실행 전 기록)', summary=RESEARCH_PREREG[3]['rule'],
          lessons=['L12', 'L13', 'L16']),
+    dict(date='2026-10-05', kind='review', title='P4 결과 · 지정가 꼬리 잡기 · 시간대 쏠림 · Lab #4 (2026 포함)',
+         summary='P4 4h 추세 합의 (2021-11-27~2026-10-03): BTC 55건 −0.197R 하한 −0.335, ETH 116건 +0.003R → 반증. '
+                 '지정가 꼬리 잡기(BTC 1분봉): 81건 승률 69% 평균 이익 +0.43R/손실 −1.08R → −0.035R, CI [−0.142, +0.076] → 근거 없음 '
+                 '(높은 승률·음의 기대값). 1h 시간대 쏠림: 전 구간 쉼 → 근거 없음. Lab #4 (43개 절차, 표본외에 2026 포함): '
+                 '4h Bollinger 82건 +0.878R CI 하한 +0.302 · 4h 체결강도 91건 +0.459R CI 하한 +0.144, 샤프 0.85(하루 1% 필요량의 '
+                 '10%) — 둘 다 DSR(누적 114) 0.14 이하. BTC 4h 체결강도는 2019-21 +0.239R(22건) · 2022-25 +0.459R(67건) · '
+                 '2026 약 +0.46R(24건)로 세 구간 모두 양수.',
+         lessons=['L15', 'L17']),
 ]
 
 
@@ -5719,6 +5736,8 @@ def _research_seed_keys():
     keys += [f'btc_presample|4h:{f}|taker' for f in ('keltner', 'flow', 'consensus')]          # P1: 3 (누적 107)
     keys.append('final|4h:keltner|taker')                                                      # P2: 1 (누적 108)
     keys += [f'alt_presample|4h:{f}|taker' for f in ('flow', 'consensus')]                     # P3: 2 (누적 110)
+    keys += ['regime|4h:consensus|taker', 'btc|1m:wick|maker', 'btc|1h:tod|taker',
+             'btc|4h:consensus|taker']                                                       # P4·꼬리·시간대·Lab #4 (누적 114)
     return sorted(set(keys))
 
 
@@ -5756,7 +5775,15 @@ def _research_seed_status():
         '2026-10-04')
     put('alt_presample|4h:flow', 'not_refuted', 'P3: 처음 보는 알트 구간 92건 평균R +0.345 하한 −0.056, 1/2 코인 → 반증 안 됨',
         '2026-10-04')
-    put('regime|4h:consensus', 'preregistered', 'P4: 실행 전 등록 (판정 규칙 고정)', '2026-10-04')
+    for sc in ('regime', 'btc'):
+        put(f'{sc}|4h:consensus', 'refuted', 'P4: BTC 55건 −0.197R 하한 −0.335 · ETH 116건 +0.003R → 반증 — BTC 에서 다른 '
+                                            '국면을 버티지 못했다', '2026-10-05')
+    put('btc|1m:wick', 'no_evidence', '81건 승률 69% · 평균 −0.035R, CI [−0.142, +0.076] — 높은 승률, 음의 기대값', '2026-10-05')
+    put('btc|1h:tod', 'no_evidence', '전 구간 쉼 (train 근거 없음)', '2026-10-05')
+    put('btc|4h:flow', 'candidate', '세 구간 모두 양수: 2019-21 +0.239R(22) · 2022-25 +0.459R(67) · 2026 약 +0.46R(24). '
+                                    '샤프 0.85, DSR(누적) 0.14 → 앞으로의 검증 중', '2026-10-05')
+    put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
+                                         '→ 앞으로의 검증 중', '2026-10-05')
     return st
 
 
@@ -6550,6 +6577,84 @@ def lab_wick_report(res):
     return '\n'.join(L)
 
 
+def lab_live_state(o, h, l, c, atr, target, stop_k, max_hold):
+    """lab_sim_x(시장가 진입)와 같은 규칙으로 끝까지 재생해 '지금' 상태를 돌려준다: 보유 방향·진입가·손절가·진입 봉, 손절 후 막힌 방향."""
+    pos, entry, stop, t_in, blocked, entries = 0, 0.0, 0.0, -1, 0, 0
+    for i in range(1, len(c)):
+        want = int(target[i - 1])
+        if blocked != 0 and want != blocked:
+            blocked = 0
+        if pos != 0 and want != pos:
+            pos = 0
+        if pos == 0 and want != 0 and want != blocked and atr[i - 1] > 1e-5:
+            pos, entry, t_in = want, float(o[i]), i
+            stop = entry - pos * stop_k * atr[i - 1] * entry
+            entries += 1
+        if pos != 0:
+            if (pos > 0 and l[i] <= stop) or (pos < 0 and h[i] >= stop) or (max_hold > 0 and i - t_in + 1 >= max_hold):
+                blocked, pos = pos, 0
+    return dict(pos=pos, entry=entry, stop=stop, t_in=t_in, blocked=blocked, want_next=int(target[-1]), entries=entries)
+
+
+def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='taker', status=None):
+    """
+    추적 중인 후보의 '지금' 신호 (종이 매매·연구 추적용 — 실전 인증 아님). 가장 최근 WFO 창이 고른 설정으로 마지막 완결 봉까지
+    재생하고, 다음 봉 시가에 할 일(진입/유지/청산/대기)과 손절가를 보인다. 신호 시각은 실행 시각 그대로 기록한다 (소급 금지).
+    """
+    base = normalize_frame(base1m)
+    if futures_only and (base['era'].values == ERA_FUT).any():
+        base = base[base['era'].values == ERA_FUT]
+    snap = Snapshot(base, base.index[-1].to_pydatetime() + timedelta(minutes=1))
+    risk_frac = RISK_CAP * UNVERIFIED_RISK_MULT
+    min_notional = FALLBACK_RULES['min_notional']
+    L = [f'━━━ 지금 신호 (종이 매매·연구 추적용 — 실전 인증 아님) · {SYMBOL} · 실행 {utcnow():%Y-%m-%d %H:%M} UTC ━━━']
+    out = []
+    for tf, fam in lab_pairs(pairs) or []:
+        res = lab_run(base, only=[(tf, fam)], futures_only=futures_only, cost_mode=cost_mode, status=status,
+                      holdout_start=base.index[-1] + timedelta(days=1))
+        r = res['rows'][0] if res['rows'] else None
+        p = (r or {}).get('current_params')
+        df = snap.tf(tf)
+        df = df[df['complete'].values > 0.5]
+        last_bar = df.index[-1]
+        name = f'{tf} {LAB_FAMILY_KO[fam]}'
+        if p is None:
+            L.append(f'■ {name}: 쉼 — 최근 2년 train 에서 비용을 넘는 근거가 없어 이번 test 구간은 거래하지 않는다')
+            out.append(dict(pair=f'{tf}:{fam}', state='rest', last_bar=str(last_bar)))
+            continue
+        ind = _lab_indicators(df)
+        o, h, l, c, atr = (ind[k].values for k in ('o', 'h', 'l', 'c', 'atr'))
+        mh = int(p['N']) if fam == 'meanrev' else int(p['H']) if fam in ('funding', 'analog', 'tod') \
+            else int(LAB_MAX_HOLD.get(fam, 0))
+        st = lab_live_state(o, h, l, c, atr, _lab_target(fam, p, ind), float(p['k']), mh)
+        side_ko = {1: '롱', -1: '숏', 0: '없음'}
+        if st['pos'] != 0 and st['want_next'] != st['pos']:
+            action = f'다음 봉 시가({last_bar + pd.Timedelta(minutes=INTERVALS[tf])} UTC)에 {side_ko[st["pos"]]} 청산'
+        elif st['pos'] != 0:
+            action = f'{side_ko[st["pos"]]} 유지 · 손절 {st["stop"]:,.1f}'
+        elif st['want_next'] != 0 and st['want_next'] != st['blocked'] and atr[-1] > 1e-5:
+            action = (f'다음 봉 시가({last_bar + pd.Timedelta(minutes=INTERVALS[tf])} UTC)에 {side_ko[st["want_next"]]} 진입 · '
+                      f'손절 = 시가 {"-" if st["want_next"] > 0 else "+"} {p["k"]:g}×ATR (지금 기준 약 {p["k"] * atr[-1]:.2%})')
+        else:
+            action = '대기 (신호 없음)' + (' — 손절 직후라 같은 방향 재진입은 신호가 한 번 바뀐 뒤' if st['blocked'] else '')
+        L.append(f'■ {name} · 설정 {p} · 마지막 완결 봉 {last_bar} UTC')
+        if st['pos'] != 0:
+            L.append(f'   보유: {side_ko[st["pos"]]} (진입 {df.index[st["t_in"]]} UTC @ {st["entry"]:,.1f}, 손절 {st["stop"]:,.1f})')
+        L.append(f'   ▶ {action}')
+        stop_frac = (abs(st['entry'] - st['stop']) / st['entry']) if st['pos'] else p['k'] * atr[-1]
+        notional = seed * risk_frac / max(stop_frac, 1e-6)
+        if notional < min_notional:
+            L.append(f'   시드 {seed:,.0f}달러 · 미검증 위험 {risk_frac:.2%} → 명목 {notional:,.0f}달러 < 최소주문 {min_notional:,.0f}달러. '
+                     f'최소주문으로 걸면 위험이 시드의 {min_notional * stop_frac / seed:.1%} → 종이 매매로만 추적 권장')
+        else:
+            lev = int(min(MAX_LEV, max(1, math.ceil(notional / (seed * MARGIN_CAP)))))
+            L.append(f'   시드 {seed:,.0f}달러 · 미검증 위험 {risk_frac:.2%}: 명목 약 {notional:,.0f}달러 · 격리 {lev}배')
+        out.append(dict(pair=f'{tf}:{fam}', state='position' if st['pos'] else 'flat', pos=st['pos'], action=action,
+                        params=p, last_bar=str(last_bar), stop=st['stop'] if st['pos'] else None))
+    L.append('※ 후보일 뿐 인증된 전략이 아니다. 앞으로의 데이터(--prospective)로 20건 이상 쌓일 때까지 결론을 내지 않는다.')
+    return dict(rows=out, report='\n'.join(L))
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -6608,6 +6713,7 @@ def main(argv=None):
         presample = '--presample' in argv
         final = lopt('--final', None) if '--final' in argv else None
         alt_pre, prosp, wick = '--alt-presample' in argv, '--prospective' in argv, '--wick' in argv
+        signal = '--signal' in argv
         regime = lopt('--regime', None) if '--regime' in argv else None
         symbols = universe = None
         tfs_u = LAB_UNIVERSE_TFS
@@ -6633,9 +6739,9 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
-            if (alt_pre or prosp or wick) and (universe or symbols or presample or only or '--final' in argv
-                                               or '--reveal-holdout' in argv or (alt_pre + prosp + wick) > 1):
-                raise ValueError('--alt-presample · --prospective · --wick 은 각각 단독으로 씁니다')
+            if (alt_pre or prosp or wick or signal) and (universe or symbols or presample or only or '--final' in argv
+                                                         or '--reveal-holdout' in argv or (alt_pre + prosp + wick + signal) > 1):
+                raise ValueError('--alt-presample · --prospective · --wick · --signal 은 각각 단독으로 씁니다')
             if '--regime' in argv:
                 if (not regime or regime.startswith('--') or only or universe or symbols or presample or alt_pre or prosp
                         or wick or '--final' in argv or '--reveal-holdout' in argv):
@@ -6693,7 +6799,7 @@ def main(argv=None):
                 return 2
             if reg:
                 print(f'[LAB] 사전등록 {reg["id"]} ({reg["registered"]}) 규칙: {reg["rule"]}')
-        if pairs and not prosp:
+        if pairs and not prosp and not signal:
             block, warn = journal.check(scope, pairs, retest, once=presample or bool(final) or alt_pre or bool(regime))
             for w in warn:
                 print(f'⚠ {w}')
@@ -6720,7 +6826,9 @@ def main(argv=None):
                 print(f'⚠ holdout 은 이미 {len(prior)}회 공개되었습니다 '
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
-        if regime:
+        if signal:
+            keys = []                                       # 신호 보기 = 시험이 아니다
+        elif regime:
             keys = [f'regime|{a}:{b}|{cost}' for a, b in pairs]
         elif wick:
             keys = ['btc|1m:wick|maker']
@@ -6752,6 +6860,18 @@ def main(argv=None):
                 print(res['report'])
                 note('lab', '지정가 꼬리 잡기 (BTC 1분봉 체결)', top=lab_top_lines(res))
                 return 0
+            if signal:
+                live = [t for t in journal.d.get('tracking', []) if t.get('scope') == 'btc'
+                        and journal.state(f'btc|{t["pair"]}') != 'refuted']
+                if not live:
+                    print('[LAB] 추적 중인 BTC 후보가 없습니다.')
+                    return 0
+                seed = float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70')))
+                res = lab_live_signal(base, ','.join(t['pair'] for t in live), seed=seed, cost_mode=cost, status=status)
+                print(res['report'])
+                note('signal', '지금 신호 (종이 매매·연구 추적)', top=[f'{r["pair"]}: {r.get("action", r["state"])}'
+                                                              for r in res['rows']])
+                return 0
             if regime:
                 tf_r = pairs[0][0]
                 status('ETH: 스팟 아카이브 + 선물 봉 준비...')
@@ -6772,7 +6892,9 @@ def main(argv=None):
                 print('[LAB] 판정이 연구 일지에 기록되었습니다 (같은 가설은 이 구간에서 다시 시험하지 않습니다).')
                 return 0
             if prosp:
-                tracking = journal.d.get('tracking', [])
+                tracking = [t for t in journal.d.get('tracking', [])            # 반증된 가설은 채점하지 않는다 (BTC 반증이면 ETH 도)
+                            if journal.state(f'{t["scope"]}|{t["pair"]}') != 'refuted'
+                            and journal.state(f'btc|{t["pair"]}') != 'refuted']
                 if not tracking:
                     print('[LAB] 추적 중인 가설이 없습니다.')
                     return 0
