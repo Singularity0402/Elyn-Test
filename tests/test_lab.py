@@ -90,9 +90,9 @@ def test_limit_entry_fills_only_when_price_trades_through(pe):
     atr = np.full(n, 0.01)
     tgt = np.zeros(n, dtype=np.int64)
     tgt[5:20] = 1
-    ei, xi, sd, rr = pe.lab_sim_x(o, h, lo, c, atr, tgt, 2.0, 0, 0.0002, 0.0007, 0.0007, 0.0, pe.MAKER_TP_THROUGH)
+    ei, xi, sd, rr = pe.lab_sim_x(o, h, lo, c, atr, tgt, 2.0, 0, 0.0002, 0.0007, 0.0007, 0.0, pe.MAKER_TP_THROUGH, 0.0, 0.0)
     assert list(ei) == [15]                          # 6~14번 봉은 달아나서 못 받음 (역선택), 15번에서 체결
-    ei_t, _, _, _ = pe.lab_sim_x(o, h, lo, c, atr, tgt, 2.0, 0, 0.0007, 0.0007, 0.0007, 0.0, -1.0)
+    ei_t, _, _, _ = pe.lab_sim_x(o, h, lo, c, atr, tgt, 2.0, 0, 0.0007, 0.0007, 0.0007, 0.0, -1.0, 0.0, 0.0)
     assert list(ei_t) == [6]                         # 시장가는 바로 진입
     x = xi[0]
     expect = ((o[x] / o[15] - 1) - 0.0002 - 0.0007) / 0.02
@@ -846,3 +846,77 @@ def test_live_signal_report_for_small_seed(pe):
 def test_cli_signal_guards(pe):
     assert pe.main(['--lab', '--signal', '--universe']) == 2
     assert pe.main(['--lab', '--signal', '--wick']) == 2
+
+
+# ── 가격 % 고정 손절 + R 배수 익절 (짧은 시간봉, 레버리지 = 계좌 위험) ─────────────
+def _flat(n=40, level=100.0):
+    o = np.full(n, level)
+    return o, o + 0.1, o - 0.1, o.copy()
+
+
+def test_fixed_stop_and_take_profit_rules(pe):
+    atr = np.full(40, 0.002)
+    tgt = np.zeros(40, dtype=np.int64)
+    tgt[8:] = 1
+    args = (2.0, 0, 0.0007, 0.0007, 0.0007, 0.0, -1.0, 0.01, 2.0)       # 가격 1% 손절, 2R 익절
+    o, h, lo, c = _flat()
+    h[12] = 102.5                                                         # 진입 100 → 익절 102
+    ei, xi, sd, rr = pe.lab_sim_x(o, h, lo, c, atr, tgt, *args)
+    assert list(ei) == [9] and list(xi) == [12] and abs(rr[0] - (0.02 - 0.0014) / 0.01) < 1e-9
+    assert len(rr) == 1                                                    # 익절 후 같은 신호로 바로 재진입 안 함
+    o, h, lo, c = _flat()
+    lo[11] = 98.9                                                         # 손절 99
+    ei, xi, sd, rr = pe.lab_sim_x(o, h, lo, c, atr, tgt, *args)
+    assert list(xi) == [11] and abs(rr[0] - (-0.01 - 0.0014) / 0.01) < 1e-9
+    o, h, lo, c = _flat()
+    lo[11], h[11] = 98.9, 102.5                                           # 같은 봉에 둘 다 → 손절 (보수)
+    assert pe.lab_sim_x(o, h, lo, c, atr, tgt, *args)[3][0] < 0
+    o, h, lo, c = _flat()                                                 # 익절 없이(0) 고정 손절만: 신호 끝까지 보유
+    tgt2 = tgt.copy()
+    tgt2[20:] = 0
+    ei, xi, sd, rr = pe.lab_sim_x(o, h, lo, c, atr, tgt2, 2.0, 0, 0.0007, 0.0007, 0.0007, 0.0, -1.0, 0.01, 0.0)
+    assert list(xi) == [21] and abs(rr[0] - (0.0 - 0.0014) / 0.01) < 1e-9
+
+
+def test_fixed_grid_drops_atr_multiple_and_adds_take_profit(pe):
+    g = pe.lab_fixed_grid('tsmom')
+    assert len(g) == 7 * 3 and {p['tp'] for p in g} == {0.0, 2.0, 3.0} and all(p['k'] == 0.0 for p in g)
+    assert len(pe.lab_fixed_grid('consensus', (0.0, 2.0))) == 2
+
+
+def test_live_state_mirrors_fixed_stop_and_take_profit(pe):
+    g = np.random.default_rng(6)
+    cc = 100 * np.exp(np.cumsum(g.normal(0, 0.004, 3000)))
+    oo = np.r_[cc[0], cc[:-1]]
+    hh, ll = np.maximum(oo, cc) * 1.002, np.minimum(oo, cc) * 0.998
+    tt = np.sign(np.sin(np.arange(3000) / 25.0)).astype(np.int64)
+    aa = np.full(3000, 0.004)
+    ei, _, _, _ = pe.lab_sim_x(oo, hh, ll, cc, aa, tt, 2.0, 0, 0.0007, 0.0007, 0.0007, 0.0, -1.0, 0.01, 2.0)
+    st = pe.lab_live_state(oo, hh, ll, cc, aa, tt, 2.0, 0, fixed_stop=0.01, tp_r=2.0)
+    assert st['entries'] == len(ei) + (1 if st['pos'] != 0 else 0) and len(ei) > 20
+
+
+def test_risk_table_shows_leverage_amplifies_both_ways(pe):
+    rows, streak = pe.lab_risk_table([1.0, -1.0, -1.0, -1.0, 2.0, -1.0], years=1.0)
+    assert streak == 3 and [r[0] for r in rows] == [0.01, 0.02, 0.03]
+    assert rows[2][3] > rows[1][3] > rows[0][3]                            # 위험 클수록 낙폭도 크다
+    neg, _ = pe.lab_risk_table([-0.2] * 50, years=1.0)
+    assert neg[2][1] < neg[1][1] < neg[0][1] < 1.0                         # 기대값이 음수면 레버리지는 손실만 키운다
+
+
+def test_fixed_stop_lab_run_reports_risk_table(pe):
+    base = _trend_1m(1300, 0.0000004, seed=3)
+    res = pe.lab_run(base, tfs=('1h',), families=['tsmom', 'donchian'], fixed_stop=0.01)
+    assert res['fixed_stop'] == 0.01 and '가격 1.0% 고정' in res['report'] and '1R 의 14%' in res['report']
+    assert all('tp' in (r['last_params'] or {'tp': 0}) for r in res['rows'])
+    if any(r['oos']['n'] >= 30 for r in res['rows']):
+        assert '거래당 계좌 위험별 표본외 결과' in res['report']
+    keys = pe.lab_planned_keys('btc', ('1h',), ['tsmom', 'donchian'], 'taker|stop1')
+    assert keys == ['btc|1h:tsmom|taker|stop1', 'btc|1h:donchian|taker|stop1']
+
+
+def test_cli_stop_pct_guards(pe):
+    assert pe.main(['--lab', '--stop-pct', '0']) == 2
+    assert pe.main(['--lab', '--stop-pct', '1', '--universe']) == 2
+    assert pe.main(['--lab', '--stop-pct', '1', '--tp', 'x']) == 2
+    assert pe.main(['--lab', '--stop-pct', '1', '--tfs', '1m']) == 2

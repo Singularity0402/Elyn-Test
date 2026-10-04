@@ -4313,9 +4313,13 @@ def lab_state(enter_long, enter_short, exit_long, exit_short):
 
 
 @njit(cache=False)
-def lab_sim_x(o, h, l, c, atr, target, stop_k, max_hold, c_in, c_out, c_stop, fund_per_bar, limit_through):
+def lab_sim_x(o, h, l, c, atr, target, stop_k, max_hold, c_in, c_out, c_stop, fund_per_bar, limit_through,
+              fixed_stop, tp_r):
     """
-    목표 포지션 → 거래 목록. target[i-1] 을 봉 i 시가에 실행, 진입 시 손절 = 진입가 ∓ k·ATR.
+    목표 포지션 → 거래 목록. target[i-1] 을 봉 i 시가에 실행, 진입 시 손절 = 진입가 ∓ k·ATR
+    (fixed_stop > 0 이면 진입가 ∓ fixed_stop × 진입가, 예: 0.01 = 가격 1% 고정 손절).
+    tp_r > 0 이면 익절 = 진입가 ± tp_r × 손절폭 (바이낸스 TP 트리거 → 시장가 비용 c_out). 같은 봉에서 손절과 익절이
+    모두 닿으면 손절로 본다 (보수). 익절 후에도 같은 신호로 바로 재진입하지 않는다.
     손절 후 같은 방향 재진입은 신호가 한 번 바뀐 뒤에만 (같은 추세에 연속 손절 방지).
     비용 = 진입 c_in + (신호·시간 청산 c_out | 손절 c_stop).
     limit_through ≥ 0 이면 진입은 봉 시가 지정가: 그 봉에서 가격이 지정가를 limit_through 이상 관통해야 체결
@@ -4333,6 +4337,7 @@ def lab_sim_x(o, h, l, c, atr, target, stop_k, max_hold, c_in, c_out, c_stop, fu
     entry = 0.0
     dist = 0.0
     stop = 0.0
+    tpx = 0.0
     t_in = 0
     blocked = 0
     for i in range(1, n):
@@ -4355,8 +4360,9 @@ def lab_sim_x(o, h, l, c, atr, target, stop_k, max_hold, c_in, c_out, c_stop, fu
             if fill:
                 pos = want
                 entry = o[i]
-                dist = stop_k * atr[i - 1] * entry
+                dist = (fixed_stop if fixed_stop > 0.0 else stop_k * atr[i - 1]) * entry
                 stop = entry - pos * dist
+                tpx = entry + pos * tp_r * dist
                 t_in = i
         if pos != 0:
             hit = (pos > 0 and l[i] <= stop) or (pos < 0 and h[i] >= stop)
@@ -4367,6 +4373,13 @@ def lab_sim_x(o, h, l, c, atr, target, stop_k, max_hold, c_in, c_out, c_stop, fu
                 g = pos * (px / entry - 1.0)
                 ei[m] = t_in; xi[m] = i; sd[m] = pos
                 rr[m] = (g - c_in - c_stop - fund_per_bar * (i - t_in + 1)) / (dist / entry)
+                m += 1
+                blocked = pos
+                pos = 0
+            elif tp_r > 0.0 and ((pos > 0 and h[i] >= tpx) or (pos < 0 and l[i] <= tpx)):
+                g = pos * (tpx / entry - 1.0)
+                ei[m] = t_in; xi[m] = i; sd[m] = pos
+                rr[m] = (g - c_in - c_out - fund_per_bar * (i - t_in + 1)) / (dist / entry)
                 m += 1
                 blocked = pos
                 pos = 0
@@ -4384,7 +4397,7 @@ def lab_sim(o, h, l, c, atr, target, stop_k, max_hold, cost_frac, fund_per_bar):
     """시장가 진입·청산, 왕복 비용 cost_frac (lab_sim_x 의 단순형)."""
     half = 0.5 * float(cost_frac)
     return lab_sim_x(o, h, l, c, atr, target, float(stop_k), int(max_hold), half, half, half,
-                     float(fund_per_bar), -1.0)
+                     float(fund_per_bar), -1.0, 0.0, 0.0)
 
 
 def _funding_from_rows(rows):
@@ -4886,10 +4899,27 @@ def lab_trial_count(tfs=LAB_TFS, families=None):
     return sum(1 for tf in tfs for fam in families if tf in LAB_FAMILY_TFS.get(fam, LAB_TFS))
 
 
+LAB_FIXED_TFS = ('5m', '15m', '1h')           # 고정 % 손절 모드의 기본 TF (짧은 시간봉)
+LAB_FIXED_TP = (0.0, 2.0, 3.0)                # 익절 없음(신호 청산) · 2R · 3R — train 이 고른다
+
+
+def lab_fixed_grid(fam, tp_list=LAB_FIXED_TP):
+    """고정 % 손절 모드의 파라미터 격자: ATR 배수(k)를 빼고 같은 설정을 하나로 합친 뒤 익절 R 배수를 곱한다."""
+    seen, out = set(), []
+    for p in LAB_GRIDS[fam]:
+        base = {k: v for k, v in p.items() if k != 'k'}
+        key = tuple(sorted(base.items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        out += [dict(base, k=0.0, tp=float(t)) for t in tp_list]
+    return out
+
+
 def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTHS, train_years=LAB_TRAIN_YEARS,
             test_months=LAB_TEST_MONTHS, reveal_holdout=False, status=None, futures_only=True,
             cost_mode='taker', only=None, funding=None, n_trials_declared=None, tf_frames=None,
-            holdout_start=None, symbol=SYMBOL):
+            holdout_start=None, symbol=SYMBOL, fixed_stop=0.0, tp_list=LAB_FIXED_TP):
     """
     반환 dict(rows=[...], holdout_start, report).
     tf_frames={'4h': df, ...} 이면 1분봉 대신 그 봉을 그대로 쓴다 (다른 코인 재현 검증용 REST 봉).
@@ -4962,14 +4992,15 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
         for fam in families:
             if not applies(fam, tf):
                 continue
-            status(f'Lab {tf} {LAB_FAMILY_KO[fam]}: 파라미터 {len(LAB_GRIDS[fam])}개 백테스트...', 'blue')
+            grid = lab_fixed_grid(fam, tp_list) if fixed_stop > 0 else LAB_GRIDS[fam]
+            status(f'Lab {tf} {LAB_FAMILY_KO[fam]}: 파라미터 {len(grid)}개 백테스트...', 'blue')
             sims = []
-            for p in LAB_GRIDS[fam]:
+            for p in grid:
                 tgt = _lab_target(fam, p, ind)
                 mh = int(p['N']) if fam == 'meanrev' else int(p['H']) if fam in ('funding', 'analog', 'tod') \
                     else int(LAB_MAX_HOLD.get(fam, 0))
                 ei, xi, sd, rr = lab_sim_x(o, h, l, c, atr, tgt, float(p['k']), mh, c_in, c_out, c_stop, fund,
-                                           limit_through)
+                                           limit_through, float(fixed_stop), float(p.get('tp', 0.0)))
                 sims.append((p, ei, rr, xi))
                 n_sims += 1
             oos_r, oos_i, oos_x, hold_r, chosen = [], [], [], [], []
@@ -5010,6 +5041,7 @@ def lab_run(base1m, tfs=LAB_TFS, families=None, holdout_months=LAB_HOLDOUT_MONTH
                              hold_idle=sum(1 for _, pp, hh in chosen if hh and pp is None)))
     rows.sort(key=lambda r: (np.nan_to_num(r['oos']['ci_lo'], nan=-9), r['oos']['n']), reverse=True)
     out = dict(rows=rows, holdout_start=str(hold_start), n_trials=n_trials, n_dsr=n_dsr, n_sims=n_sims, symbol=symbol,
+               fixed_stop=float(fixed_stop), tp_list=list(tp_list),
                n_families=len(families), tfs=list(tfs), cost_mode=cost_mode,
                declared=[f'{a}:{b}' for a, b in pairs] if pairs else None,
                funding_info=(f'{funding.index[0]:%Y-%m-%d} ~ {funding.index[-1]:%Y-%m-%d} · {len(funding):,}회 정산'
@@ -5029,6 +5061,21 @@ def lab_holdout_verdict(hm):
     if hm['ci_lo'] > 0:
         return '확인 — prospective 추적(E5)으로 넘어갈 가치가 있다'
     return '반증 안 됨 — 아직 입증은 아니다, prospective 추적으로 증거를 더 쌓는다'
+
+
+def lab_risk_table(R, years, fs=(0.01, 0.02, 0.03)):
+    """거래당 계좌 위험 f 별로 표본외 거래를 순서대로 복리 적용: (f, 최종 배수, 하루 복리, 최대 낙폭), 최장 연속 손실."""
+    R = np.clip(np.asarray(R, dtype=np.float64), -50, 50)
+    run = streak = 0
+    for x in R:
+        run = run + 1 if x <= 0 else 0
+        streak = max(streak, run)
+    rows = []
+    for f in fs:
+        eq = np.concatenate(([1.0], np.cumprod(np.maximum(1.0 + f * R, 1e-12))))
+        mult = float(eq[-1])
+        rows.append((f, mult, mult ** (1.0 / max(365.0 * years, 1.0)) - 1.0, float((1 - eq / np.maximum.accumulate(eq)).max())))
+    return rows, streak
 
 
 def _lab_declared_lines(res):
@@ -5063,6 +5110,9 @@ def lab_report(res):
          f'holdout {res["holdout_start"][:10]} 이후 {"공개됨(원장 기록)" if res["revealed"] else "봉인"}',
          f'비용 [{mode}] {desc}: 진입 {c_in:.3%} + 청산 {c_out:.3%} (손절은 항상 시장가 {TAKER_FEE + SLIPPAGE_T:.3%})'
          + (' — 지정가 체결은 보장되지 않는다, 실제 체결률을 따로 기록해 확인할 것' if mode != 'taker' else ''),
+         (f'손절: 가격 {res["fixed_stop"]:.1%} 고정 · 익절: {" / ".join("신호 청산" if t == 0 else f"{t:g}R" for t in res["tp_list"])} '
+          f'중 train 이 고름 · 왕복 수수료는 1R 의 {2 * (TAKER_FEE + SLIPPAGE_T) / res["fixed_stop"]:.0%} · '
+          f'계좌 위험 = 손절폭 × 레버리지 (가격 1% 손절에 2배 = 계좌 2%)') if res.get('fixed_stop') else '손절: 진입 시 k × ATR',
          f'펀딩비: {res["funding_info"]}' if res.get('funding_info') else '펀딩비: 데이터 없음 → 펀딩비 전략군 생략']
     if res.get('declared'):
         L.append(f'사전 선언 가설: {", ".join(res["declared"])} · 표본외 DSR 은 탐색 전체 절차 {res["n_dsr"]}개로 보정 '
@@ -5100,6 +5150,18 @@ def lab_report(res):
                  'prospective 추적. 통과해야 실전 신호원으로 연결할 가치가 있다.')
     else:
         L.append('▶ 사전 기준(표본외 체결 ≥ 50, CI 하한 > 0, DSR ≥ 0.9)을 통과한 절차 없음 — 이 데이터·비용에서 입증된 edge 없음.')
+    if res.get('fixed_stop'):
+        tops = [r for r in res['rows'] if r['oos']['n'] >= 30][:3]
+        if tops:
+            L.append('▶ 거래당 계좌 위험별 표본외 결과 (가격 손절 고정이므로 레버리지가 곧 계좌 위험: 1배=1% · 2배=2% · 3배=3%)')
+        for r in tops:
+            m = r['oos']
+            rows, streak = lab_risk_table(r['oos_r'], m['n'] / max(m['n_year'], 1e-9))
+            cells = ' · '.join(f'{f:.0%}: ×{mult:.2f} (하루 {d:+.3%}, 최대낙폭 {dd:.0%})' for f, mult, d, dd in rows)
+            L.append(f'   {r["tf"]} {LAB_FAMILY_KO[r["family"]]} ({m["n"]}건, 평균 {m["mean_r"]:+.3f}R, 최장 연속 손실 {streak}번): {cells}')
+        if tops:
+            L.append('   ※ 평균R 이 음수면 위험을 키울수록 더 빨리 잃는다. 2~3% 는 프로그램 실전 상한(거래당 1%)보다 높다 — '
+                     '앞으로의 데이터가 엣지를 보여 줄 때만 올린다.')
     L += _lab_declared_lines(res)
     L.append('※ 성과는 "과거 train 으로 고른 파라미터를 보지 않은 다음 구간에 적용한" 표본외 성과다. 최상위 1개만 보고 고르면 '
              '그 자체가 선택이므로 DSR(절차 수 보정)과 가짜 BTC 결과를 함께 볼 것.')
@@ -5150,7 +5212,8 @@ def _lab_luck_report(real, same, best, n, cost_mode, only, seconds, title='LAB �
 
 
 def lab_surrogate_test(base1m, n=20, only=None, seed0=100, cost_mode='taker', funding=None, n_trials_declared=None,
-                       status=None, futures_only=True, holdout_start=None):
+                       status=None, futures_only=True, holdout_start=None, tfs=LAB_TFS, fixed_stop=0.0,
+                       tp_list=LAB_FIXED_TP):
     """
     같은 탐색 절차를 가짜 BTC n 개에서 반복해 '운으로 이만큼 나올 확률'을 잰다.
       p(같은 절차) = (1 + #{가짜에서 같은 TF·전략군의 CI 하한 ≥ 실제}) / (n + 1)
@@ -5163,7 +5226,7 @@ def lab_surrogate_test(base1m, n=20, only=None, seed0=100, cost_mode='taker', fu
     if futures_only and (base1m['era'].values == ERA_FUT).any():
         base1m = base1m[base1m['era'].values == ERA_FUT]
     kw = dict(only=only, cost_mode=cost_mode, funding=funding, n_trials_declared=n_trials_declared,
-              futures_only=futures_only, holdout_start=holdout_start)
+              futures_only=futures_only, holdout_start=holdout_start, tfs=tfs, fixed_stop=fixed_stop, tp_list=tp_list)
     status('실제 데이터로 탐색...', 'blue')
     real = lab_run(base1m, **kw)
     same, best = {}, []
@@ -5440,7 +5503,7 @@ def lab_run_universe(frames_by_symbol, tfs=LAB_UNIVERSE_TFS, families=None, hold
                     tgt = _lab_target(fam, p, ind)
                     ei, xi, sd, rr = lab_sim_x(ind['o'].values, ind['h'].values, ind['l'].values, ind['c'].values,
                                                ind['atr'].values, tgt, float(p['k']), mh, c_in, c_out,
-                                               TAKER_FEE + SLIPPAGE_T + extra, fund, limit_through)
+                                               TAKER_FEE + SLIPPAGE_T + extra, fund, limit_through, 0.0, 0.0)
                     E.append(ind['idx'].values[ei])
                     X.append(ind['idx'].values[xi])
                     RR.append(rr)
@@ -5715,6 +5778,13 @@ RESEARCH_HISTORY = [
                  '10%) — 둘 다 DSR(누적 114) 0.14 이하. BTC 4h 체결강도는 2019-21 +0.239R(22건) · 2022-25 +0.459R(67건) · '
                  '2026 약 +0.46R(24건)로 세 구간 모두 양수.',
          lessons=['L15', 'L17']),
+    dict(date='2026-10-05', kind='idea', title='사용자 제안: 짧은 시간봉 · 가격 1% 고정 손절 · 레버리지 2~3배 (계좌 2~3%) · 이득 극대화',
+         summary='레버리지는 엣지를 바꾸지 않고 손절 1회에 잃는 계좌 비율만 정한다. 다만 가격 1% 고정 손절은 짧은 시간봉의 비용 비중을 '
+                 '1R 의 25~45%(ATR 2~4배 손절)에서 14% 로 낮추고, 70달러 시드에서 BTC 최소주문(100 USDT)의 손절 1회 손실을 약 1.4% 로 '
+                 '줄인다 → 시험할 가치가 있다. 이득 극대화 = 2R·3R 익절 또는 신호 청산 중 train 이 고름. 계좌 위험 1%·2%·3% 별 '
+                 '표본외 결과(배수·하루 복리·최대 낙폭·최장 연속 손실)를 함께 본다. 탐색이므로 새 절차로 누적 집계하고, 통과하면 '
+                 '사전등록 후 앞으로의 데이터로 확인한다. 실행: --lab --stop-pct 1',
+         lessons=['L2', 'L10', 'L15']),
 ]
 
 
@@ -6577,7 +6647,7 @@ def lab_wick_report(res):
     return '\n'.join(L)
 
 
-def lab_live_state(o, h, l, c, atr, target, stop_k, max_hold):
+def lab_live_state(o, h, l, c, atr, target, stop_k, max_hold, fixed_stop=0.0, tp_r=0.0):
     """lab_sim_x(시장가 진입)와 같은 규칙으로 끝까지 재생해 '지금' 상태를 돌려준다: 보유 방향·진입가·손절가·진입 봉, 손절 후 막힌 방향."""
     pos, entry, stop, t_in, blocked, entries = 0, 0.0, 0.0, -1, 0, 0
     for i in range(1, len(c)):
@@ -6588,10 +6658,13 @@ def lab_live_state(o, h, l, c, atr, target, stop_k, max_hold):
             pos = 0
         if pos == 0 and want != 0 and want != blocked and atr[i - 1] > 1e-5:
             pos, entry, t_in = want, float(o[i]), i
-            stop = entry - pos * stop_k * atr[i - 1] * entry
+            dist = (fixed_stop if fixed_stop > 0 else stop_k * atr[i - 1]) * entry
+            stop, tpx = entry - pos * dist, entry + pos * tp_r * dist
             entries += 1
         if pos != 0:
-            if (pos > 0 and l[i] <= stop) or (pos < 0 and h[i] >= stop) or (max_hold > 0 and i - t_in + 1 >= max_hold):
+            if ((pos > 0 and l[i] <= stop) or (pos < 0 and h[i] >= stop)
+                    or (tp_r > 0 and ((pos > 0 and h[i] >= tpx) or (pos < 0 and l[i] <= tpx)))
+                    or (max_hold > 0 and i - t_in + 1 >= max_hold)):
                 blocked, pos = pos, 0
     return dict(pos=pos, entry=entry, stop=stop, t_in=t_in, blocked=blocked, want_next=int(target[-1]), entries=entries)
 
@@ -6714,6 +6787,8 @@ def main(argv=None):
         final = lopt('--final', None) if '--final' in argv else None
         alt_pre, prosp, wick = '--alt-presample' in argv, '--prospective' in argv, '--wick' in argv
         signal = '--signal' in argv
+        stop_pct = None
+        tfs_x, tp_x = LAB_FIXED_TFS, LAB_FIXED_TP
         regime = lopt('--regime', None) if '--regime' in argv else None
         symbols = universe = None
         tfs_u = LAB_UNIVERSE_TFS
@@ -6739,6 +6814,27 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if '--stop-pct' in argv:
+                try:
+                    stop_pct = float(lopt('--stop-pct', ''))
+                except ValueError:
+                    stop_pct = -1.0
+                if not 0.2 <= stop_pct <= 5.0:
+                    raise ValueError('--stop-pct 는 가격 기준 손절 % 입니다 (0.2 ~ 5, 예: --stop-pct 1)')
+                if universe or symbols or presample or alt_pre or prosp or wick or signal or '--final' in argv \
+                        or '--regime' in argv or '--reveal-holdout' in argv:
+                    raise ValueError('--stop-pct 는 BTC 탐색(--only·--surrogate-n 포함)에만 씁니다')
+                if '--tfs' in argv:
+                    tfs_x = tuple(x.strip() for x in lopt('--tfs', '').split(',') if x.strip())
+                    if not tfs_x or any(t not in ('5m', '15m', '1h', '4h') for t in tfs_x):
+                        raise ValueError('--tfs 는 5m,15m,1h,4h 중에서 고릅니다')
+                if '--tp' in argv:
+                    try:
+                        tp_x = (0.0,) + tuple(float(x) for x in lopt('--tp', '').split(',') if x.strip())
+                    except ValueError:
+                        tp_x = ()
+                    if len(tp_x) < 2 or any(not 0 <= t <= 10 for t in tp_x):
+                        raise ValueError('--tp 는 익절 R 배수 목록입니다 (예: --tp 2,3)')
             if (alt_pre or prosp or wick or signal) and (universe or symbols or presample or only or '--final' in argv
                                                          or '--reveal-holdout' in argv or (alt_pre + prosp + wick + signal) > 1):
                 raise ValueError('--alt-presample · --prospective · --wick · --signal 은 각각 단독으로 씁니다')
@@ -6844,6 +6940,8 @@ def main(argv=None):
             keys = [f'cross|{a}:{b}|{cost}' for a, b in pairs]
         elif presample:
             keys = lab_planned_keys('btc_presample', LAB_TFS, list(LAB_GRIDS), cost, pairs)
+        elif stop_pct:
+            keys = lab_planned_keys('btc', tfs_x, lab_available_families(funding), f'{cost}|stop{stop_pct:g}', pairs)
         else:
             keys = lab_planned_keys('btc', LAB_TFS, lab_available_families(funding), cost, pairs)
         n_cum = journal.n_trials([] if sur else keys)
@@ -7005,9 +7103,10 @@ def main(argv=None):
                 print('[LAB] 판정이 연구 일지에 기록되었습니다 (같은 가설은 이 구간에서 다시 시험하지 않습니다).')
                 return 0
             else:
+                fx = dict(tfs=tfs_x, fixed_stop=stop_pct / 100.0, tp_list=tp_x) if stop_pct else {}
                 if n_sur > 0:
                     res = lab_surrogate_test(base, n_sur, only=only, cost_mode=cost, funding=funding,
-                                             n_trials_declared=n_cum, status=status, holdout_start=anchor)
+                                             n_trials_declared=n_cum, status=status, holdout_start=anchor, **fx)
                     print(res['real']['report'])
                     print(res['report'])
                     note('luck', f'BTC 가짜 {n_sur}개 비교', top=res['report'].splitlines()[1:9])
@@ -7016,8 +7115,9 @@ def main(argv=None):
                     base = make_surrogate_1m(base, seed=1)
                     print('★ 가짜 BTC(하루 블록 셔플) — 여기서 나오는 최고 성적이 "운의 크기"다 ★')
                 res = lab_run(base, reveal_holdout=reveal, status=status, cost_mode=cost, only=only, funding=funding,
-                              n_trials_declared=n_cum, holdout_start=anchor)
-                title = ('가짜 BTC ' if sur else 'BTC ') + f'절차 {res["n_trials"]}개'
+                              n_trials_declared=n_cum, holdout_start=anchor, **fx)
+                title = ('가짜 BTC ' if sur else 'BTC ') + f'절차 {res["n_trials"]}개' + \
+                    (f' · 가격 {stop_pct:g}% 고정 손절' if stop_pct else '')
         except ValueError as e:
             print(f'[LAB] {e}')
             return 2

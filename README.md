@@ -40,6 +40,8 @@ python pattern_edge_v612.py --lab --prospective             # 앞으로의 검�
 python pattern_edge_v612.py --lab --wick                    # 지정가 꼬리 잡기: 미리 거는 지정가(수수료 0.02%)로 청산 꼬리를 받는 단타, 1분봉 체결 판정
 python pattern_edge_v612.py --lab --regime 4h:consensus     # 사전등록 P4: 다른 국면(2021-11~2026-10)에서 BTC(1순위)·ETH(2순위)로 판정 (1회)
 python pattern_edge_v612.py --lab --signal --seed 70        # 지금 신호: 추적 중인 BTC 후보(4h 체결강도·Bollinger)의 다음 봉 할 일·손절가 (종이 매매용)
+python pattern_edge_v612.py --lab --stop-pct 1              # 짧은 시간봉(5m/15m/1h) · 가격 1% 고정 손절 · 익절 2R/3R/신호 중 선택 · 계좌 위험 1/2/3% 별 결과
+#   --tp 2,3,5 : 익절 R 배수 후보 · --tfs 5m,15m : 시간봉 · --surrogate-n 20 : 같은 설정의 운의 크기
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
 #   모든 보고서 끝에 '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7(켈리)/3.1(반켈리)' 와 이번 최고 샤프를 함께 보인다.
 #   모든 Lab 실행은 연구 일지에 자동 기록되고, DSR 은 누적 시험 절차 수로 보정되며, holdout 시작은 2026-01-01 로 고정된다.
