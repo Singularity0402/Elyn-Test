@@ -418,7 +418,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
     assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3'] and j.state('alt_presample|4h:flow') == 'preregistered'
     assert [t['pair'] for t in j.d['tracking']] == ['4h:flow', '4h:consensus'] and len(j.d['holdout_history']) == 2
-    assert len(pe.RESEARCH_LESSONS) == 14 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert len(pe.RESEARCH_LESSONS) == 15 and any(e['kind'] == 'universe' for e in j.d['entries'])
     assert j.n_trials(['btc|4h:flow|taker']) == 108 and j.n_trials(['btc|4h:consensus|taker']) == 109
     j.record('lab', ['btc|4h:consensus|taker'], title='t')
     j2 = pe.ResearchJournal.load()
@@ -654,3 +654,96 @@ def test_cli_alt_presample_and_prospective_guards(pe):
     assert pe.main(['--lab', '--alt-presample', '--prospective']) == 2
     assert pe.main(['--lab', '--alt-presample', '--universe']) == 2
     assert pe.main(['--lab', '--prospective', '--final', '4h:flow']) == 2
+
+
+# ── 하루 1% 잣대 · 지정가 꼬리 잡기 ─────────────────────────────────────
+def test_sharpe_requirement_for_one_percent_a_day(pe):
+    assert abs(pe.LAB_SHARPE_FOR_1PCT - 2.695) < 0.01 and abs(pe.LAB_SHARPE_FOR_1PCT_HALF - 3.112) < 0.01
+    days = pd.date_range('2024-01-01', periods=400, freq='D').values
+    g = np.random.default_rng(2)
+    R = g.normal(0.1, 1.0, 400)
+    sh = pe.lab_daily_sharpe(R, days, days[0], days[-1])
+    assert abs(sh - R.mean() / R.std(ddof=1) * np.sqrt(365)) < 0.05
+    res = pe.lab_run(_trend_1m(1300, 0.0), tfs=('4h',), families=['donchian'])
+    assert '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7' in res['report'] and 'sharpe' in res['rows'][0]['oos']
+
+
+def _wick_arrays(n=40, level=98.5):
+    o = np.full(n, level)                                              # 손절 97.02 와 익절 98.98 사이
+    c = o.copy()
+    h = o + 0.1
+    lo = o - 0.1
+    return o, h, lo, c
+
+
+def test_wick_fill_rules_are_conservative(pe):
+    args = (np.array([0]), np.array([30]), np.array([100.0]), np.array([0.01]), 2.0, 1.0, 1.0, 1, 30,
+            0.0002, 0.0007, 0.0001, 0.25)
+    o, h, lo, c = _wick_arrays(level=100.0)
+    lo[5] = 98.0                                                       # 지정가 98 에 닿기만 하고 관통 안 함
+    assert len(pe.lab_wick_sim(o, h, lo, c, *args)[0]) == 0
+    o, h, lo, c = _wick_arrays()
+    lo[5], h[8] = 97.9, 99.2                                           # 관통 체결 → 익절 98.98 (지정가)
+    ei, xi, rr = pe.lab_wick_sim(o, h, lo, c, *args)
+    assert list(ei) == [5] and list(xi) == [8] and abs(rr[0] - (98.98 / 98 - 1 - 0.0004) / 0.01) < 1e-9
+    o, h, lo, c = _wick_arrays()
+    lo[5] = 96.5                                                       # 진입한 그 1분에 손절가까지 → 손절 (최악 가정)
+    ei, xi, rr = pe.lab_wick_sim(o, h, lo, c, *args)
+    px = 97.02 - 0.25 * (97.02 - 96.5)
+    assert list(xi) == [5] and abs(rr[0] - (px / 98 - 1 - 0.0009) / 0.01) < 1e-9
+    o, h, lo, c = _wick_arrays()
+    lo[5], h[5] = 97.9, 99.5                                           # 같은 1분의 익절은 인정 안 함 → 시간 만료
+    ei, xi, rr = pe.lab_wick_sim(o, h, lo, c, *args)
+    assert list(xi) == [34] and abs(rr[0] - (98.5 / 98 - 1 - 0.0009) / 0.01) < 1e-9
+
+
+def test_wick_sigma_uses_only_past_days(pe):
+    idx = pd.date_range('2024-01-01', periods=60 * 1440, freq='1min')
+    g = np.random.default_rng(3)
+    c = 100 * np.exp(np.cumsum(g.normal(0, 0.0005, len(idx))))
+    b = pd.DataFrame(dict(open=c, high=c, low=c, close=c), index=idx)
+    starts = pd.DatetimeIndex(['2024-02-10 00:00', '2024-02-10 12:00', '2024-02-11 00:00'])
+    s0 = pe._lab_wick_sigma(b, starts)
+    b2 = b.copy()
+    b2.loc['2024-02-10', 'close'] *= 1.5                                # 2/10 데이터를 바꿔도
+    s1 = pe._lab_wick_sigma(b2, starts)
+    assert np.allclose(s0[:2], s1[:2]) and not np.isclose(s0[2], s1[2])  # 그날 시작한 주문의 σ 는 그대로
+
+
+def _wick_base(planted, days=1500, seed=1):
+    g = np.random.default_rng(seed)
+    n = days * 1440
+    ret = g.normal(0, 0.0006, n)
+    if planted:
+        s0 = 1000
+        while s0 + 60 < n:
+            ret[s0:s0 + 5] -= 0.03 / 5                                   # 5분 급락 (강제청산 꼬리)
+            ret[s0 + 5:s0 + 45] += 0.03 / 40                             # 40분 되돌림
+            s0 += 2880 + int(g.integers(0, 1440))
+    c = 30000 * np.exp(np.cumsum(ret))
+    o = np.r_[c[0], c[:-1]]
+    return pd.DataFrame(dict(open=o, high=np.maximum(o, c) * 1.0002, low=np.minimum(o, c) * 0.9998, close=c, volume=1.0,
+                             taker_buy_base=0.5, trades=1.0, era=1.0),
+                        index=pd.date_range('2020-01-01', periods=n, freq='1min'))
+
+
+def test_wick_finds_planted_liquidation_wicks_and_rejects_random_walk(pe):
+    good = pe.lab_run_wick(_wick_base(True), n_trials_declared=109, holdout_start='2099-01-01')
+    m = good['rows'][0]['oos']
+    assert m['n'] >= 50 and m['ci_lo'] > 0 and m['win'] > 0.6 and m['sharpe'] > 1.5 and '통과' in good['report']
+    bad = pe.lab_run_wick(_wick_base(False, seed=2), n_trials_declared=109, holdout_start='2099-01-01')
+    m0 = bad['rows'][0]['oos']
+    assert not (m0['n'] >= 100 and m0['ci_lo'] > 0 and m0['dsr'] >= 0.9) and '미통과' in bad['report']
+
+
+def test_cli_wick_guards(pe):
+    assert pe.main(['--lab', '--wick', '--universe']) == 2
+    assert pe.main(['--lab', '--wick', '--prospective']) == 2
+
+
+def test_far_future_holdout_does_not_dilute_rates(pe):
+    coins = {s_: {'4h': _frame_4h(7800, seed=k)} for k, s_ in enumerate(('BTCUSDT', 'ETHUSDT', 'SOLUSDT'))}
+    a = pe.lab_run_universe(coins, tfs=('4h',), families=['tsmom'], holdout_start='2099-01-01')['rows'][0]['oos']
+    b = pe.lab_run_universe(coins, tfs=('4h',), families=['tsmom'],
+                            holdout_start=str(coins['BTCUSDT']['4h'].index[-1] + pd.Timedelta(hours=4)))['rows'][0]['oos']
+    assert a['n'] == b['n'] and abs(a['n_year'] - b['n_year']) < 1e-6 and abs(a['g_day'] - b['g_day']) < 1e-9

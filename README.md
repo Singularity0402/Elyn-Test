@@ -37,6 +37,8 @@ python pattern_edge_v612.py --lab --presample               # 사전등록 P1: B
 python pattern_edge_v612.py --lab --final 4h:keltner        # 사전등록 P2: 봉인 구간(2026-01-01~)을 단 한 번 열어 BTC + 코인 묶음으로 최종 판정
 python pattern_edge_v612.py --lab --alt-presample          # 사전등록 P3: 알트 스팟 이력(2017~2021)의 처음 보는 구간으로 판정 (1회)
 python pattern_edge_v612.py --lab --prospective             # 앞으로의 검증: 규칙 고정(2026-10-04) 이후 데이터로만 후보 채점 (언제든)
+python pattern_edge_v612.py --lab --wick                    # 지정가 꼬리 잡기: 미리 거는 지정가(수수료 0.02%)로 청산 꼬리를 받는 단타, 1분봉 체결 판정
+#   모든 보고서 끝에 '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7(켈리)/3.1(반켈리)' 와 이번 최고 샤프를 함께 보인다.
 #   모든 Lab 실행은 연구 일지에 자동 기록되고, DSR 은 누적 시험 절차 수로 보정되며, holdout 시작은 2026-01-01 로 고정된다.
 #   반증된 가설의 재시험은 --retest "사유" 가 있어야 하고, holdout 공개는 --only 로 선언한 가설에만 된다.
 #   --no-funding : 펀딩비를 받지 않고 실행

@@ -4806,12 +4806,45 @@ def lab_daily_growth(R, t_exit, d0, d1, haircut=0.0, f_max=LAB_F_MAX):
     return float(fs[k]), float(math.expm1(g[k]))
 
 
+LAB_SHARPE_FOR_1PCT = math.sqrt(2 * math.log(1.01)) * math.sqrt(365)          # ≈ 2.70 (켈리 최대 성장 = 일간 샤프²/2)
+LAB_SHARPE_FOR_1PCT_HALF = math.sqrt(2 * math.log(1.01) / 0.75) * math.sqrt(365)  # ≈ 3.11 (반켈리는 최대 성장의 3/4)
+
+
+def lab_daily_sharpe(R, t_exit, d0, d1):
+    """하루 단위 손익(그날 청산된 R 합, 거래 없는 날 0)의 연환산 샤프. 레버리지와 무관한 '전략의 질'."""
+    R = np.asarray(R, dtype=np.float64)
+    if len(R) < 5:
+        return float('nan')
+    d0, d1 = np.datetime64(pd.Timestamp(d0), 'D'), np.datetime64(pd.Timestamp(d1), 'D')
+    nd = int((d1 - d0).astype(np.int64)) + 1
+    day = (np.asarray(t_exit).astype('datetime64[D]') - d0).astype(np.int64)
+    ok = (day >= 0) & (day < nd)
+    if nd <= 1 or not ok.any():
+        return float('nan')
+    S = np.bincount(day[ok], weights=R[ok], minlength=nd)
+    sd = S.std(ddof=1)
+    return float(S.mean() / sd * math.sqrt(365)) if sd > 0 else float('nan')
+
+
+def lab_sharpe_line(rows):
+    """하루 1% 목표까지의 거리를 항상 같은 잣대로 보여 준다."""
+    best = max((r for r in rows if r['oos']['n'] >= 30 and np.isfinite(r['oos'].get('sharpe', float('nan')))),
+               key=lambda r: r['oos']['sharpe'], default=None)
+    head = (f'▶ 하루 1% 복리에 필요한 연환산 샤프 ≈ {LAB_SHARPE_FOR_1PCT:.1f} (켈리, 낙폭 매우 큼) · '
+            f'{LAB_SHARPE_FOR_1PCT_HALF:.1f} (반켈리)')
+    if best is None:
+        return head + ' — 이번 실행에 비교할 절차 없음 (거래 30건 이상)'
+    sh = best['oos']['sharpe']
+    return (head + f' — 이번 최고 {sh:+.2f} ({best["tf"]} {LAB_FAMILY_KO[best["family"]]}, 점추정), 필요한 성장 대비 '
+            f'{max(sh, 0) ** 2 / LAB_SHARPE_FOR_1PCT ** 2:.0%}')
+
+
 def _lab_attach_growth(met, R, t_exit, d0, d1):
-    """보수(증거 하한) 기준 f* 와 하루 복리, 그리고 같은 f 로 점추정이 맞을 때의 하루 복리."""
+    """보수(증거 하한) 기준 f* 와 하루 복리, 같은 f 로 점추정이 맞을 때의 하루 복리, 일간 연환산 샤프."""
     hc = met['mean_r'] - met['ci_lo'] if met['n'] >= 5 and np.isfinite(met['ci_lo']) else float('nan')
     f, g = lab_daily_growth(R, t_exit, d0, d1, haircut=hc)
     gp = lab_daily_growth(R, t_exit, d0, d1, haircut=0.0, f_max=f)[1] if f > 0 else 0.0
-    met.update(f_star=f, g_day=g, g_day_point=gp)
+    met.update(f_star=f, g_day=g, g_day_point=gp, sharpe=lab_daily_sharpe(R, t_exit, d0, d1))
     return met
 
 
@@ -5061,6 +5094,7 @@ def lab_report(res):
     L += _lab_declared_lines(res)
     L.append('※ 성과는 "과거 train 으로 고른 파라미터를 보지 않은 다음 구간에 적용한" 표본외 성과다. 최상위 1개만 보고 고르면 '
              '그 자체가 선택이므로 DSR(절차 수 보정)과 가짜 BTC 결과를 함께 볼 것.')
+    L.append(lab_sharpe_line(res['rows']))
     L.append('※ 거래소 최소주문·레버리지 한도는 반영하지 않은 연구용 결과다 (R 단위 비교가 목적).')
     return '\n'.join(L)
 
@@ -5359,7 +5393,8 @@ def lab_run_universe(frames_by_symbol, tfs=LAB_UNIVERSE_TFS, families=None, hold
         wins.append(w)
         w = w + pd.DateOffset(months=int(test_months))
     h64 = np.datetime64(hold_start)
-    years = max((hold_start - oos_start).days / 365.25, 1e-6)
+    oos_end = min(hold_start, t_last)                       # holdout 이 데이터 끝 뒤면 표본외는 데이터 끝까지
+    years = max((oos_end - oos_start).days / 365.25, 1e-6)
     hold_years = max((t_last - hold_start).days / 365.25, 1e-6)
     syms = list(frames)
     rows, n_sims = [], 0
@@ -5434,7 +5469,7 @@ def lab_run_universe(frames_by_symbol, tfs=LAB_UNIVERSE_TFS, families=None, hold
             met = _lab_metrics(oR, years, n_trials=n_dsr)
             if met['n'] >= 5:
                 met['ci_lo'], met['ci_hi'] = _month_cluster_ci(oR, oE), _month_cluster_ci(oR, oE, q=0.95)
-            _lab_attach_growth(met, oR, oX, oos_start, hold_start)
+            _lab_attach_growth(met, oR, oX, oos_start, oos_end)
             hmet = _lab_metrics(hR, hold_years, n_trials=1)
             if hmet['n'] >= 5:
                 hmet['ci_lo'], hmet['ci_hi'] = _month_cluster_ci(hR, hE), _month_cluster_ci(hR, hE, q=0.95)
@@ -5511,6 +5546,7 @@ def lab_universe_report(res):
     else:
         L.append(f'▶ 사전 기준({crit})을 통과한 절차 없음 — 이 코인 묶음·비용에서 입증된 edge 없음.')
     L += _lab_declared_lines(res)
+    L.append(lab_sharpe_line(res['rows']))
     L.append('※ 성과는 과거 train 으로 고른 파라미터를 보지 않은 다음 구간에 적용한 표본외 성과다. 순위 1위만 보고 고르면 그것도 선택이다.')
     return '\n'.join(L)
 
@@ -5566,6 +5602,8 @@ RESEARCH_LESSONS = [
             '— 4h Keltner: 처음 보는 구간 +0.866R → 2026 holdout 묶음 256건 −0.037R. BTC 자체 WFO 는 2026 내내 쉬어서 손실 0'),
     ('L14', '사전에 정한 판정 규칙은 결과를 본 뒤 바꾸지 않는다. 신뢰구간이 넓어 예전 값과 양립해도 규칙이 반증이면 반증이다. '
             '— 4h Keltner holdout CI [−0.451, +0.561]'),
+    ('L15', '승률은 목표가 아니다. 하루 1% 복리 = 연환산 샤프 약 2.7(켈리)·3.1(반켈리) 전략을 그 레버리지로 굴리는 것이다. '
+            '모든 보고서에 이 거리를 함께 적는다. — 지금까지 최고(4h Keltner, 반증됨)는 보수 기준 약 0.85'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5632,6 +5670,12 @@ RESEARCH_HISTORY = [
          lessons=['L12', 'L13', 'L14']),
     dict(date='2026-10-04', kind='prereg', title='사전등록 P3 (실행 전 기록)', summary=RESEARCH_PREREG[2]['rule'],
          lessons=['L1', 'L11']),
+    dict(date='2026-10-04', kind='review', title='목표를 숫자로: 하루 1% = 연환산 샤프 2.7 · 구조적 틈 분석 → 지정가 꼬리 잡기',
+         summary='켈리 최대 하루 log 성장 = 일간 샤프²/2 → 하루 1% 는 연환산 샤프 2.7(반켈리 3.1). 방에서 쓸 수 있는 틈 중 '
+                 '짧은 시간봉의 비용 문제(L2)를 정면으로 피하는 것: 강제청산 꼬리에 미리 걸어 둔 지정가로 유동성 공급 '
+                 '(진입·익절 지정가 0.02%, 하루 1~2번 수동 주문). 합성 검증: 심은 청산 꼬리 → 평균 +0.41R·승률 73%·샤프 2.8 로 '
+                 '통과, 무작위 걷기 → −0.07R 미통과. 실데이터 탐색은 --lab --wick',
+         lessons=['L2', 'L15']),
 ]
 
 
@@ -6159,6 +6203,230 @@ def lab_prospective(base1m, tracking, funding=None, cost_mode='taker', status=No
     return dict(rows=out, report='\n'.join(L))
 
 
+# ── 지정가 꼬리 잡기: 강제청산 연쇄가 만드는 과도한 꼬리에, 미리 걸어 둔 지정가로 유동성을 공급한다 ──────────
+#  경제적 이유: 청산당하는 쪽은 가격을 가리지 않고 시장가로 던진다. 빠른 시장조성자들은 이런 순간 호가를 거둬서
+#  꼬리가 더 길어진다. 미리 깊게 걸어 둔 느린 지정가는 그 꼬리를 받고, 되돌림에서 지정가로 익절한다.
+#  비용: 진입·익절 = 지정가(0.02%) → 짧은 시간봉을 죽인 수수료 문제(L2)를 정면으로 피한다. 손절·시간 만료만 시장가.
+#  실행: 사람이 하루 1~2번(09:00/21:00 KST) 주문을 걸고 나면 체결·익절·손절은 거래소가 한다 (자동 주문 아님).
+#  1분봉은 '체결 판정'에만 쓴다 — 방향을 정하지 않는다 (기획서: 1분봉은 방향 결정 금지).
+LAB_FAMILY_KO['wick'] = '지정가 꼬리 잡기'
+LAB_WICK_GRID = [dict(P=P, a=a, b=b, c=cs, sides=sd) for P in (720, 1440) for a in (1.0, 1.5, 2.0, 2.5)
+                 for b in (0.5, 1.0) for cs in (1.0, 2.0) for sd in (1, 0)]
+LAB_WICK_VOL_DAYS = 20          # 일간 로그수익 표준편차 창 (기간 시작 전날까지만)
+LAB_WICK_OVERSHOOT = 0.25       # 꼬리 속에서 손절되면 손절가 너머 꼬리 길이의 25% 만큼 더 밀려 체결된다고 본다
+
+
+@njit(cache=False)
+def lab_wick_sim(o, h, l, c, pstart, pend, ref, sig, a, b, cst, side, hold, c_maker, c_taker, through, overshoot):
+    """
+    기간 k 마다 기준가 ref[k] 에서 a·sig[k] 떨어진 곳에 지정가 (side=+1 아래 매수, −1 위 매도), 익절 b·sig, 손절 c·sig.
+    주문은 [pstart[k], pend[k]) 동안 유효, 포지션이 있으면 그 방향 새 주문은 걸지 않는다. 체결 판정은 1분봉:
+    지정가를 through 이상 관통해야 체결 · 진입한 그 1분에는 손절만 가능 · 손절이 꼬리 속이면 overshoot 만큼 더 불리 ·
+    hold 분이 지나면 시장가 청산. 반환 (진입 1분봉 인덱스, 청산 인덱스, 순 R)
+    """
+    nP = len(pstart)
+    ei = np.empty(nP, dtype=np.int64)
+    xi = np.empty(nP, dtype=np.int64)
+    rr = np.empty(nP, dtype=np.float64)
+    m = 0
+    busy = 0
+    n = len(c)
+    for k in range(nP):
+        s = max(pstart[k], busy)
+        e = pend[k]
+        if s >= e or not (sig[k] > 0):
+            continue
+        lim = ref[k] * (1.0 - side * a * sig[k])
+        tp = lim * (1.0 + side * b * sig[k])
+        sl = lim * (1.0 - side * cst * sig[k])
+        fi = -1
+        for i in range(s, e):
+            if (side > 0 and l[i] <= lim * (1.0 - through)) or (side < 0 and h[i] >= lim * (1.0 + through)):
+                fi = i
+                break
+        if fi < 0:
+            continue
+        end = min(fi + hold, n)
+        x = -1
+        px = 0.0
+        cost = c_maker
+        for i in range(fi, end):
+            if side > 0:
+                if l[i] <= sl:
+                    base = sl if (i == fi or o[i] > sl) else o[i]
+                    px = base - overshoot * max(0.0, base - l[i])
+                    x = i
+                    cost += c_taker
+                    break
+                if i > fi and h[i] >= tp * (1.0 + through):
+                    px = tp
+                    x = i
+                    cost += c_maker
+                    break
+            else:
+                if h[i] >= sl:
+                    base = sl if (i == fi or o[i] < sl) else o[i]
+                    px = base + overshoot * max(0.0, h[i] - base)
+                    x = i
+                    cost += c_taker
+                    break
+                if i > fi and l[i] <= tp * (1.0 - through):
+                    px = tp
+                    x = i
+                    cost += c_maker
+                    break
+        if x < 0:
+            x = end - 1
+            px = c[x]
+            cost += c_taker
+        ei[m] = fi
+        xi[m] = x
+        rr[m] = (side * (px / lim - 1.0) - cost) / (cst * sig[k])
+        m += 1
+        busy = x + 1
+    return ei[:m], xi[:m], rr[:m]
+
+
+def _lab_wick_periods(idx, P):
+    """UTC 00:00 부터 P분 간격의 주문 기간 → (시작 인덱스, 끝 인덱스, 시작 시각). 데이터가 없는 기간은 뺀다."""
+    starts = pd.date_range(idx[0].floor('D'), idx[-1], freq=f'{int(P)}min')
+    ts = idx.values
+    ps = np.searchsorted(ts, starts.values, side='left')
+    pe = np.searchsorted(ts, (starts + pd.Timedelta(minutes=int(P))).values, side='left')
+    keep = (pe > ps) & (ps < len(ts))
+    return ps[keep], pe[keep], starts[keep]
+
+
+def _lab_wick_sigma(base1m, starts):
+    """기간 시작 시각에 이미 알려진 일간 변동성: 전날 종가까지의 20일 일간 로그수익 표준편차 (과거만)."""
+    dc = base1m['close'].resample('1D').last().dropna()
+    sd = np.log(dc).diff().rolling(LAB_WICK_VOL_DAYS, min_periods=LAB_WICK_VOL_DAYS).std()
+    return sd.reindex(pd.DatetimeIndex(starts).floor('D') - pd.Timedelta(days=1)).values
+
+
+def lab_run_wick(base1m, holdout_start=None, train_years=LAB_TRAIN_YEARS, test_months=LAB_TEST_MONTHS,
+                 holdout_months=LAB_HOLDOUT_MONTHS, futures_only=True, n_trials_declared=None, status=None, grid=None):
+    """지정가 꼬리 잡기를 1분봉 체결로 롤링 WFO (달력 기준 창, 파라미터는 train 1σ 하한 최고)."""
+    status = status or (lambda *a, **k: None)
+    t_wall = time.time()
+    base = normalize_frame(base1m)
+    if futures_only and (base['era'].values == ERA_FUT).any():
+        base = base[base['era'].values == ERA_FUT]
+    idx = base.index
+    o, h, l, c = (base[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+    grid = grid or LAB_WICK_GRID
+    per_P = {}
+    sims = []
+    status(f'Lab 지정가 꼬리 잡기: 파라미터 {len(grid)}개 × 1분봉 {len(base):,}개...', 'blue')
+    for p in grid:
+        if p['P'] not in per_P:
+            ps, pe, st = _lab_wick_periods(idx, p['P'])
+            sig = _lab_wick_sigma(base, st) * math.sqrt(p['P'] / 1440.0)
+            per_P[p['P']] = (ps, pe, o[ps], np.nan_to_num(sig, nan=0.0))
+        ps, pe, ref, sig = per_P[p['P']]
+        E, X, RR, S = [], [], [], []
+        for side in ((1,) if p['sides'] == 1 else (1, -1)):
+            ei, xi, rr = lab_wick_sim(o, h, l, c, ps, pe, ref, sig, float(p['a']), float(p['b']), float(p['c']), side,
+                                      int(p['P']), MAKER_FEE, TAKER_FEE + SLIPPAGE_T, MAKER_TP_THROUGH, LAB_WICK_OVERSHOOT)
+            E.append(idx.values[ei])
+            X.append(idx.values[xi])
+            RR.append(rr)
+            S.append(np.full(len(rr), side, dtype=np.int64))
+        sims.append((p, np.concatenate(E), np.concatenate(X), np.concatenate(RR), np.concatenate(S)))
+    t_last = idx[-1]
+    hold_start = pd.Timestamp(holdout_start) if holdout_start is not None else t_last - pd.DateOffset(months=int(holdout_months))
+    train_off = pd.DateOffset(months=int(round(train_years * 12)))
+    oos_start = idx[0] + train_off
+    h64 = np.datetime64(hold_start)
+    wins, w = [], oos_start
+    while w < t_last:
+        wins.append(w)
+        w = w + pd.DateOffset(months=int(test_months))
+    oR, oE, oX, oS, hR, chosen = [], [], [], [], [], []
+    for w in wins:
+        ws, wt = np.datetime64(w), np.datetime64(w - train_off)
+        we = np.datetime64(w + pd.DateOffset(months=int(test_months)))
+        best, best_score = None, 0.0
+        for sim in sims:
+            _, E, X, RR, S = sim
+            m = (E >= wt) & (E < ws)
+            if m.sum() < LAB_UNIVERSE_MIN_TRAIN:
+                continue
+            x = RR[m]
+            neff = min(len(x), len(np.unique(E[m].astype('datetime64[D]'))))
+            score = x.mean() - x.std(ddof=1) / math.sqrt(neff)
+            if score > best_score:
+                best, best_score = sim, score
+        chosen.append((str(w)[:10], None if best is None else best[0], we > h64))
+        if best is None:
+            continue
+        _, E, X, RR, S = best
+        m = (E >= ws) & (E < we)
+        om, hm = m & (E < h64), m & (E >= h64)
+        oR.append(RR[om]); oE.append(E[om]); oX.append(X[om]); oS.append(S[om]); hR.append(RR[hm])
+    cat = (lambda a, dt: np.concatenate(a) if a else np.array([], dtype=dt))
+    oR, oE, oX, oS, hR = cat(oR, np.float64), cat(oE, 'datetime64[ns]'), cat(oX, 'datetime64[ns]'), cat(oS, np.int64), \
+        cat(hR, np.float64)
+    order = np.argsort(oX, kind='stable')
+    oR, oE, oX, oS = oR[order], oE[order], oX[order], oS[order]
+    oos_end = min(hold_start, t_last)
+    years = max((oos_end - oos_start).days / 365.25, 1e-6)
+    met = _lab_metrics(oR, years, n_trials=max(int(n_trials_declared or 0), 2))
+    if met['n'] >= 5:
+        met['ci_lo'], met['ci_hi'] = _month_cluster_ci(oR, oE), _month_cluster_ci(oR, oE, q=0.95)
+    _lab_attach_growth(met, oR, oX, oos_start, oos_end)
+    win, loss = oR[oR > 0], oR[oR <= 0]
+    met.update(avg_win=float(win.mean()) if len(win) else float('nan'),
+               avg_loss=float(loss.mean()) if len(loss) else float('nan'),
+               long_n=int((oS > 0).sum()), short_n=int((oS < 0).sum()),
+               long_r=float(oR[oS > 0].mean()) if (oS > 0).any() else float('nan'),
+               short_r=float(oR[oS < 0].mean()) if (oS < 0).any() else float('nan'))
+    last = next((pp for _, pp, _ in reversed(chosen) if pp is not None), None)
+    row = dict(tf='1m', family='wick', oos=met, last_params=last, oos_r=oR, oos_t=oE, windows=len(chosen),
+               idle_windows=sum(1 for _, pp, _ in chosen if pp is None), chosen=chosen)
+    res = dict(rows=[row], data=f'{idx[0]:%Y-%m-%d} ~ {t_last:%Y-%m-%d}', holdout_start=str(hold_start),
+               n_sims=len(grid), seconds=round(time.time() - t_wall, 1), n_dsr=max(int(n_trials_declared or 0), 2))
+    res['report'] = lab_wick_report(res)
+    return res
+
+
+def lab_wick_report(res):
+    r = res['rows'][0]
+    m = r['oos']
+    p = r['last_params']
+    L = [f'━━━ 지정가 꼬리 잡기 · {SYMBOL} 1분봉 체결 · {res["data"]} · 파라미터 {res["n_sims"]}개 · {res["seconds"]}초 ━━━',
+         '아이디어: 강제청산 연쇄로 가격이 순간적으로 과하게 밀릴 때, 미리 걸어 둔 지정가가 그 꼬리를 받고 되돌림에서 지정가로 익절한다.',
+         f'주문: 매일 09:00 KST(또는 12시간마다) 기준가에서 a·σ 떨어진 곳에 지정가, 익절 b·σ · 손절 c·σ, 다음 갱신까지 유지 '
+         f'(σ = 전날까지 {LAB_WICK_VOL_DAYS}일 일간 변동성)',
+         f'비용: 진입·익절 지정가 {MAKER_FEE:.2%} · 손절·시간 만료 시장가 {TAKER_FEE + SLIPPAGE_T:.2%} · '
+         f'체결 규칙(보수): 지정가 1bp 관통해야 체결, 진입한 1분 안에는 손절만 인정, 꼬리 속 손절은 꼬리의 '
+         f'{LAB_WICK_OVERSHOOT:.0%} 더 불리',
+         f'WFO: train {LAB_TRAIN_YEARS:g}년 → test {LAB_TEST_MONTHS}개월 · holdout {res["holdout_start"][:10]} 이후 봉인 · '
+         f'DSR 은 누적 절차 {res["n_dsr"]}개로 보정',
+         '─' * 100]
+    if m['n'] == 0:
+        L.append(f'거래 0건 — 모든 test 구간({r["windows"]}개)에서 쉼: train 에서 비용을 넘는 설정이 한 번도 없었다.')
+    else:
+        L += [f'표본외 체결 {m["n"]}건 (연 {m["n_year"]:.0f}) · 승률 {m["win"]:.0%} · 평균 이익 {np.nan_to_num(m["avg_win"]):+.2f}R / '
+              f'평균 손실 {np.nan_to_num(m["avg_loss"]):+.2f}R · 평균 {m["mean_r"]:+.3f}R · 달묶음 90% CI '
+              f'[{np.nan_to_num(m["ci_lo"]):+.3f}, {np.nan_to_num(m["ci_hi"]):+.3f}] · PF {m["pf"]:.2f}',
+              f'DSR {m["dsr"]:.2f} · 연환산 샤프 {np.nan_to_num(m["sharpe"]):+.2f} · 보수 하루복리 {m["g_day"]:+.3%} @ 거래당 위험 '
+              f'{m["f_star"]:.1%} (점추정이면 {m["g_day_point"]:+.3%})',
+              f'방향별: 아래 매수 {m["long_n"]}건 평균 {np.nan_to_num(m["long_r"]):+.3f}R · 위 매도 {m["short_n"]}건 평균 '
+              f'{np.nan_to_num(m["short_r"]):+.3f}R · 쉰 test 구간 {r["idle_windows"]}/{r["windows"]}']
+        if p:
+            L.append(f'최근 선택 설정: {p["P"] // 60}시간마다 갱신 · 지정가 {p["a"]}σ · 익절 {p["b"]}σ · 손절 {p["c"]}σ · '
+                     f'{"매수만" if p["sides"] == 1 else "매수+매도"}')
+    L.append('─' * 100)
+    passed = m['n'] >= 100 and m['ci_lo'] > 0 and m['dsr'] >= 0.9
+    L.append('▶ 사전 기준(체결 ≥ 100, 달묶음 CI 하한 > 0, DSR ≥ 0.9) ' + ('통과 — 사전등록 후 앞으로의 데이터·다른 시장으로 확인할 후보'
+                                                                  if passed else '미통과 — 이 비용·체결 규칙에서 입증된 edge 없음'))
+    L.append(lab_sharpe_line(res['rows']))
+    L.append('※ 승률이 높아도 평균 손실이 크면 소용없다. 볼 것은 평균R·CI 하한·샤프다. 이 결과는 이미 본 BTC 기간의 "탐색"이고, '
+             '좋게 나오면 사전등록한 뒤 앞으로의 데이터와 다른 시장으로 확인한다 (L1·L11).')
+    return '\n'.join(L)
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -6215,7 +6483,7 @@ def main(argv=None):
         cost, only, syms, retest = lopt('--cost', 'taker'), lopt('--only', None), lopt('--symbols', None), lopt('--retest', None)
         presample = '--presample' in argv
         final = lopt('--final', None) if '--final' in argv else None
-        alt_pre, prosp = '--alt-presample' in argv, '--prospective' in argv
+        alt_pre, prosp, wick = '--alt-presample' in argv, '--prospective' in argv, '--wick' in argv
         symbols = universe = None
         tfs_u = LAB_UNIVERSE_TFS
         try:
@@ -6240,9 +6508,9 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
-            if (alt_pre or prosp) and (universe or symbols or presample or '--final' in argv or '--reveal-holdout' in argv
-                                       or (alt_pre and prosp)):
-                raise ValueError('--alt-presample 과 --prospective 는 각각 단독으로 씁니다')
+            if (alt_pre or prosp or wick) and (universe or symbols or presample or only or '--final' in argv
+                                               or '--reveal-holdout' in argv or (alt_pre + prosp + wick) > 1):
+                raise ValueError('--alt-presample · --prospective · --wick 은 각각 단독으로 씁니다')
             if '--final' in argv:
                 if not final or final.startswith('--') or only or universe or symbols or presample or '--reveal-holdout' in argv:
                     raise ValueError('최종 검증은 단독으로 가설 하나만: --final 4h:keltner')
@@ -6312,7 +6580,9 @@ def main(argv=None):
                 print(f'⚠ holdout 은 이미 {len(prior)}회 공개되었습니다 '
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
-        if prosp:
+        if wick:
+            keys = ['btc|1m:wick|maker']
+        elif prosp:
             keys = []                                       # 같은 절차를 새 데이터로 채점 → 새 시험이 아니다
         elif alt_pre:
             keys = [f'alt_presample|{a}:{b}|{cost}' for a, b in pairs]
@@ -6335,6 +6605,11 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if wick:
+                res = lab_run_wick(base, holdout_start=anchor, n_trials_declared=n_cum, status=status)
+                print(res['report'])
+                note('lab', '지정가 꼬리 잡기 (BTC 1분봉 체결)', top=lab_top_lines(res))
+                return 0
             if prosp:
                 tracking = journal.d.get('tracking', [])
                 if not tracking:
