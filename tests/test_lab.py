@@ -412,22 +412,24 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 107 and str(j.anchor.date()) == '2026-01-01' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 108 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
-    assert j.state('final|4h:keltner') == 'preregistered' and [p['id'] for p in j.d['prereg']] == ['P1', 'P2']
-    assert len(pe.RESEARCH_LESSONS) == 12 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 107 and j.n_trials(['btc|4h:consensus|taker']) == 108
+    assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3'] and j.state('alt_presample|4h:flow') == 'preregistered'
+    assert [t['pair'] for t in j.d['tracking']] == ['4h:flow', '4h:consensus'] and len(j.d['holdout_history']) == 2
+    assert len(pe.RESEARCH_LESSONS) == 14 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 108 and j.n_trials(['btc|4h:consensus|taker']) == 109
     j.record('lab', ['btc|4h:consensus|taker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 108 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 109 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 107 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 108 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -457,7 +459,7 @@ def test_consume_holdout_moves_anchor_forward_only(pe):
     from conftest import Clock
     pe.utcnow = Clock('2026-11-15 12:00')
     j.consume_holdout(['4h:flow'], {'4h:flow': '반증 — x'})
-    assert str(j.anchor.date()) == '2026-11-15' and len(j.d['holdout_history']) == 2
+    assert str(j.anchor.date()) == '2026-11-15' and len(j.d['holdout_history']) == 3
 
 
 def test_fixed_anchor_makes_holdout_independent_of_data_end(pe):
@@ -536,7 +538,7 @@ def test_journal_sync_adds_new_preregistration_to_old_journals(pe):
     j.d['entries'] = [e for e in j.d['entries'] if not e['title'].startswith('P1 결과')]
     j.save()
     j2 = pe.ResearchJournal.load()
-    assert 'P2' in [p['id'] for p in j2.d['prereg']] and j2.state('final|4h:keltner') == 'preregistered'
+    assert 'P2' in [p['id'] for p in j2.d['prereg']] and j2.state('final|4h:keltner') == 'refuted'   # 코드의 기록대로
     assert any(e['title'].startswith('P1 결과') and e.get('synced_from_code') for e in j2.d['entries'])
     n = len(j2.d['entries'])
     assert len(pe.ResearchJournal.load().d['entries']) == n                   # 두 번 덧붙이지 않는다
@@ -550,3 +552,105 @@ def test_cli_final_guards(pe):
     j.set_status('final|4h:keltner', 'refuted', '테스트')
     j.save()
     assert pe.main(['--lab', '--final', '4h:keltner']) == 2                   # 이미 판정됨 → 다시 열지 않음
+
+
+# ── 시간대 쏠림 · 알트 스팟 이력 · 처음 보는 알트 구간 (P3) · 앞으로의 검증 ─────────────
+def _frame_1h_tod(n=24 * 1300, drift_hours=(8, 12), drift=0.0015, seed=0, start='2019-09-09'):
+    g = np.random.default_rng(seed)
+    idx = pd.date_range(start, periods=n, freq='1h')
+    r = g.normal(0, 0.004, n) + np.where((idx.hour >= drift_hours[0]) & (idx.hour < drift_hours[1]), drift, 0.0)
+    c = 30000 * np.exp(np.cumsum(r))
+    o = np.r_[c[0], c[:-1]]
+    return pd.DataFrame(dict(open=o, high=np.maximum(o, c) * 1.001, low=np.minimum(o, c) * 0.999, close=c, volume=1.0,
+                             taker_buy_base=0.5, trades=1.0, era=1.0), index=idx)
+
+
+def test_tod_family_holds_only_in_clock_window_and_finds_planted_drift(pe):
+    f = _frame_1h_tod()
+    ind = pe._lab_indicators(f)
+    t = pe._lab_target('tod', dict(h=8, H=4, d=1, k=3.0), ind)
+    nxt = f.index.hour.values[1:]
+    assert set(np.unique(t)) <= {0, 1} and (t[:-1][(nxt >= 8) & (nxt < 12)] == 1).all()
+    assert (t[:-1][(nxt < 8) | (nxt >= 12)] == 0).all()                      # 다음 봉 시각만 본다 (달력 정보)
+    res = pe.lab_run(None, tf_frames={'1h': f}, families=['tod'], tfs=('1h',))
+    m = res['rows'][0]['oos']
+    assert m['n'] >= 200 and m['mean_r'] > 0 and m['ci_lo'] > 0 and res['rows'][0]['last_params']['h'] == 8
+    flat = _frame_1h_tod(drift=0.0, seed=4)
+    m0 = pe.lab_run(None, tf_frames={'1h': flat}, families=['tod'], tfs=('1h',))['rows'][0]['oos']
+    assert not (m0['n'] >= 50 and m0['ci_lo'] > 0 and m0['dsr'] >= 0.9)
+
+
+def test_spot_vision_fetch_skips_unlisted_months_and_caches(pe):
+    import io
+    import zipfile
+
+    def zip_rows(year, month):
+        t0 = int(pd.Timestamp(f'{year}-{month:02d}-01').value // 10 ** 6)
+        lines = [f'{t0 + k * 4 * 3600_000},1,2,0.5,{1 + k},10,0,0,7,6,0,0' for k in range(180)]
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as z:
+            z.writestr('x.csv', '\n'.join(lines))
+        return buf.getvalue()
+
+    class FakeHttp:
+        def __init__(self):
+            self.urls = []
+
+        def get(self, url, timeout=None):
+            pe.PublicHttp.check_allowed(url)
+            self.urls.append(url)
+            ym = url.rsplit('-4h-', 1)[1][:7]
+            if ym < '2018-03':
+                raise FileNotFoundError('HTTP 404')
+            return zip_rows(int(ym[:4]), int(ym[5:7]))
+
+    http = FakeHttp()
+    df = pe.fetch_spot_klines_vision(http, 'ADAUSDT', '4h', start='2018-01', end='2018-04')
+    assert len(http.urls) == 4 and '/data/spot/monthly/klines/ADAUSDT/4h/' in http.urls[0]
+    assert str(df.index[0].date()) == '2018-03-01' and (df['era'] == pe.ERA_SPOT).all() and df['trades'].iloc[0] == 7.0
+    again = pe.fetch_spot_klines_vision(http, 'ADAUSDT', '4h', start='2018-01', end='2018-04')
+    assert len(http.urls) == 4 and len(again) == len(df)                      # 캐시에서
+
+
+def test_alt_presample_judges_only_unseen_window_pooled(pe):
+    coins = {s: {'4h': _frame_4h(7800, seed=k, start='2017-09-01')} for k, s in enumerate(('ETHUSDT', 'LTCUSDT', 'ADAUSDT'))}
+    coins['SOLUSDT'] = {}                                                       # 스팟 이력 없음
+    res = pe.lab_alt_presample(coins, '4h:tsmom', seen_from='2021-11-27')
+    v = res['verdicts'][0]
+    assert v['n'] >= 30 and v['verdict'].startswith('확인') and v['tot'] == 3 and 'SOLUSDT' in res['skipped']
+    one = pe.lab_run(None, tf_frames=coins['ETHUSDT'], only='4h:tsmom', holdout_start='2021-11-27')
+    assert (one['rows'][0]['oos_t'] < np.datetime64('2021-11-27')).all()
+    flat = {s: {'4h': _frame_4h(7800, motif=0.0, noise=0.008, seed=30 + k, start='2017-09-01')}
+            for k, s in enumerate(('ETHUSDT', 'LTCUSDT', 'ADAUSDT'))}
+    v0 = pe.lab_alt_presample(flat, '4h:tsmom', seen_from='2021-11-27')['verdicts'][0]
+    assert not v0['verdict'].startswith('확인')
+    j = pe.ResearchJournal.load()
+    pe.research_apply_alt_presample(j, [dict(v0, pair='4h:flow')])
+    assert j.state('alt_presample|4h:flow') != 'preregistered' or v0['n'] == 0
+
+
+def test_alt_presample_verdict_rule(pe):
+    f = pe.lab_alt_presample_verdict
+    assert f(20, 0.5, 0.1, 3, 3).startswith('판정 불가')
+    assert f(100, -0.01, -0.3, 1, 4).startswith('반증 —')
+    assert f(100, 0.2, 0.05, 3, 4).startswith('확인')
+    assert f(100, 0.2, 0.05, 2, 4).startswith('반증 안 됨')
+    assert f(100, 0.2, -0.05, 4, 4).startswith('반증 안 됨')
+
+
+def test_prospective_scores_only_after_freeze_and_stops_when_broken(pe):
+    base = _trend_1m(1300, 0.0000004, seed=8)
+    since = str((base.index[-1] - pd.Timedelta(days=240)).date())
+    res = pe.lab_prospective(base, [dict(pair='4h:tsmom', scope='btc', since=since)], kill_n=5)
+    r = res['rows'][0]
+    assert r['n'] > 0 and r['since'] == since and '앞으로의 검증' in res['report']
+    assert r['state'] in ('살아 있음 (계속 추적)', '중단 — 앞으로의 데이터에서 무너짐')
+    flat = _trend_1m(1300, 0.0, seed=9)
+    r0 = pe.lab_prospective(flat, [dict(pair='4h:tsmom', scope='btc', since=since)], kill_n=10 ** 6)['rows'][0]
+    assert r0['state'] == '추적 중'                                             # 거래가 쌓이기 전에는 결론 없음
+
+
+def test_cli_alt_presample_and_prospective_guards(pe):
+    assert pe.main(['--lab', '--alt-presample', '--prospective']) == 2
+    assert pe.main(['--lab', '--alt-presample', '--universe']) == 2
+    assert pe.main(['--lab', '--prospective', '--final', '4h:flow']) == 2

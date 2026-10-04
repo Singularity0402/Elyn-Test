@@ -35,6 +35,8 @@ python pattern_edge_v612.py --lab --universe --surrogate-n 20 # 같은 날짜 �
 python pattern_edge_v612.py --journal                       # 연구 일지: 교훈·가설 상태·사전등록·모든 실행 기록 (md 로도 저장)
 python pattern_edge_v612.py --lab --presample               # 사전등록 P1: BTC 전체 이력에서 처음 보는 구간(2019-08~2021-11)만으로 판정 (가설마다 1회)
 python pattern_edge_v612.py --lab --final 4h:keltner        # 사전등록 P2: 봉인 구간(2026-01-01~)을 단 한 번 열어 BTC + 코인 묶음으로 최종 판정
+python pattern_edge_v612.py --lab --alt-presample          # 사전등록 P3: 알트 스팟 이력(2017~2021)의 처음 보는 구간으로 판정 (1회)
+python pattern_edge_v612.py --lab --prospective             # 앞으로의 검증: 규칙 고정(2026-10-04) 이후 데이터로만 후보 채점 (언제든)
 #   모든 Lab 실행은 연구 일지에 자동 기록되고, DSR 은 누적 시험 절차 수로 보정되며, holdout 시작은 2026-01-01 로 고정된다.
 #   반증된 가설의 재시험은 --retest "사유" 가 있어야 하고, holdout 공개는 --only 로 선언한 가설에만 된다.
 #   --no-funding : 펀딩비를 받지 않고 실행
