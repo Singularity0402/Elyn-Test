@@ -412,24 +412,26 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 108 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 110 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3'] and j.state('alt_presample|4h:flow') == 'preregistered'
-    assert [t['pair'] for t in j.d['tracking']] == ['4h:flow', '4h:consensus'] and len(j.d['holdout_history']) == 2
-    assert len(pe.RESEARCH_LESSONS) == 15 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 108 and j.n_trials(['btc|4h:consensus|taker']) == 109
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert j.state('regime|4h:consensus') == 'preregistered' and len(j.d['holdout_history']) == 2
+    assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:consensus'),
+                                                                  ('eth', '4h:consensus')]
+    assert len(pe.RESEARCH_LESSONS) == 16 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 110 and j.n_trials(['btc|4h:consensus|taker']) == 111
     j.record('lab', ['btc|4h:consensus|taker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 109 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 111 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 108 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 110 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -747,3 +749,56 @@ def test_far_future_holdout_does_not_dilute_rates(pe):
     b = pe.lab_run_universe(coins, tfs=('4h',), families=['tsmom'],
                             holdout_start=str(coins['BTCUSDT']['4h'].index[-1] + pd.Timedelta(hours=4)))['rows'][0]['oos']
     assert a['n'] == b['n'] and abs(a['n_year'] - b['n_year']) < 1e-6 and abs(a['g_day'] - b['g_day']) < 1e-9
+
+
+# ── BTC 1순위 · ETH 2순위: 다른 국면 검증 (사전등록 P4) ─────────────────
+def test_majors_are_the_default_and_spot_perp_merge(pe):
+    assert pe.LAB_MAJOR_SYMBOLS == ('ETHUSDT',)
+    spot = _frame_4h(100, start='2019-01-01')
+    perp = _frame_4h(100, seed=3, start='2019-01-10')
+    m = pe.merge_spot_perp(spot, perp)
+    assert m.index.is_monotonic_increasing and not m.index.has_duplicates
+    assert (m.loc[m.index >= perp.index[0], 'close'].values == perp['close'].values).all()   # 겹치면 선물을 쓴다
+    assert pe.merge_spot_perp(None, perp) is perp and pe.merge_spot_perp(spot, None) is spot
+
+
+def test_regime_verdict_rule_puts_btc_first(pe):
+    v = pe.lab_regime_verdict
+    w = lambda n, mean, lo: dict(n=n, mean_r=mean, lo=lo)
+    assert v(w(15, 0.5, 0.1), w(100, 0.5, 0.2)).startswith('판정 불가')
+    assert v(w(80, -0.02, -0.3), w(100, 0.5, 0.2)).startswith('반증 —')          # ETH 가 좋아도 BTC 가 음수면 반증
+    assert v(w(80, 0.3, 0.05), w(100, -0.1, -0.4)).startswith('반증 안 됨')
+    assert v(w(80, 0.3, 0.05), w(100, 0.1, -0.1)).startswith('확인')
+    assert v(w(80, 0.3, -0.05), None).startswith('반증 안 됨')
+
+
+def test_regime_test_scores_only_the_later_window_by_year(pe):
+    base = _trend_1m(1500, 0.0000004, seed=6)
+    base.index = pd.date_range('2018-01-01', periods=len(base), freq='1min')
+    eth = {'4h': _frame_4h(int(1500 * 6), seed=2, start='2018-01-01')}
+    res = pe.lab_regime_test(base, eth, '4h:tsmom', start='2021-01-01', end='2022-02-01')
+    assert res['b']['n'] > 0 and res['e']['n'] > 0 and set(res['b']['years']) <= {2021, 2022}
+    assert '다른 국면 검증 (사전등록 P4)' in res['report'] and '해마다' in res['report'] and res['verdict']
+    import pytest
+    with pytest.raises(ValueError):
+        pe.lab_regime_test(base, eth, '4h:tsmom,4h:ema')
+
+
+def test_prospective_tracks_eth_with_its_own_frames(pe):
+    base = _trend_1m(1300, 0.0000004, seed=8)
+    eth = {'4h': _frame_4h(1300 * 6, seed=5, start=str(base.index[0].date()))}
+    since = str((base.index[-1] - pd.Timedelta(days=240)).date())
+    res = pe.lab_prospective(base, [dict(pair='4h:tsmom', scope='btc', since=since),
+                                    dict(pair='4h:tsmom', scope='eth', since=since)], eth_frames=eth, kill_n=5)
+    assert [r['scope'] for r in res['rows']] == ['btc', 'eth'] and res['rows'][1]['n'] > 0
+    assert len(pe.lab_prospective(base, [dict(pair='4h:tsmom', scope='eth', since=since)])['rows']) == 0   # ETH 봉 없으면 건너뜀
+
+
+def test_cli_regime_guards(pe):
+    assert pe.main(['--lab', '--regime', '4h:flow']) == 2                     # P4 에 등록되지 않음
+    assert pe.main(['--lab', '--regime', '4h:consensus', '--universe']) == 2
+    assert pe.main(['--lab', '--regime']) == 2
+    j = pe.ResearchJournal.load()
+    j.set_status('regime|4h:consensus', 'refuted', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--regime', '4h:consensus']) == 2                # 이미 판정됨
