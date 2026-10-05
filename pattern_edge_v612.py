@@ -5704,6 +5704,12 @@ RESEARCH_LESSONS = [
     ('L18', '레버리지(계좌 위험)는 엣지를 만들지 못한다. 켈리 지점을 넘으면 성장은 멈추고 낙폭만 커진다. 가격 1% 고정 손절로 수수료 '
             '비중을 1R 의 14% 로 낮춰도 짧은 시간봉 신호는 비용을 넘지 못했다. — 1h Keltner(32개 중 최고, +0.081R): 계좌 1% ×1.23 '
             '낙폭 26% · 2% ×1.35 낙폭 46% · 3% ×1.34 낙폭 62%'),
+    ('L19', '정답 구간이 겹치는 표본은 독립이 아니다. 독립 사건 수 ≈ (봉 수 ÷ 평균 보유 봉) × 적은 쪽 결과의 비율. 단서 1개당 독립 '
+            '사건이 10개 미만이면 모델이 단서를 외워 버리고, 다음 구간에서 확률 순위가 뒤집힌다. 모델의 단서 수는 표본에 맞춘다. — '
+            '정답 단서 학습 4h(60봉, 단서 18개): 확률 하위 10% 가 상위 10% 보다 더 벌었다 (숏 5R 하위 +0.306R · 상위 −0.463R)'),
+    ('L20', 'BTC 는 2020~2026 내내 롱 쪽 기준선이 숏보다 높았다(상승 표류). 숏은 지금까지 모든 방식에서 근거가 없었다. 롱 쪽 결과는 '
+            '0 이 아니라 "아무 때나 산 롱"과 비교해야 하고, 그 차이만 실력이다. — 정답 단서 학습 7개 설정 모두 숏이 롱보다 나쁘고 '
+            '음수(롱 −0.075~+0.440R · 숏 −0.190~−0.076R), 기준선 승률도 7/7 롱이 높음'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5834,6 +5840,16 @@ RESEARCH_HISTORY = [
                  '2/3/5R 로 바꿔 상위 10% 실제 승률 vs 손익분기를 비교(끝머리 지도). 목표마다 새 절차로 누적 집계. '
                  '실행: --lab --oracle --tp 2,3,5 (4h 는 --tfs 4h --stop-pct 2 --hold 60)',
          lessons=['L6', 'L15', 'L18']),
+    dict(date='2026-10-05', kind='review', title='정답 단서 학습 결과 (1h 4개 · 4h 3개 설정, 7개 절차) · 끝머리 지도',
+         summary='통과 0 (누적 146 → 153). 1h 2R/24봉 1006건 −0.092R CI [−0.147, −0.036] = 확실한 손실 · 1h 48봉 2R/3R/5R '
+                 '−0.071/−0.038/−0.049R · 4h(손절 2%, 60봉) 2R/3R/5R +0.052/+0.059/−0.066R, CI 하한 모두 음수. 수수료 0 이어도 1h 는 '
+                 '+0.05~+0.10R(본전 왕복 비용 0.05~0.10%) — 지금 가정 0.14%. 분위표: 1h 는 확률 하위 10% 를 피하는 힘만 있고 상위 '
+                 '10% 도 대부분 손실(롱 3R·5R 만 +0.13·+0.16R), 4h 는 순위가 뒤집힘(L19: 단서당 독립 사건 부족 추정 — 다음 실행부터 EPV 표시). 숏 7/7 음수(L20). '
+                 '4h 에서 테이커 체결강도가 창 100% 같은 방향 단서로 따로 뽑힘 → 4h 체결강도 후보와 같은 정보를 다른 방법이 다시 '
+                 '찾음. 끝머리: 목표를 멀리 둘수록 1h 상위 10% 롱 평균R 은 커졌지만(+0.05 → +0.13 → +0.16R) 실제 체결 전체는 음수 → '
+                 '끝머리를 비용 이상으로 예측하지 못함. "우리 전략과 합치기"는 단서 순위가 맞아야 의미가 있는데 1h 는 약하고 4h 는 '
+                 '뒤집혀 있어 지금 합치면 좋은 신호를 버리게 됨 → 보류.',
+         lessons=['L15', 'L19', 'L20']),
 ]
 
 
@@ -5861,6 +5877,8 @@ def _research_seed_keys():
              '1h': [f for f in base10 if f != 'session'] + ['funding', 'analog', 'tod']}
     keys += [f'btc|{tf}:{f}|taker|stop1' for tf, fams in fixed.items() for f in fams
              if tf in {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h')}.get(f, ('5m', '15m', '1h'))]
+    keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
+        + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
 
 
@@ -5909,6 +5927,10 @@ def _research_seed_status():
                                     '샤프 0.85, DSR(누적) 0.14 → 앞으로의 검증 중', '2026-10-05')
     put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
                                          '→ 앞으로의 검증 중', '2026-10-05')
+    put('btc|1h:oracle', 'no_evidence', '정답 단서 학습 4개 설정 통과 0: 2R/24봉 1006건 −0.092R CI [−0.147, −0.036] · 48봉 '
+                                       '2R/3R/5R −0.071/−0.038/−0.049R. 수수료 0 이어도 +0.05~+0.10R', '2026-10-05')
+    put('btc|4h:oracle', 'no_evidence', '정답 단서 학습 3개 설정(손절 2%, 60봉) 통과 0: +0.052/+0.059/−0.066R, CI 하한 모두 음수 · '
+                                       '확률 순위가 뒤집힘(L19)', '2026-10-05')
     return st
 
 
@@ -5945,6 +5967,10 @@ def _research_sync(d, seed):
     for t in seed.get('tracking', []):
         if (t['scope'], t['pair']) not in have_t:
             d.setdefault('tracking', []).append(t)
+            changed = True
+    for key, v in seed['status'].items():                   # 코드가 내린 판정 중 일지에 없는 것만 (있는 판정은 고치지 않음)
+        if key not in d['status']:
+            d['status'][key] = dict(v, synced_from_code=True)
             changed = True
     seen = {(e.get('date', '')[:10], e.get('title')) for e in d.get('entries', [])}
     for e in seed['entries']:
@@ -6787,7 +6813,7 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-05c · 정답 단서 학습 · 끝머리 지도'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-05d · 정답 단서 학습 · 끝머리 지도 · EPV'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
@@ -6852,7 +6878,7 @@ def _oracle_features(df, funding=None):
     cols = [lc.diff(1), lc.diff(4), lc.diff(24), lc.diff(168), atr, atr / atr.rolling(168).mean(),
             (c / c.ewm(span=20, adjust=False).mean() - 1) / a, (c / c.ewm(span=100, adjust=False).mean() - 1) / a,
             (c / c.rolling(200).mean() - 1) / a, (c - ma20) / sd20, (c - lo55) / (hi55 - lo55),
-            imb(12), imb(48), np.log(v / v.rolling(168).median()),
+            imb(12), imb(48), np.log(v.where(v > 0) / v.rolling(168).median()),
             pd.Series(np.nan_to_num(fp, nan=0.5) if fp is not None else np.full(len(c), 0.5), index=c.index),
             pd.Series(np.sin(2 * np.pi * hr / 24), index=c.index), pd.Series(np.cos(2 * np.pi * hr / 24), index=c.index),
             pd.Series((df.index.dayofweek.values >= 5).astype(float), index=c.index)]
@@ -6913,7 +6939,7 @@ def lab_run_oracle(base1m, tf='1h', sl=0.01, tp_r=2.0, hold=24, holdout_start=No
     hold_start = pd.Timestamp(holdout_start) if holdout_start is not None else idx[-1] - pd.DateOffset(months=int(holdout_months))
     i_hold = int(idx.searchsorted(hold_start))
     i_end = max(0, i_hold - hold - 1)                                    # 정답 구간이 holdout 가격에 닿는 봉은 쓰지 않는다
-    trades, calib_l, calib_s, coefs, chosen = [], [], [], [], []
+    trades, calib_l, calib_s, coefs, chosen, epv = [], [], [], [], [], []
     for s0 in range(train_n, i_end, test_n):
         e0 = min(s0 + test_n, i_end)
         tr = np.arange(max(0, s0 - train_n), max(0, s0 - hold - 1))       # 결과 구간이 test 와 겹치는 표본은 지운다
@@ -6926,6 +6952,9 @@ def lab_run_oracle(base1m, tf='1h', sl=0.01, tp_r=2.0, hold=24, holdout_start=No
         Z = lambda rows: np.clip((X[rows] - mu) / sd, -5, 5)
         models, fitted = {}, {}
         for side, R in ((1, rl), (-1, rs)):
+            yb = float(np.mean(R[tr] > 0))
+            dur = float(np.mean((xl if side > 0 else xs)[tr] - tr))            # 정답 구간이 겹치면 독립 사건은 더 적다 (L19)
+            epv.append(len(tr) / max(dur, 1.0) * min(yb, 1 - yb) / (X.shape[1] + 1))
             w = _logit_fit(Z(tr), (R[tr] > 0).astype(np.float64))
             fitted[side] = w
             p_tr = _logit_predict(w, Z(tr))
@@ -7006,6 +7035,7 @@ def lab_run_oracle(base1m, tf='1h', sl=0.01, tp_r=2.0, hold=24, holdout_start=No
     res = dict(rows=[row], tf=tf, sl=sl, tp_r=tp_r, hold=hold, data=f'{idx[0]:%Y-%m-%d} ~ {idx[-1]:%Y-%m-%d}',
                holdout_start=str(hold_start), base_long=base_l, base_short=base_s, cost_r=cost / sl,
                calib_long=deciles(calib_l), calib_short=deciles(calib_s), clues=clues,
+               epv=float(np.median(epv)) if epv else float('nan'),
                n_dsr=max(int(n_trials_declared or 0), 2), seconds=round(time.time() - t_wall, 1))
     res['report'] = lab_oracle_report(res)
     return res
@@ -7020,6 +7050,9 @@ def lab_oracle_report(res):
          f'({res["hold"]}봉 안, 같은 봉이면 손절로 침). 단서 {len(LAB_ORACLE_FEATURES)}개는 그 시점에 이미 알 수 있던 값만.',
          f'배우기: 직전 {LAB_TRAIN_YEARS:g}년 정답으로 롱·숏 확률 모델(로지스틱 회귀)을 따로 → 다음 {LAB_TEST_MONTHS}개월에만 적용. '
          f'결과가 test 와 겹치는 train 정답은 지움. 진입 = train 확률 상위 {"/".join(f"{q:.0%}" for q in LAB_ORACLE_Q)} 중 train 이 고른 문턱 이상.',
+         f'표본 크기: 정답 구간이 겹쳐서 train 의 독립 사건은 단서 1개당 약 {np.nan_to_num(res["epv"]):.1f}개 '
+         f'(L19: 10 미만이면 모델이 단서를 외워 다음 구간에서 순위가 뒤집히기 쉽다)'
+         + (' ⚠ 부족' if not res['epv'] >= 10 else ''),
          f'기준선: 아무 때나 들어가면 이길 확률 롱 {res["base_long"]:.1%} · 숏 {res["base_short"]:.1%} · '
          f'수수료(1R 의 {res["cost_r"]:.0%})를 넘으려면 익절·손절로만 끝날 때 약 {be:.0%} 이상 필요',
          '─' * 100]
@@ -7032,6 +7065,10 @@ def lab_oracle_report(res):
               f'연환산 샤프 {np.nan_to_num(m["sharpe"]):+.2f} · 보수 하루복리 {m["g_day"]:+.3%} @ 거래당 위험 {m["f_star"]:.1%} · '
               f'롱 {m["long_n"]}건 {np.nan_to_num(m["long_r"]):+.3f}R · 숏 {m["short_n"]}건 {np.nan_to_num(m["short_r"]):+.3f}R · '
               f'쉰 test 구간 {r["idle_windows"]}/{r["windows"]}']
+        g = m['mean_r'] + res['cost_r']
+        L.append(f'수수료·슬리피지가 0 이면 평균 {g:+.3f}R → 본전이 되는 왕복 비용 {g * res["sl"]:.3%} '
+                 f'(지금 가정 {res["cost_r"] * res["sl"]:.3%})' if g > 0 else
+                 f'수수료·슬리피지가 0 이어도 평균 {g:+.3f}R → 비용 문제가 아니라 방향을 못 맞혔다')
         rows, streak = lab_risk_table(r['oos_r'], m['n'] / max(m['n_year'], 1e-9))
         L.append('계좌 위험별: ' + ' · '.join(f'{f:.0%}: ×{mult:.2f} (낙폭 {dd:.0%})' for f, mult, d, dd in rows)
                  + f' · 최장 연속 손실 {streak}번')
@@ -7061,23 +7098,25 @@ def lab_oracle_map(results):
     """같은 단서·손절·보유로 익절 목표만 바꾼 결과 비교 — '끝머리(움직임이 어디까지 가는지)를 예측할 수 있나'."""
     r0 = results[0]
     L = [f'━━━ 끝머리 지도 · {SYMBOL} {r0["tf"]} · 손절 {r0["sl"]:.1%} · {r0["hold"]}봉 안 · 목표만 멀리 ━━━',
-         f'{"익절":>5}{"손익분기 승률":>12}{"무작위 승률":>11}{"기준선 롱/숏":>14}{"상위10% 실제 롱/숏":>18}'
-         f'{"상위10% 평균R 롱/숏":>20}{"체결":>6}{"평균R":>8}{"CI하한":>8}  판정']
+         f'{"익절":>5}{"손익분기 승률":>12}{"무작위 승률":>11}{"상위10% 실제 롱/숏":>18}'
+         f'{"상위10% 평균R 롱/숏":>20}{"체결":>6}{"평균R":>8}{"수수료0":>8}{"본전비용":>8}{"CI하한":>8}{"EPV":>6}  판정']
     for res in results:
         m = res['rows'][0]['oos']
         be = (1 + res['cost_r']) / (1 + res['tp_r'])
         top = lambda cal, j: next((x[j] for x in cal if x[0] == 10), float('nan'))
         passed = m['n'] >= 100 and m['ci_lo'] > 0 and m['dsr'] >= 0.9
+        g = m['mean_r'] + res['cost_r']
         L.append(f'{res["tp_r"]:>4g}R{be:>12.0%}{1 / (1 + res["tp_r"]):>11.0%}'
-                 f'{res["base_long"]:>8.0%}/{res["base_short"]:<5.0%}'
                  f'{top(res["calib_long"], 2):>12.0%}/{top(res["calib_short"], 2):<5.0%}'
                  f'{top(res["calib_long"], 3):>+13.2f}/{top(res["calib_short"], 3):<+6.2f}'
-                 f'{m["n"]:>6}{np.nan_to_num(m["mean_r"]):>+8.3f}{np.nan_to_num(m["ci_lo"]):>+8.3f}  {"통과" if passed else "미통과"}')
+                 f'{m["n"]:>6}{np.nan_to_num(m["mean_r"]):>+8.3f}{np.nan_to_num(g):>+8.3f}{max(np.nan_to_num(g), 0) * res["sl"]:>8.3%}'
+                 f'{np.nan_to_num(m["ci_lo"]):>+8.3f}{np.nan_to_num(res.get("epv")):>6.1f}  {"통과" if passed else "미통과"}')
     L += ['─' * 100,
           '무작위 승률 = 방향 없는 차트에서 +목표가 −1R 보다 먼저 올 확률 1/(1+목표). 목표를 멀리 두면 승률이 정확히 그만큼 떨어지고 '
           '수수료만큼 손해다 → 손익비만으로는 이득이 생기지 않는다.',
-          '기준선·실제 승률은 보유 시간이 끝나 조금이라도 번 경우도 "이김"으로 센다 → 목표가 멀수록 무작위 승률보다 높게 보인다. '
+          '실제 승률은 보유 시간이 끝나 조금이라도 번 경우도 "이김"으로 센다 → 목표가 멀수록 무작위 승률보다 높게 보인다. '
           '최종 판단은 평균R 과 CI 하한으로 한다.',
+          '수수료0 = 비용이 전혀 없을 때의 평균R · 본전비용 = 이 이하의 왕복 비용이면 본전 · EPV = 단서 1개당 독립 사건 수 (L19: 10 이상 필요)',
           '끝머리를 "예측했다" = 상위 10% 의 평균R 이 꾸준히 양수이고, 그 줄의 표본외 CI 하한이 0 보다 큰 것. '
           '여러 목표를 본 만큼 DSR 은 누적 절차 수로 보정된다.']
     return '\n'.join(L)

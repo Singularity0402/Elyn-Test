@@ -412,7 +412,7 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 146 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 153 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
@@ -421,18 +421,18 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
     assert j.state('btc_stop1|short:all') == 'no_evidence'
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger')]
-    assert len(pe.RESEARCH_LESSONS) == 18 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 146 and j.n_trials(['btc|4h:keltner|maker']) == 147
+    assert len(pe.RESEARCH_LESSONS) == 20 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 153 and j.n_trials(['btc|4h:keltner|maker']) == 154
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 147 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 154 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 146 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 153 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -545,6 +545,24 @@ def test_journal_sync_adds_new_preregistration_to_old_journals(pe):
     assert any(e['title'].startswith('P1 결과') and e.get('synced_from_code') for e in j2.d['entries'])
     n = len(j2.d['entries'])
     assert len(pe.ResearchJournal.load().d['entries']) == n                   # 두 번 덧붙이지 않는다
+    j2.d['status'].pop('btc|1h:oracle')
+    j2.d['status']['btc|4h:flow'] = dict(state='refuted', why='사용자 일지의 판정')
+    j2.save()
+    j3 = pe.ResearchJournal.load()
+    assert j3.state('btc|1h:oracle') == 'no_evidence'                         # 빠진 판정은 코드에서 채우고
+    assert j3.state('btc|4h:flow') == 'refuted'                               # 이미 있는 판정은 고치지 않는다
+
+
+def test_oracle_report_shows_sample_size_and_fee_free_edge(pe):
+    f = _oracle_frame(1500, 0.0012)
+    res = pe.lab_run_oracle(None, tf='1h', frame=f, hold=24)
+    assert res['epv'] > 10 and '독립 사건은 단서 1개당' in res['report'] and '⚠ 부족' not in res['report']
+    assert '본전이 되는 왕복 비용' in res['report']
+    thin = pe.lab_run_oracle(None, tf='1h', frame=f, hold=400, tp_r=5.0)    # 정답 구간이 길면 독립 사건이 적다 (L19)
+    assert thin['epv'] < res['epv'] / 3 and '⚠ 부족' in thin['report']
+    noise = pe.lab_run_oracle(None, tf='1h', frame=_oracle_frame(1500, 0.0))
+    g = noise['rows'][0]['oos']['mean_r'] + noise['cost_r']
+    assert ('방향을 못 맞혔다' in noise['report']) == (g <= 0)
 
 
 def test_cli_final_guards(pe):
