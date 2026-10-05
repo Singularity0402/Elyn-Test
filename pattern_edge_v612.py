@@ -5691,7 +5691,17 @@ P6_STOP = 0.01
 P6_KEY = 'short_presample|volbreak'
 P6_PROCEDURES = tuple(f'short_presample|{tf}:volbreak|rt0.12' for tf in P6_TFS)
 P6_REGISTERED = '2026-10-05'
-P6_TRACK_SINCE = '2026-10-06'       # P6 판정(사용자 PC 2026-10-06 01:44 KST) 다음부터의 데이터가 앞으로의 검증
+P6_TRACK_SINCE = '2026-10-06'
+# 사전등록 P7 (P6 규칙을 다른 국면에서) · P8 (펀딩비 캐리: 예측하지 않는 구조적 수익)
+P7_KEY, P7_KEY_15M = 'short_regime|volbreak', 'short_regime|15m:volbreak'
+P7_PROCEDURES = tuple(f'short_regime|{tf}:volbreak|rt0.12' for tf in P6_TFS)
+P7_ALPHA = 0.025                    # 가설 2개(합산·15m) → 단측 2.5% 하한 (Bonferroni)
+P8_KEY = 'carry|btc'
+P8_PROCEDURES = ('carry|btc|1x', 'carry|eth|1x')
+P8_LOOKBACK = 9                     # 직전 정산 9번(3일) 평균 펀딩비 > 0 일 때만 캐리를 든다
+P8_SPOT_COST = 0.0010 + 0.0001      # 현물 시장가 + 슬리피지 (한 번 사고팔 때마다)
+P8_PERP_COST = 0.0005 + 0.0001      # 선물 시장가 + 슬리피지
+P8_REGISTERED = '2026-10-06'       # P6 판정(사용자 PC 2026-10-06 01:44 KST) 다음부터의 데이터가 앞으로의 검증
 
 
 RESEARCH_LESSONS = [
@@ -5788,7 +5798,20 @@ RESEARCH_PREREG = [dict(
               '그 외 → 반증 안 됨. 시간봉별 결과와 수수료 전 평균R 을 함께 보인다. 한 번만.',
          why='비용 곡선(누적 249)에서 수수료 전 엣지가 세 시간봉 모두에서 일관된 단타 전략군은 변동성 돌파뿐이었다(비용 0 평균R '
              '+0.117/+0.105/+0.113, 하한 모두 양수). 15m·5m 는 날짜 섞은 차트 20개도 모두 이겼다. 다만 249개 중에서 고른 것이므로 '
-             '(L1·L11), 고를 때 쓰지 않은 구간과 소매 계정의 현실적 비용에서 다시 확인한다.')]
+             '(L1·L11), 고를 때 쓰지 않은 구간과 소매 계정의 현실적 비용에서 다시 확인한다.'),
+    dict(id='P7', registered=P8_REGISTERED, scope='short_regime', pairs=['volbreak', '15m:volbreak'],
+         rule=f'P6 와 같은 규칙·비용(왕복 {2 * P6_COST_SIDE:.2%})으로 {RESEARCH_SEEN_FROM} ~ {RESEARCH_HOLDOUT_CURRENT} 전날 국면의 거래만 '
+              f'판정. H7-1 세 시간봉 합산 · H7-2 15m 단독, 각각 달묶음 단측 {P7_ALPHA:.1%} 하한. 거래 < 30 → 판정 불가 · 평균R ≤ 0 → 반증 · '
+              '하한 > 0 → 확인(두 국면 모두 통과 = 과거 차트로 수립) · 그 외 → 반증 안 됨. 한 번만.',
+         why='사용자 기준: "전략이 증명되기 전까지는 과거 차트로만 채점하고, 수립된 뒤에 실제 70달러로". P6 는 2019~21 국면만 '
+             '통과했으므로 다른 국면이 남았다(L12·L17). 이 국면의 대략값은 비용 곡선으로 이미 봤다(15m 만 약 +0.03R) — 정확한 비용의 '
+             '판정을 남긴다.'),
+    dict(id='P8', registered=P8_REGISTERED, scope='carry', pairs=['btc'],
+         rule=f'BTC 펀딩비 캐리(현물 롱 + 같은 크기 선물 숏), 직전 정산 {P8_LOOKBACK}번 평균 > 0 일 때만 보유, 들고 날 때마다 현물 '
+              f'{P8_SPOT_COST:.2%} + 선물 {P8_PERP_COST:.2%}, 증거금 1배, {RESEARCH_HOLDOUT_CURRENT} 전날까지 전 기간. 비용 후 수익 ≤ 0 → '
+              '반증 · 샤프 달묶음 단측 5% 하한 > 0 이고 최대낙폭 ≤ 5% → 확인 · 그 외 → 반증 안 됨. ETH 는 보고만.',
+         why='사용자 요청: "기존 것으로 안 보이면 전혀 다른 시선에서 확률적·장기적 우상향 고정 메커니즘". 지금까지 시험한 것은 모두 '
+             '가격 방향 예측이었다. 캐리는 방향을 맞히지 않는다 — 레버리지 롱 수요가 숏에게 내는 펀딩비라는 구조적 이전을 받는다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -5935,6 +5958,12 @@ RESEARCH_HISTORY = [
                  '양수는 15m 뿐(L17) → 15m 를 1순위로, 세 시간봉 모두 같은 규칙·같은 비용으로 2026-10-06 부터 앞으로의 데이터 채점. '
                  '승률 35%·익절 3R 구조라 10번 안팎의 연속 손절(해에 따라 그 이상)이 정상 범위.',
          lessons=['L12', 'L13', 'L17', 'L18']),
+    dict(date='2026-10-06', kind='prereg', title='사용자 기준 변경 · 사전등록 P7(P6 의 다른 국면) · P8(펀딩비 캐리)',
+         summary='사용자: "선 채점은 전략이 증명되기 전까지 과거 차트로만, 이후 채점은 수립된 뒤 실제 70달러로. 70달러는 선물 시드 '
+                 '전재산." → 앞으로의 종이 매매 대신, 과거 차트에서 남은 증명을 끝낸다. P6 는 2019~21 국면만 통과했으므로 P7 로 '
+                 '2021-11 이후 국면을 같은 규칙·비용으로 판정. 그리고 "전혀 다른 시선": 지금까지는 모두 방향 예측이었으므로, 방향을 '
+                 '맞히지 않는 구조적 수익인 펀딩비 캐리를 P8 로 판정. P5(장기 추세 보유)와 함께 --lab --proof 한 번에 실행.',
+         lessons=['L12', 'L14', 'L17', 'L21']),
 ]
 
 
@@ -6016,6 +6045,9 @@ def _research_seed_status():
     put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
                                          '→ 앞으로의 검증 중', '2026-10-05')
     put(TH_KEY, 'preregistered', 'P5: 실행 전 등록', TH_REGISTERED)
+    put(P7_KEY, 'preregistered', 'P7: 실행 전 등록', P8_REGISTERED)
+    put(P7_KEY_15M, 'preregistered', 'P7: 실행 전 등록', P8_REGISTERED)
+    put(P8_KEY, 'preregistered', 'P8: 실행 전 등록', P8_REGISTERED)
     put(P6_KEY, 'confirmed', 'P6: 처음 보는 구간(2019-08-21 ~ 2021-11-26) 합산 1197건 평균R +0.201 하한 +0.043 (왕복 0.12%) '
                              '→ 확인 · 5m 425건 +0.229 · 15m 440건 +0.267 · 1h 332건 +0.079(하한 −0.055)', '2026-10-06')
     for tf, why in (('5m', '비용 0 +0.117R(1114건, 하한 +0.046) · 본전 왕복 0.114%'),
@@ -6973,11 +7005,11 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-06a · P6 확인 · 단타 추적·지켜보기'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-06b · 과거 차트 증명 일괄(P5·P7·P8)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
-                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample', '--watch'})
+                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample', '--watch', '--proof'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -7609,6 +7641,145 @@ def lab_short_presample(base1m, funding=None, seen_from=RESEARCH_SEEN_FROM, n_tr
     return dict(report='\n'.join(L), verdict=verdict, n=n, mean_r=mean, lo=lo, rows=rows, res=res)
 
 
+def _p6_rows(base1m, funding, holdout_start, n_trials_declared=None, status=None):
+    """P6 규칙(변동성 돌파 5m/15m/1h, 가격 1% 손절, 왕복 0.12%)으로 BTC 전체 이력 WFO. 수수료는 끝나면 되돌린다."""
+    saved = (TAKER_FEE, MAKER_FEE, SLIPPAGE_T)
+    try:
+        lab_set_fees(taker=P6_COST_SIDE, slip=0.0)
+        res = lab_run(base1m, tfs=P6_TFS, families=['volbreak'], futures_only=False, holdout_start=holdout_start,
+                      cost_mode='taker', funding=funding, fixed_stop=P6_STOP, tp_list=LAB_FIXED_TP,
+                      n_trials_declared=n_trials_declared, status=status)
+    finally:
+        lab_set_fees(*saved)
+    return res, sorted([r for r in res['rows'] if r['family'] == 'volbreak'], key=lambda r: P6_TFS.index(r['tf']))
+
+
+def lab_short_regime_verdict(n, mean_r, lo):
+    """사전등록 P7 의 판정 규칙 (가설마다)."""
+    if n < 30:
+        return '판정 불가 (거래 < 30)'
+    if not mean_r > 0:
+        return '반증 — 2021-11 이후 국면에서 실제 비용을 넘지 못했다 (P6 의 엣지는 그 국면 한정)'
+    if lo > 0:
+        return '확인 — 두 국면 모두에서 실제 비용을 넘었다 (과거 차트로 수립된 단타)'
+    return '반증 안 됨 — 방향은 맞지만 입증은 아니다'
+
+
+def lab_short_regime(base1m, funding=None, start=RESEARCH_SEEN_FROM, end=RESEARCH_HOLDOUT_CURRENT, n_trials_declared=None,
+                     status=None):
+    """P7: P6 와 같은 규칙·비용으로 [start, end) 국면(2022 약세·회복·2026)의 거래만 판정. 합산과 15m 단독, 단측 2.5% 하한."""
+    res, rows = _p6_rows(base1m, funding, end, n_trials_declared, status)
+    cost_r = 2 * P6_COST_SIDE / P6_STOP
+    t0 = np.datetime64(pd.Timestamp(start))
+    per = {}
+    for r in rows:
+        T = np.asarray(r['oos_t'])
+        m = T >= t0
+        per[r['tf']] = (np.asarray(r['oos_r'], dtype=np.float64)[m], T[m])
+
+    def stat(R, T):
+        n = len(R)
+        return n, (float(R.mean()) if n else float('nan')), (_month_cluster_ci(R, T, q=P7_ALPHA) if n >= 5 else float('nan'))
+    R_all = np.concatenate([v[0] for v in per.values()]) if per else np.zeros(0)
+    T_all = np.concatenate([v[1] for v in per.values()]) if per else np.zeros(0, dtype='datetime64[ns]')
+    n, mean, lo = stat(R_all, T_all)
+    n15, m15, lo15 = stat(*per.get('15m', (np.zeros(0), np.zeros(0, dtype='datetime64[ns]'))))
+    v_all, v15 = lab_short_regime_verdict(n, mean, lo), lab_short_regime_verdict(n15, m15, lo15)
+    L = [f'━━━ 사전등록 P7 · P6 단타 변동성 돌파를 다른 국면에서 · {str(start)[:10]} ~ {str(end)[:10]} 전날 ━━━',
+         f'규칙: P6 와 같음 (5m/15m/1h, 가격 {P6_STOP:.0%} 손절, 왕복 {2 * P6_COST_SIDE:.2%} = 1R 의 {cost_r:.0%}). 이 국면 거래만 판정. '
+         f'가설 2개(H7-1 합산 · H7-2 15m 단독) → 단측 {P7_ALPHA:.1%} 하한.',
+         '─' * 100, f'{"TF":<5}{"체결":>6}{"승률":>7}{"평균R":>9}{"수수료 전":>10}{"단측2.5% 하한":>14}']
+    for tf, (R, T) in per.items():
+        k, mr, lr = stat(R, T)
+        L.append(f'{tf:<5}{k:>6}{np.mean(R > 0) if k else 0:>7.0%}{np.nan_to_num(mr):>+9.3f}'
+                 f'{np.nan_to_num(mr) + cost_r if k else 0:>+10.3f}{np.nan_to_num(lr):>+14.3f}')
+    L += [f'{"합산":<5}{n:>6}{np.mean(R_all > 0) if n else 0:>7.0%}{np.nan_to_num(mean):>+9.3f}'
+          f'{np.nan_to_num(mean) + cost_r if n else 0:>+10.3f}{np.nan_to_num(lo):>+14.3f}',
+          '─' * 100, f'▶ H7-1 (합산): {v_all}', f'▶ H7-2 (15m 단독): {v15}',
+          '※ 이 국면의 대략적인 값은 비용 곡선(왕복 0.08%·0.14%)으로 이미 보았다 — 정확한 비용에서의 판정을 남기는 시험이다.']
+    return dict(report='\n'.join(L), verdict=v_all, verdict_15m=v15, n=n, mean_r=mean, lo=lo, n15=n15, mean15=m15, lo15=lo15)
+
+
+def lab_carry_sim(rates, lookback=P8_LOOKBACK, margin_ratio=1.0):
+    """
+    펀딩비 캐리: 현물 롱 + 같은 크기 선물 숏 (가격 방향 중립). 정산 t 에서 직전 lookback 번 평균 펀딩비가 > 0 이면 들고,
+    t+1 정산의 펀딩비를 받는다(양수면 숏이 받음, 음수면 냄). 자본 = 현물 N + 증거금 N×margin_ratio → 자본 대비 수익 = 펀딩비 × N/자본.
+    들어가고 나올 때마다 현물·선물 수수료를 낸다. 반환 (정산별 자본 수익, 보유 여부, 전환 수)
+    """
+    r = np.nan_to_num(np.asarray(rates, dtype=np.float64))
+    n = len(r)
+    k = 1.0 / (1.0 + margin_ratio)
+    avg = pd.Series(r).rolling(lookback).mean().values
+    out, held = np.zeros(n), np.zeros(n)
+    pos, switches = 0, 0
+    for t in range(lookback - 1, n - 1):
+        want = 1 if avg[t] > 0 else 0
+        if want != pos:
+            out[t + 1] -= (P8_SPOT_COST + P8_PERP_COST) * k
+            pos = want
+            switches += 1
+        if pos:
+            out[t + 1] += r[t + 1] * k
+            held[t + 1] = 1.0
+    return out[lookback:], held[lookback:], switches
+
+
+def lab_carry_verdict(m):
+    """사전등록 P8 의 판정 규칙 (BTC, 1배)."""
+    if not m['total'] > 0:
+        return '반증 — 비용을 빼면 펀딩비 캐리가 남지 않았다'
+    if m['sharpe_lo'] > 0 and m['mdd'] <= 0.05:
+        return '확인 — 방향을 맞히지 않고도 꾸준히 쌓였다 (구조적 수익)'
+    return '반증 안 됨 — 남기는 했지만 하한·낙폭 기준을 넘지 못했다'
+
+
+def lab_carry(funding_btc, funding_eth=None, end=RESEARCH_HOLDOUT_CURRENT, seed=70.0):
+    """P8: BTC(판정)·ETH(70달러로 할 수 있는 쪽, 보고만) 펀딩비 캐리를 1·2·3배 증거금으로."""
+    end = pd.Timestamp(end)
+
+    def run(f, mr=1.0):
+        f = pd.Series(np.asarray(f.values, dtype=np.float64), index=pd.DatetimeIndex(f.index)).sort_index()
+        f = f[f.index < end]
+        ret, held, sw = lab_carry_sim(f.values, margin_ratio=mr)
+        idx = f.index[P8_LOOKBACK:]
+        day = pd.Series(ret, index=idx).groupby(idx.floor('D')).apply(lambda x: float(np.prod(1 + x.values) - 1))
+        m = _th_metrics(day.values, pd.DatetimeIndex(day.index), held, sw)
+        m['sharpe_lo'] = _th_sharpe_lo(day.values, pd.DatetimeIndex(day.index))
+        m['held'] = float(held.mean())
+        m['span'] = f'{idx[0]:%Y-%m-%d} ~ {idx[-1]:%Y-%m-%d}'
+        m['avg_rate'] = float(f.mean())
+        return m
+    B = run(funding_btc)
+    verdict = lab_carry_verdict(B)
+    levs = [(1 / mr, run(funding_btc, mr)) for mr in (1.0, 0.5, 1 / 3)]
+    E = run(funding_eth) if funding_eth is not None and len(funding_eth) > 100 else None
+
+    def row(name, m):
+        worst = min(m['years_ret'].items(), key=lambda kv: kv[1]) if m['years_ret'] else (0, 0.0)
+        return (f'{name:<16}{m["cagr"]:>+8.1%}{m["g_day"]:>+10.4%}{m["sharpe"]:>+7.2f} [{m["sharpe_lo"]:+.2f}]'
+                f'{m["mdd"]:>8.1%}{worst[1]:>+9.1%}({worst[0]}){m["held"]:>8.0%}{m["trades_year"]:>7.1f}')
+    L = [f'━━━ 사전등록 P8 · 펀딩비 캐리 (현물 롱 + 선물 숏, 가격 방향 중립) · {B["span"]} ━━━',
+         '원리: 무기한 선물은 롱이 많으면 롱이 숏에게 8시간마다 펀딩비를 낸다. 레버리지 롱 수요는 구조적으로 커서 평균이 양수였다. '
+         '현물을 사고 같은 크기로 선물을 팔면 가격이 어디로 가든 손익이 상쇄되고 펀딩비만 남는다 — 예측하지 않는 수익.',
+         f'규칙({P8_REGISTERED} 실행 전 고정): 직전 정산 {P8_LOOKBACK}번(3일) 평균 펀딩비 > 0 이면 들고, 아니면 비운다. 들고 날 때마다 '
+         f'현물 {P8_SPOT_COST:.2%} + 선물 {P8_PERP_COST:.2%}. 1배 = 자본의 절반 현물, 절반 선물 증거금.',
+         '─' * 100, f'{"":<16}{"연복리":>8}{"하루복리":>10}{"샤프 [하한]":>16}{"최대낙폭":>8}{"최악의 해":>15}{"보유":>8}{"전환/년":>7}',
+         row('BTC 캐리 1배', B)]
+    if E is not None:
+        L.append(row('ETH 캐리 1배', E))
+    yrs = sorted(B['years_ret'])
+    L.append('연도별 BTC 1배: ' + ' · '.join(f'{y} {B["years_ret"][y]:+.1%}' for y in yrs)
+             + f' · 평균 펀딩비 {B["avg_rate"]:.4%}/8시간')
+    L.append('증거금 배수 (참고·판정 아님): ' + ' · '.join(
+        f'{lv:.0f}배 연복리 {m["cagr"]:+.1%} 낙폭 {m["mdd"]:.1%} (숏 청산까지 가격 상승 여유 약 {1 / lv:.0%})' for lv, m in levs))
+    L += ['─' * 100, f'판정(사전 규칙: 비용 후 수익 > 0 이고 샤프 하한 > 0 이며 최대낙폭 ≤ 5% → 확인): ▶ {verdict}',
+          '※ 빠진 위험: 현물·선물 가격 차이(베이시스)의 일시 변동, 거래소 위험. 현물과 선물이 다른 지갑이면 급등 때 숏 증거금이 '
+          '먼저 줄어든다 → 1배(여유 100%)가 기준.',
+          f'※ 70달러로는: BTCUSDT 선물 최소 주문(100 USDT) 때문에 BTC 캐리는 자본 약 200달러부터. ETHUSDT 처럼 최소 주문이 작은 '
+          f'계약이면 시드 ${seed:,.0f} 를 반씩(현물 ${seed / 2:,.0f} + 숏 증거금 ${seed / 2:,.0f}) 나눠 할 수 있다 (최소 주문은 거래소 화면에서 확인).']
+    return dict(report='\n'.join(L), verdict=verdict, btc=B, eth=E, levs=levs)
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -7678,6 +7849,7 @@ def main(argv=None):
         th = '--trend-hold' in argv
         curve = '--cost-curve' in argv
         p6 = '--short-presample' in argv
+        proof = '--proof' in argv
         stop_pct = None
         fees = None
         ora = dict(tf='1h', sl=0.01, tp_list=(2.0,), hold=24)
@@ -7707,6 +7879,8 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if proof and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--proof', '--seed', '--no-funding', '--retest'}):
+                raise ValueError('--proof 는 단독으로 씁니다 (사전등록한 과거 차트 판정을 한 번에, --seed 70 만 함께)')
             if '--watch' in argv and not signal:
                 raise ValueError('--watch 는 --signal 과 함께 씁니다 (예: --signal --watch --seed 70)')
             if p6 and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--short-presample', '--no-funding', '--retest'}):
@@ -7862,7 +8036,11 @@ def main(argv=None):
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
-        if p6:
+        pend = {k: journal.state(k) in (None, 'preregistered') for k in (TH_KEY, P7_KEY, P8_KEY)}
+        if proof:
+            keys = (list(TH_PROCEDURES) if pend[TH_KEY] else []) + (list(P7_PROCEDURES) if pend[P7_KEY] else []) + \
+                (list(P8_PROCEDURES) if pend[P8_KEY] and funding is not None else [])
+        elif p6:
             keys = list(P6_PROCEDURES)
         elif th:
             keys = list(TH_PROCEDURES)
@@ -7901,6 +8079,63 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if proof:
+                seed = float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70')))
+                vmap = {'확인': 'confirmed', '반증': 'refuted', '반증 안 됨': 'not_refuted'}
+                summ = []
+                if pend[TH_KEY]:
+                    eth = None
+                    try:
+                        status('P5 · ETH(2순위): 스팟 아카이브 + 선물 4h 봉 준비...')
+                        eth = lab_eth_frames(store.http, ('4h',), log=log).get('4h')
+                    except Exception as e_:
+                        print(f'[LAB] ETH 데이터 실패 → P5 재현 생략: {e_}')
+                    r5 = lab_trend_hold(base, funding=funding, eth4h=eth, end=anchor, status=status, seed=seed)
+                    print(r5['report'] + '\n')
+                    sp = r5['spot']
+                    journal.set_status(TH_KEY, vmap[r5['verdict'].split(' —')[0]],
+                                       f'P5: 샤프 {sp["sharpe"]:+.2f}(하한 {sp["sharpe_lo"]:+.2f}) · 연복리 {sp["cagr"]:+.1%} · 최대낙폭 '
+                                       f'{sp["mdd"]:.0%} vs 보유만 {r5["hold"]["mdd"]:.0%} → {r5["verdict"]}')
+                    summ.append(('P5 롱 전용 일봉 추세 보유 (장기)', r5['verdict'],
+                                 f'현물로 비중을 나눠 담기 가능 · 지금 목표 {r5["target_now"]:.0%}'))
+                if pend[P7_KEY]:
+                    r7 = lab_short_regime(base, funding, start=journal.seen_from, end=anchor, n_trials_declared=n_cum,
+                                          status=status)
+                    print(r7['report'] + '\n')
+                    if r7['n'] >= 30:
+                        journal.set_status(P7_KEY, vmap[r7['verdict'].split(' —')[0]],
+                                           f'P7 합산 {r7["n"]}건 {r7["mean_r"]:+.3f}R 하한 {r7["lo"]:+.3f} → {r7["verdict"]}')
+                    if r7['n15'] >= 30:
+                        journal.set_status(P7_KEY_15M, vmap[r7['verdict_15m'].split(' —')[0]],
+                                           f'P7 15m {r7["n15"]}건 {r7["mean15"]:+.3f}R 하한 {r7["lo15"]:+.3f} → {r7["verdict_15m"]}')
+                    summ.append(('P7 단타 변동성 돌파 (2021-11 이후 국면)', f'합산 {r7["verdict"]} / 15m {r7["verdict_15m"]}',
+                                 '최소주문 100 USDT·1% 손절 → 거래당 위험 약 1.4%'))
+                if pend[P8_KEY]:
+                    if funding is None:
+                        summ.append(('P8 펀딩비 캐리 (방향 중립)', '펀딩비 데이터 없음 → 생략 (다음에 다시)', ''))
+                    else:
+                        feth = None
+                        try:
+                            feth = load_funding_history(store.http, log=log, symbol='ETHUSDT')
+                        except Exception as e_:
+                            print(f'[LAB] ETH 펀딩비 실패 → ETH 캐리 생략: {e_}')
+                        r8 = lab_carry(funding, feth, end=anchor, seed=seed)
+                        print(r8['report'] + '\n')
+                        b8 = r8['btc']
+                        journal.set_status(P8_KEY, vmap[r8['verdict'].split(' —')[0]],
+                                           f'P8 BTC 1배: 연복리 {b8["cagr"]:+.1%} · 샤프 {b8["sharpe"]:+.2f}(하한 {b8["sharpe_lo"]:+.2f}) · '
+                                           f'최대낙폭 {b8["mdd"]:.1%} → {r8["verdict"]}')
+                        summ.append(('P8 펀딩비 캐리 (방향 중립)', r8['verdict'], '최소 주문이 작은 계약(ETH 등)이면 70달러로 가능'))
+                L = ['━━━ 과거 차트 증명 요약 (사전 규칙상 "확인"만 실제 70달러 단계로) ━━━']
+                for k, name in ((TH_KEY, 'P5 롱 전용 일봉 추세 보유 (장기)'), (P6_KEY, 'P6 단타 변동성 돌파 2019-08~2021-11'),
+                                (P7_KEY, 'P7 단타 변동성 돌파 2021-11 이후 (합산)'), (P7_KEY_15M, 'P7 단타 변동성 돌파 2021-11 이후 (15m)'),
+                                (P8_KEY, 'P8 펀딩비 캐리 (방향 중립)')):
+                    stt = journal.state(k)
+                    L.append(f'  {name:<34} {RESEARCH_STATE_KO.get(stt, stt or "-")}')
+                L += [f'  · {a}: {c}' for a, b, c in summ if c]
+                print('\n'.join(L))
+                note('proof', '과거 차트 증명 일괄 실행', top=[f'{a}: {b}' for a, b, c in summ])
+                return 0
             if p6:
                 reg = next((x for x in journal.d.get('prereg', []) if x.get('id') == 'P6'), None)
                 if reg:

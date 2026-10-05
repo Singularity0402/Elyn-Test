@@ -416,7 +416,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.TH_KEY) == 'preregistered'                              # P5 는 실행 전 등록 상태로 시작
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
@@ -1281,3 +1281,81 @@ def test_watch_alerts_only_when_the_action_changes(pe):
 
 def test_cli_watch_requires_signal(pe):
     assert pe.main(['--lab', '--watch']) == 2
+
+
+# ── 사전등록 P7 (P6 의 다른 국면) · P8 (펀딩비 캐리) · --proof 일괄 ─────────────────────
+def test_carry_sim_collects_funding_only_when_trailing_average_is_positive(pe):
+    r = np.full(100, 0.0001)
+    ret, held, sw = pe.lab_carry_sim(r, lookback=9, margin_ratio=1.0)
+    cost = (pe.P8_SPOT_COST + pe.P8_PERP_COST) * 0.5
+    assert sw == 1 and held.all() and abs(ret.sum() - (91 * 0.0001 * 0.5 - cost)) < 1e-12   # 자본의 절반이 숏 명목
+    neg = pe.lab_carry_sim(np.full(100, -0.0001))
+    assert neg[2] == 0 and not neg[1].any() and neg[0].sum() == 0.0                         # 음수면 들지 않는다
+    r2 = r.copy()
+    r2[60] = -0.05                                                                          # 미래 정산 하나가 바뀌어도
+    a, b = pe.lab_carry_sim(r)[1], pe.lab_carry_sim(r2)[1]
+    assert (a[:60 - 9] == b[:60 - 9]).all()                                                 # 그 전 보유 결정은 그대로
+    lev = pe.lab_carry_sim(r, margin_ratio=1 / 3)[0]
+    assert lev.sum() > ret.sum()                                                            # 증거금을 줄이면 자본 대비 더 크다
+
+
+def test_carry_verdict_rule(pe):
+    v = pe.lab_carry_verdict
+    assert v(dict(total=-0.01, sharpe_lo=1.0, mdd=0.01)).startswith('반증 —')
+    assert v(dict(total=0.3, sharpe_lo=1.0, mdd=0.03)).startswith('확인')
+    assert v(dict(total=0.3, sharpe_lo=1.0, mdd=0.08)).startswith('반증 안 됨')
+
+
+def test_carry_report_on_funding_history(pe):
+    g = np.random.default_rng(0)
+    idx = pd.date_range('2019-09-10', '2026-10-01', freq='8h')
+    f = pd.Series(0.0001 + g.normal(0, 0.0001, len(idx)), index=idx)
+    res = pe.lab_carry(f, f * 1.2, end='2026-10-04')
+    assert '펀딩비 캐리' in res['report'] and 'ETH 캐리 1배' in res['report'] and res['btc']['total'] > 0
+    assert res['verdict'].startswith(('확인', '반증 안 됨')) and len(res['levs']) == 3
+
+
+def test_short_regime_judges_only_the_later_window(pe):
+    base = _trend_1m(1100, 0.0000004, seed=5)
+    res = pe.lab_short_regime(base, start='2022-01-01', end='2022-09-01')
+    assert (pe.TAKER_FEE, pe.MAKER_FEE, pe.SLIPPAGE_T) == pe.LAB_DEFAULT_FEES
+    assert 'H7-1' in res['report'] and 'H7-2' in res['report'] and res['n'] >= res['n15']
+    full, rows = pe._p6_rows(base, None, '2022-09-01')
+    n_window = sum(int(((np.asarray(r['oos_t']) >= np.datetime64('2022-01-01'))).sum()) for r in rows)
+    assert res['n'] == n_window
+
+
+def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
+    class FakeStore:
+        def __init__(self):
+            self.base = _trend_1m(30, 0.0)
+            self.http = None
+
+        def refresh(self):
+            pass
+    idx = pd.date_range('2019-09-10', '2026-10-01', freq='8h')
+    fund = pd.Series(0.0001 + np.random.default_rng(1).normal(0, 0.00005, len(idx)), index=idx)
+    monkeypatch.setattr(pe, 'DataStore', FakeStore)
+    monkeypatch.setattr(pe, 'load_funding_history', lambda *a, **k: fund)
+    monkeypatch.setattr(pe, 'lab_eth_frames', lambda *a, **k: {})
+    hold = dict(mdd=0.7, sharpe=0.7)
+    monkeypatch.setattr(pe, 'lab_trend_hold', lambda *a, **k: dict(
+        report='P5 보고서', verdict='반증 — 테스트', target_now=0.5, hold=hold,
+        spot=dict(sharpe=0.5, sharpe_lo=-0.1, cagr=0.1, mdd=0.6)))
+    monkeypatch.setattr(pe, 'lab_short_regime', lambda *a, **k: dict(
+        report='P7 보고서', verdict='반증 — 테스트', verdict_15m='반증 안 됨 — 테스트', n=900, mean_r=-0.01, lo=-0.1,
+        n15=300, mean15=0.03, lo15=-0.05))
+    assert pe.main(['--lab', '--proof', '--seed', '70']) == 0
+    out = capsys.readouterr().out
+    assert 'P5 보고서' in out and 'P7 보고서' in out and '펀딩비 캐리' in out and '과거 차트 증명 요약' in out
+    j = pe.ResearchJournal.load()
+    assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P7_KEY) == 'refuted' and j.state(pe.P7_KEY_15M) == 'not_refuted'
+    assert j.state(pe.P8_KEY) in ('confirmed', 'not_refuted') and set(pe.P8_PROCEDURES) <= set(j.d['procedures'])
+    assert pe.main(['--lab', '--proof']) == 0                                              # 다시 돌리면 판정 없이 요약만
+    out2 = capsys.readouterr().out
+    assert 'P7 보고서' not in out2 and '과거 차트 증명 요약' in out2
+
+
+def test_cli_proof_guards(pe):
+    assert pe.main(['--lab', '--proof', '--oracle']) == 2
+    assert pe.main(['--lab', '--proof', '--universe']) == 2
