@@ -416,7 +416,8 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert j.state(pe.TH_KEY) == 'preregistered'                              # P5 는 실행 전 등록 상태로 시작
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
     assert j.state('btc_stop1|short:all') == 'no_evidence'
@@ -1097,3 +1098,80 @@ def test_cli_oracle_runs_each_target_and_records_one_procedure_each(pe, monkeypa
     j = pe.ResearchJournal.load()
     assert {'btc|1h:oracle|taker|sl1tp2h24', 'btc|1h:oracle|taker|sl1tp3h24'} <= set(j.d['procedures'])
     assert j.d['entries'][-1]['title'].startswith('정답 단서 학습 (1h, 손절 1.0%, 익절 2/3R')
+
+
+# ── 사전등록 P5: 롱 전용 일봉 추세 보유 ───────────────────────────────────────
+def _daily_path(rets, seed=0):
+    g = np.random.default_rng(seed)
+    r = np.asarray(rets, dtype=float) + g.normal(0, 0.01, len(rets))
+    return 10000 * np.exp(np.cumsum(r))
+
+
+def test_trend_hold_uses_only_past_closes(pe):
+    c = _daily_path(np.full(400, 0.003))
+    a = pe.lab_trend_hold_sim(c, 0.001)
+    c2 = c.copy()
+    c2[-1] *= 3.0                                                              # 마지막 날 가격이 바뀌어도
+    b = pe.lab_trend_hold_sim(c2, 0.001)
+    assert np.allclose(a[0][:-1], b[0][:-1]) and np.allclose(a[1], b[1])       # 그 전 수익·모든 비중은 그대로
+    assert a[2] >= 1 and a[3] == max(pe.TH_SMAS)
+
+
+def test_trend_hold_steps_aside_in_a_long_crash(pe):
+    c = _daily_path(np.r_[np.full(500, 0.004), np.full(400, -0.005), np.full(300, 0.003)], seed=2)
+    idx = pd.date_range('2018-01-01', periods=len(c), freq='D')
+    s = pe.lab_trend_hold_sim(c, pe.TH_SPOT_COST)
+    h = pe.lab_trend_hold_sim(c, pe.TH_SPOT_COST, trend=False)
+    ms, mh = pe._th_metrics(s[0], idx[s[3]:], s[1], s[2]), pe._th_metrics(h[0], idx[h[3]:])
+    assert ms['mdd'] < 0.5 * mh['mdd'] and ms['expo'] < 0.9 and h[1].min() == 1.0
+    assert ms['trades_year'] < 52                                               # 평균 주 1회 미만 (회전 0.25 씩 → 수수료 연 1% 안팎)
+
+
+def test_trend_hold_charges_funding_only_while_long(pe):
+    c = _daily_path(np.r_[np.full(300, 0.004), np.full(200, -0.006)], seed=4)
+    f = np.full(len(c), 0.0003)
+    a, ea = pe.lab_trend_hold_sim(c, 0.0)[:2]
+    b = pe.lab_trend_hold_sim(c, 0.0, f)[0]
+    assert np.allclose(a - b, ea * 0.0003) and (ea == 0).any()
+
+
+def test_trend_verdict_rule(pe):
+    b = dict(mdd=0.77, sharpe=0.7)
+    assert pe.lab_trend_verdict(dict(mdd=0.30, sharpe=1.0, sharpe_lo=0.2), b)[0].startswith('확인')
+    assert pe.lab_trend_verdict(dict(mdd=0.30, sharpe=1.0, sharpe_lo=-0.1), b)[0].startswith('반증 안 됨')
+    assert pe.lab_trend_verdict(dict(mdd=0.45, sharpe=1.0, sharpe_lo=0.2), b)[0].startswith('반증 —')   # 낙폭 절반 초과
+    assert pe.lab_trend_verdict(dict(mdd=0.30, sharpe=0.6, sharpe_lo=0.2), b)[0].startswith('반증 —')   # 보유만보다 비효율
+
+
+def test_cli_trend_hold_judges_once_then_only_updates(pe, monkeypatch, capsys):
+    g = np.random.default_rng(1)
+    n = 700 * 1440
+    c = 10000 * np.exp(np.cumsum(g.normal(0.000002, 0.0006, n)))
+    o = np.r_[c[0], c[:-1]]
+    base = pd.DataFrame(dict(open=o, high=np.maximum(o, c), low=np.minimum(o, c), close=c, volume=1.0, taker_buy_base=0.5,
+                             trades=1.0, era=1.0), index=pd.date_range('2024-09-01', periods=n, freq='1min'))
+
+    class FakeStore:
+        def __init__(self):
+            self.base, self.http = base, None
+
+        def refresh(self):
+            pass
+    monkeypatch.setattr(pe, 'DataStore', FakeStore)
+    monkeypatch.setattr(pe, 'load_funding_history', lambda *a, **k: None)
+    monkeypatch.setattr(pe, 'lab_eth_frames', lambda *a, **k: {})
+    assert pe.ResearchJournal.load().state(pe.TH_KEY) == 'preregistered'
+    assert pe.main(['--lab', '--trend-hold', '--seed', '70']) == 0
+    out = capsys.readouterr().out
+    assert '사전등록 P5' in out and '판정(사전 규칙)' in out and '지금 신호' in out and 'ETH(2순위): 데이터 없음' in out
+    j = pe.ResearchJournal.load()
+    st = j.state(pe.TH_KEY)
+    assert st in ('confirmed', 'refuted', 'not_refuted') and set(pe.TH_PROCEDURES) <= set(j.d['procedures'])
+    assert pe.main(['--lab', '--trend-hold']) == 0
+    assert '이미 일지에' in capsys.readouterr().out and pe.ResearchJournal.load().state(pe.TH_KEY) == st
+
+
+def test_cli_trend_hold_guards(pe):
+    assert pe.main(['--lab', '--trend-hold', '--oracle']) == 2
+    assert pe.main(['--lab', '--trend-hold', '--universe']) == 2
+    assert pe.main(['--lab', '--trend-hold', '--stop-pct', '1']) == 2

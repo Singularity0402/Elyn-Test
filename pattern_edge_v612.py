@@ -5672,6 +5672,18 @@ RESEARCH_HOLDOUT_ANCHOR = '2026-01-01'      # 첫 Lab 실행(2026-10-02)의 봉�
 RESEARCH_HOLDOUT_CURRENT = '2026-10-04'     # P2 공개로 위 holdout 소진 → 이날부터 쌓이는 데이터가 새 holdout
 RESEARCH_SEEN_FROM = '2021-11-27'           # 지금까지 '표본외 성과'로 본 가장 이른 날짜 (코인 묶음 실행). 그 전 BTC 성과는 미관측
 RESEARCH_PRESAMPLE_ALPHA = 0.05             # 처음 보는 구간 검증의 유의수준 (가설 수로 나눈다 = Bonferroni)
+# 사전등록 P5 (롱 전용 일봉 추세 보유) 의 고정 규칙 — 연구 일지가 참조하므로 여기 둔다. 엔진은 lab_trend_hold.
+TH_SMAS = (20, 50, 100, 200)        # 종가가 위에 있는 이동평균 개수 / 4 = 추세 비중 (기간을 고르지 않으려고 넷을 고르게 섞음)
+TH_VOL_TARGET = 0.50                # 최근 30일 변동성이 연 50% 를 넘으면 그만큼 비중을 줄인다 (레버리지 없음, 최대 100%)
+TH_VOL_DAYS = 30
+TH_BAND = 0.10                      # 목표와 지금 비중 차이가 10%p 이상일 때만 다시 맞춘다 (회전·수수료 절약)
+TH_SPOT_COST = 0.0010 + 0.0002      # 현물 시장가 0.1% + 슬리피지 0.02% (보수)
+TH_LEVERAGE = (1.0, 1.5, 2.0)       # 참고용(판정 아님): 선물로 같은 신호를 배수로 굴리면
+TH_REGISTERED = '2026-10-05'
+TH_KEY = 'trend_hold|1d:btc'
+TH_PROCEDURES = ('trend_hold|1d:btc|spot', 'trend_hold|1d:btc|perp', 'trend_hold|1d:eth|spot')
+
+
 RESEARCH_LESSONS = [
     ('L1', '한 시장에서 여러 전략 중 1등을 고르면 운이 같이 뽑힌다. 1등은 후보일 뿐이고, 고를 때 쓰지 않은 데이터'
            '(다른 시장·처음 보는 기간)에서 다시 확인하기 전에는 쓰지 않는다. — BTC 4h 체결강도 +0.459R(67건) → 알트 8개 +0.018R(130건)'),
@@ -5740,7 +5752,18 @@ RESEARCH_PREREG = [dict(
               '그 외 → 반증 안 됨. 해마다 나눈 성적을 함께 보인다.',
          why='P1(BTC 91건 +0.439R)·P3(ETH 105건 +0.435R, 알트 7/7)은 모두 2019~2021 강세장 구간이다. 같은 구간에서 확인된 4h Keltner 가 '
              '2026 에 죽었으므로(L12·L13), 다른 국면에서 버티는지가 실전 여부를 가른다. 이 구간은 다른 전략들이 이미 본 데이터지만 '
-             '이 규칙(격자 없음)으로는 한 번도 계산하지 않았다.')]
+             '이 규칙(격자 없음)으로는 한 번도 계산하지 않았다.'),
+    dict(id='P5', registered=TH_REGISTERED, scope='trend_hold', pairs=['1d:btc'],
+         rule=f'BTC 전체 이력(스팟 2017-08~ + 선물) 일봉, 200일 준비 후 {RESEARCH_HOLDOUT_CURRENT} 전날까지. 목표 비중 = '
+              f'({"/".join(map(str, TH_SMAS))}일 이동평균 위 개수 ÷ 4) × min(1, {TH_VOL_TARGET:.0%} ÷ {TH_VOL_DAYS}일 변동성), '
+              f'차이 {TH_BAND:.0%}p 이상일 때만 다시 맞춤, 숏·레버리지 없음, 현물 비용 {TH_SPOT_COST:.2%}/회전. 같은 기간 "보유만"(현물)과 '
+              '비교한다. H5-1 최대낙폭 ≤ 보유만의 절반 · H5-2 연환산 샤프 ≥ 보유만 · H5-3 샤프의 달묶음 부트스트랩 90% 하한 > 0. '
+              'H5-1 또는 H5-2 실패 → 반증 · 셋 다 → 확인(앞으로의 데이터로 계속 채점) · 그 외 → 반증 안 됨. ETH(2순위)는 같은 규칙으로 '
+              '보고만 한다. 판정은 한 번만, 이후 실행은 앞으로의 데이터와 지금 신호만 갱신.',
+         why='153개 절차의 결론: 짧은 시간봉 예측은 수수료를 넘지 못했고(L2·L18·정답 단서 학습), 가장 단단한 사실은 BTC 의 장기 '
+             '상승 표류와 숏의 실패(L20)다. 사용자 목표가 "장기적으로 가장 빠르면서 지속 가능한 성장"으로 바뀌었으므로, 예측 대신 '
+             '표류를 타고 폭락을 추세 이탈로 피하는 저회전 규칙을 시험한다. 이동평균 기간·변동성 목표는 데이터를 보기 전에 흔히 쓰는 '
+             '값으로 고정했다(이 환경에서는 실데이터를 볼 수 없어 결과를 모르는 상태에서 등록).')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -5850,6 +5873,11 @@ RESEARCH_HISTORY = [
                  '끝머리를 비용 이상으로 예측하지 못함. "우리 전략과 합치기"는 단서 순위가 맞아야 의미가 있는데 1h 는 약하고 4h 는 '
                  '뒤집혀 있어 지금 합치면 좋은 신호를 버리게 됨 → 보류.',
          lessons=['L15', 'L19', 'L20']),
+    dict(date='2026-10-05', kind='prereg', title='사전등록 P5: 롱 전용 일봉 추세 보유 (BTC 1순위, ETH 재현)',
+         summary='사용자 목표 변경: "승률 100% 는 말이 안 되니, 장기적으로 가장 빠르게 올라가며 지속 가능한 전략". 153개 절차가 남긴 가장 '
+                 '단단한 사실(BTC 상승 표류·숏 실패·짧은 시간봉은 수수료에 짐)을 바탕으로, 예측 대신 표류를 타고 추세가 꺾이면 비중을 '
+                 '줄이는 규칙을 실행 전에 고정. 판정 규칙은 P5 참조. 실행: --lab --trend-hold',
+         lessons=['L2', 'L11', 'L15', 'L18', 'L20']),
 ]
 
 
@@ -5927,6 +5955,7 @@ def _research_seed_status():
                                     '샤프 0.85, DSR(누적) 0.14 → 앞으로의 검증 중', '2026-10-05')
     put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
                                          '→ 앞으로의 검증 중', '2026-10-05')
+    put(TH_KEY, 'preregistered', 'P5: 실행 전 등록', TH_REGISTERED)
     put('btc|1h:oracle', 'no_evidence', '정답 단서 학습 4개 설정 통과 0: 2R/24봉 1006건 −0.092R CI [−0.147, −0.036] · 48봉 '
                                        '2R/3R/5R −0.071/−0.038/−0.049R. 수수료 0 이어도 +0.05~+0.10R', '2026-10-05')
     put('btc|4h:oracle', 'no_evidence', '정답 단서 학습 3개 설정(손절 2%, 60봉) 통과 0: +0.052/+0.059/−0.066R, CI 하한 모두 음수 · '
@@ -6813,11 +6842,11 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-05d · 정답 단서 학습 · 끝머리 지도 · EPV'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-05e · P5 추세 보유'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
-                           '--no-funding'})
+                           '--no-funding', '--trend-hold'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -7122,6 +7151,184 @@ def lab_oracle_map(results):
     return '\n'.join(L)
 
 
+# ── 사전등록 P5: 롱 전용 일봉 추세 보유 ──────────────────────────────────────────────────────────────────
+#    153개 절차가 남긴 가장 단단한 사실은 "BTC 는 길게 보면 위로 흘렀고(L20), 짧은 시간봉 예측은 수수료를 넘지 못했다(L2·L18)"이다.
+#    그래서 예측 대신 그 흐름을 타되, 폭락 구간은 추세가 꺾였을 때 비중을 줄여 피하는 규칙을 실행 전에 고정해 시험한다.
+#    회전이 적어 수수료가 거의 들지 않고, 숏이 없으며, 70달러도 현물로 비중을 나눠 담을 수 있다.
+# (규칙 상수 TH_* 는 연구 일지의 사전등록 P5 가 참조하므로 일지 앞에 정의되어 있다)
+
+
+def lab_daily_bars(df, bar_minutes=1):
+    """봉 → UTC 일봉. 그날 봉이 95% 이상 있는 날만 (진행 중인 오늘·거래소 장애일 제외)."""
+    df = normalize_frame(df)
+    d = df.resample('1D').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'})
+    cnt = df['close'].resample('1D').count()
+    return d[(cnt.values >= 0.95 * 1440 / bar_minutes) & np.isfinite(d['close'].values)]
+
+
+def lab_trend_hold_sim(close, cost, fund=None, lev=1.0, trend=True):
+    """
+    일봉 종가 → (일별 수익, 보유 비중, 거래 수, 시작 위치, 마지막 비중·목표).
+    t 일 종가로 목표를 계산해 그 종가에 맞추고, 그 비중으로 t+1 일 수익을 받는다 (미래 정보 없음).
+    fund = 그날 정산된 펀딩비 합 (선물 롱이 낸다). trend=False 면 처음부터 끝까지 lev 배 보유(보유만 하기).
+    """
+    c = np.asarray(close, dtype=np.float64)
+    n = len(c)
+    ret = np.r_[0.0, c[1:] / c[:-1] - 1.0]
+    lr = pd.Series(np.r_[0.0, np.diff(np.log(c))])
+    cs = pd.Series(c)
+    sig = sum((c > cs.rolling(N).mean().values).astype(np.float64) for N in TH_SMAS) / len(TH_SMAS)
+    vol = lr.rolling(TH_VOL_DAYS).std().values * math.sqrt(365.0)
+    scale = np.where(np.isfinite(vol) & (vol > 0), np.minimum(1.0, TH_VOL_TARGET / np.where(vol > 0, vol, 1.0)), 1.0)
+    target = (sig * scale if trend else np.ones(n)) * lev
+    fund = np.zeros(n) if fund is None else np.nan_to_num(np.asarray(fund, dtype=np.float64))
+    start = max(TH_SMAS) - 1
+    daily, expo = np.zeros(n), np.zeros(n)
+    e, trades = 0.0, 0
+    for t in range(start, n):
+        tgt = float(target[t])
+        if trend and (abs(tgt - e) >= TH_BAND * lev or (tgt == 0.0 and e > 0.0)) or (not trend and e == 0.0):
+            if t + 1 < n:
+                daily[t + 1] -= cost * abs(tgt - e)
+            e = tgt
+            trades += 1
+        if t + 1 < n:
+            expo[t + 1] = e
+            daily[t + 1] += e * ret[t + 1] - e * fund[t + 1]
+    return daily[start + 1:], expo[start + 1:], trades, start + 1, e, float(target[-1])
+
+
+def _th_metrics(daily, idx, expo=None, trades=0):
+    daily = np.maximum(np.asarray(daily, dtype=np.float64), -1.0)
+    eq = np.cumprod(1.0 + daily)
+    days = max(len(daily), 1)
+    years = days / 365.25
+    sd = daily.std(ddof=1) if len(daily) > 1 else 0.0
+    peak = np.maximum.accumulate(eq)
+    yr = pd.Series(daily, index=idx).groupby(idx.year).apply(lambda x: float(np.prod(1 + x.values) - 1))
+    return dict(days=days, years=years, total=float(eq[-1] - 1), cagr=float(eq[-1] ** (1 / years) - 1) if eq[-1] > 0 else -1.0,
+                g_day=float(eq[-1] ** (1 / days) - 1) if eq[-1] > 0 else -1.0, vol=float(sd * math.sqrt(365)),
+                sharpe=float(daily.mean() / sd * math.sqrt(365)) if sd > 0 else 0.0, mdd=float((1 - eq / peak).max()),
+                years_ret={int(k): v for k, v in yr.items()}, expo=float(np.mean(expo)) if expo is not None else 1.0,
+                trades_year=trades / years)
+
+
+def _th_sharpe_lo(daily, idx, q=0.05, n_boot=2000, seed=0):
+    """달 단위 묶음 부트스트랩으로 연환산 샤프의 하한 (변동성 군집을 달 안에 보존)."""
+    codes = pd.PeriodIndex(idx, freq='M').asi8
+    groups = [daily[codes == k] for k in np.unique(codes)]
+    if len(groups) < 6:
+        return float('nan')
+    rng = np.random.default_rng(seed)
+    out = []
+    for _ in range(n_boot):
+        x = np.concatenate([groups[i] for i in rng.integers(0, len(groups), len(groups))])
+        sd = x.std(ddof=1)
+        out.append(x.mean() / sd * math.sqrt(365) if sd > 0 else 0.0)
+    return float(np.quantile(out, q))
+
+
+def lab_trend_verdict(s, b):
+    """사전등록 P5 의 판정 규칙 (s = 추세 보유 현물, b = 보유만 현물, 같은 기간)."""
+    h1 = s['mdd'] <= 0.5 * b['mdd']
+    h2 = s['sharpe'] >= b['sharpe']
+    h3 = s['sharpe_lo'] > 0
+    if not (h1 and h2):
+        v = '반증 — 보유만 하는 것보다 덜 위험하거나 더 효율적이지 않다'
+    elif h3:
+        v = '확인 — 이미 본 BTC 역사 위에서의 확인이다. 앞으로의 데이터로 계속 채점한다'
+    else:
+        v = '반증 안 됨 — 방향은 맞지만 샤프 하한이 0 을 넘지 못했다'
+    return v, (h1, h2, h3)
+
+
+def lab_trend_hold(base1m, funding=None, eth4h=None, end=None, since=TH_REGISTERED, seed=70.0, status=None):
+    """P5: BTC(1순위) 일봉 추세 보유를 보유만 하기와 같은 기간에 비교하고, ETH(2순위)로 재현, 앞으로의 데이터·지금 신호를 보인다."""
+    status = status or (lambda *a, **k: None)
+    status('P5 롱 전용 일봉 추세 보유: 일봉 만드는 중...', 'blue')
+    d_all = lab_daily_bars(base1m, 1)
+    fund_d = None
+    if funding is not None and len(funding):
+        f = pd.Series(np.asarray(funding.values, dtype=np.float64), index=pd.DatetimeIndex(funding.index))
+        fund_d = f.groupby(f.index.floor('D')).sum().reindex(d_all.index).fillna(0.0).values
+    end = pd.Timestamp(end) if end is not None else d_all.index[-1] + pd.Timedelta(days=1)
+    cut = d_all.index < end
+    d = d_all[cut]
+    perp_cost = TAKER_FEE + SLIPPAGE_T
+
+    def run(dd, cost, fund=None, lev=1.0, trend=True):
+        daily, expo, tr, s0, e, tgt = lab_trend_hold_sim(dd['close'].values, cost, fund, lev, trend)
+        m = _th_metrics(daily, dd.index[s0:], expo, tr)
+        m['daily'], m['idx'] = daily, dd.index[s0:]
+        return m
+    fcut = fund_d[cut] if fund_d is not None else None
+    S, P, B = run(d, TH_SPOT_COST), run(d, perp_cost, fcut), run(d, TH_SPOT_COST, trend=False)
+    S['sharpe_lo'] = _th_sharpe_lo(S['daily'], S['idx'])
+    B['sharpe_lo'] = _th_sharpe_lo(B['daily'], B['idx'])
+    verdict, hs = lab_trend_verdict(S, B)
+    levs = [(lv, run(d, perp_cost, fcut, lev=lv)) for lv in TH_LEVERAGE]
+    E = EB = None
+    if eth4h is not None and len(eth4h) > 400 * 6:
+        de = lab_daily_bars(eth4h, 240)
+        de = de[de.index < end]
+        if len(de) > max(TH_SMAS) + 60:
+            E, EB = run(de, TH_SPOT_COST), run(de, TH_SPOT_COST, trend=False)
+    # 앞으로의 데이터(등록 이후)와 지금 신호는 전체 데이터로 같은 규칙을 이어서 계산한다
+    daily_f, expo_f, _, s0f, e_now, tgt_now = lab_trend_hold_sim(d_all['close'].values, TH_SPOT_COST)
+    idx_f = d_all.index[s0f:]
+    fw = idx_f >= pd.Timestamp(since)
+    bh_f = d_all['close'].values[s0f:] / np.r_[d_all['close'].values[s0f - 1], d_all['close'].values[s0f:-1]] - 1
+    c_all = d_all['close'].values
+    above = sum(int(c_all[-1] > np.mean(c_all[-N:])) for N in TH_SMAS)
+    lr = np.diff(np.log(c_all[-(TH_VOL_DAYS + 1):]))
+    vol_now = float(lr.std(ddof=1) * math.sqrt(365)) if len(lr) > 2 else float('nan')
+
+    def row(name, m):
+        lo = f' [{m["sharpe_lo"]:+.2f}]' if 'sharpe_lo' in m else ''
+        worst = min(m['years_ret'].items(), key=lambda kv: kv[1]) if m['years_ret'] else (0, 0.0)
+        return (f'{name:<14}{m["cagr"]:>+9.1%}{m["g_day"]:>+10.3%}{m["sharpe"]:>+8.2f}{lo:<10}{m["mdd"]:>8.0%}'
+                f'{worst[1]:>+9.0%}({worst[0]}){m["expo"]:>8.0%}{m["trades_year"]:>7.1f}')
+    L = [f'━━━ 사전등록 P5 · 롱 전용 일봉 추세 보유 · {SYMBOL} · {S["idx"][0]:%Y-%m-%d} ~ {S["idx"][-1]:%Y-%m-%d} '
+         f'({S["years"]:.1f}년) ━━━',
+         f'규칙({TH_REGISTERED} 실행 전 고정): 매일 UTC 0시 종가가 {"/".join(map(str, TH_SMAS))}일 이동평균 중 몇 개 위에 있는지 ÷ 4 = 추세 비중 '
+         f'→ × min(1, {TH_VOL_TARGET:.0%} ÷ 최근 {TH_VOL_DAYS}일 변동성) = 목표 비중(0~100%, 레버리지 없음). '
+         f'목표와 지금 비중 차이가 {TH_BAND:.0%}p 이상일 때만 다시 맞춘다. 숏 없음(L20).',
+         f'비용: 현물 {TH_SPOT_COST:.2%}/회전 · 선물 {perp_cost:.2%}/회전 + 보유 중 펀딩비{"" if fund_d is not None else "(데이터 없음 → 0)"} · '
+         f'판정은 현물 기준 (70달러는 선물 최소 주문 100 USDT 를 나눠 담을 수 없음)',
+         '─' * 100,
+         f'{"":<14}{"연복리":>9}{"하루복리":>10}{"샤프":>8}{" [90%하한]":<10}{"최대낙폭":>8}{"최악의 해":>14}{"평균비중":>8}{"거래/년":>7}',
+         row('추세 보유(현물)', S), row('추세 보유(선물)', P), row('보유만(현물)', B)]
+    yrs = sorted(set(S['years_ret']) | set(B['years_ret']))
+    L.append('연도별 (추세 보유 / 보유만): ' + ' · '.join(f'{y} {S["years_ret"].get(y, 0):+.0%}/{B["years_ret"].get(y, 0):+.0%}'
+                                                    for y in yrs))
+    if E is not None:
+        L.append(f'ETH(2순위, 같은 규칙·재현만): 추세 보유 연복리 {E["cagr"]:+.1%} · 샤프 {E["sharpe"]:+.2f} · 최대낙폭 {E["mdd"]:.0%} | '
+                 f'보유만 {EB["cagr"]:+.1%} · 샤프 {EB["sharpe"]:+.2f} · 최대낙폭 {EB["mdd"]:.0%}')
+    else:
+        L.append('ETH(2순위): 데이터 없음 — 재현 생략')
+    L.append('같은 신호를 선물 배수로 (참고·판정 아님, L18): ' + ' · '.join(
+        f'{lv:g}배 연복리 {m["cagr"]:+.0%} 낙폭 {m["mdd"]:.0%}' for lv, m in levs))
+    L += ['─' * 100,
+          f'판정(사전 규칙): H5-1 최대낙폭 ≤ 보유만의 절반 ({S["mdd"]:.0%} vs {0.5 * B["mdd"]:.0%}) {"✓" if hs[0] else "✗"} · '
+          f'H5-2 샤프 ≥ 보유만 ({S["sharpe"]:+.2f} vs {B["sharpe"]:+.2f}) {"✓" if hs[1] else "✗"} · '
+          f'H5-3 샤프 90% 하한 > 0 ({S["sharpe_lo"]:+.2f}) {"✓" if hs[2] else "✗"}',
+          f'▶ {verdict}',
+          f'▶ 하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7 (켈리) · 3.1 (반켈리) — 추세 보유 {S["sharpe"]:+.2f} '
+          f'(하한 {S["sharpe_lo"]:+.2f}). 켈리 배수로 굴린다면 장기 성장의 상한 ≈ 연 {math.expm1(max(S["sharpe_lo"], 0) ** 2 / 2):.0%} '
+          f'(하한 기준) — 하루 1% 는 아니지만, 지금까지 찾은 것 중 증거가 가장 두꺼운 성장 경로인지가 이 시험의 질문이다.']
+    n_fw = int(fw.sum())
+    if n_fw:
+        L.append(f'앞으로의 데이터({since} 이후 {n_fw}일): 추세 보유 {np.prod(1 + daily_f[fw]) - 1:+.2%} · '
+                 f'보유만 {np.prod(1 + bh_f[fw]) - 1:+.2%}')
+    else:
+        L.append(f'앞으로의 데이터: 아직 없음 ({since} 이후 완결된 일봉부터 채점)')
+    L.append(f'지금 신호 ({d_all.index[-1]:%Y-%m-%d} 종가 기준): 이동평균 {above}/{len(TH_SMAS)}개 위 · {TH_VOL_DAYS}일 변동성 '
+             f'{vol_now:.0%} → 목표 {tgt_now:.0%} · 규칙대로라면 지금 보유 {e_now:.0%} → 시드 ${seed:,.0f} 이면 BTC 현물 약 '
+             f'${seed * e_now:,.0f} (현물 최소 주문 금액은 거래소 화면에서 확인, 주문은 직접)')
+    return dict(report='\n'.join(L), verdict=verdict, hs=hs, spot=S, perp=P, hold=B, eth=E, eth_hold=EB, levs=levs,
+                e_now=e_now, target_now=tgt_now, forward_days=n_fw)
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -7188,6 +7395,7 @@ def main(argv=None):
         alt_pre, prosp, wick = '--alt-presample' in argv, '--prospective' in argv, '--wick' in argv
         signal = '--signal' in argv
         oracle = '--oracle' in argv
+        th = '--trend-hold' in argv
         stop_pct = None
         fees = None
         ora = dict(tf='1h', sl=0.01, tp_list=(2.0,), hold=24)
@@ -7217,6 +7425,8 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if th and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--trend-hold', '--seed', '--no-funding', '--retest'}):
+                raise ValueError('--trend-hold(P5)는 단독으로 씁니다 (--seed 70 · --no-funding 만 함께)')
             if oracle:
                 if universe or symbols or presample or alt_pre or prosp or wick or signal or only or '--final' in argv \
                         or '--regime' in argv or '--reveal-holdout' in argv or '--surrogate-n' in argv or '--surrogate' in argv:
@@ -7359,7 +7569,9 @@ def main(argv=None):
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
-        if oracle:
+        if th:
+            keys = list(TH_PROCEDURES)
+        elif oracle:
             keys = [f'btc|{ora["tf"]}:oracle|{cost_key}|sl{ora["sl"] * 100:g}tp{t:g}h{ora["hold"]}' for t in ora['tp_list']]
         elif signal:
             keys = []                                       # 신호 보기 = 시험이 아니다
@@ -7392,6 +7604,29 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if th:
+                first = journal.state(TH_KEY) in (None, 'preregistered')
+                eth = None
+                try:
+                    status('ETH(2순위): 스팟 아카이브 + 선물 4h 봉 준비...')
+                    eth = lab_eth_frames(store.http, ('4h',), log=log).get('4h')
+                except Exception as e_:
+                    print(f'[LAB] ETH 데이터 실패 → 재현 생략: {e_}')
+                res = lab_trend_hold(base, funding=funding, eth4h=eth, end=anchor, status=status,
+                                     seed=float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70'))))
+                print(res['report'])
+                if first:
+                    st = {'확인': 'confirmed', '반증': 'refuted', '반증 안 됨': 'not_refuted'}[res['verdict'].split(' —')[0]]
+                    sp = res['spot']
+                    journal.set_status(TH_KEY, st, f'P5: 샤프 {sp["sharpe"]:+.2f}(하한 {sp["sharpe_lo"]:+.2f}) · 연복리 '
+                                                   f'{sp["cagr"]:+.1%} · 최대낙폭 {sp["mdd"]:.0%} vs 보유만 {res["hold"]["mdd"]:.0%} '
+                                                   f'→ {res["verdict"]}')
+                else:
+                    print(f'[LAB] P5 판정은 이미 일지에 있습니다 ({RESEARCH_STATE_KO.get(journal.state(TH_KEY))}) — 이번 실행은 '
+                          '앞으로의 데이터와 지금 신호만 새로 봅니다.')
+                note('trend_hold', 'P5 롱 전용 일봉 추세 보유' + (' — 판정' if first else ' — 앞으로의 데이터·지금 신호'),
+                     top=[res['verdict'], f'지금 목표 {res["target_now"]:.0%} · 보유 {res["e_now"]:.0%}'])
+                return 0
             if oracle:
                 outs = []
                 for t in ora['tp_list']:
