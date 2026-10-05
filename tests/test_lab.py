@@ -422,7 +422,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
     assert j.state('btc_stop1|short:all') == 'no_evidence'
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger')]
-    assert len(pe.RESEARCH_LESSONS) == 20 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert len(pe.RESEARCH_LESSONS) == 21 and any(e['kind'] == 'universe' for e in j.d['entries'])
     assert j.n_trials(['btc|4h:flow|taker']) == 153 and j.n_trials(['btc|4h:keltner|maker']) == 154
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
@@ -440,7 +440,7 @@ def test_journal_blocks_refuted_and_repeated_tests(pe):
     j = pe.ResearchJournal.load()
     j.set_status('btc|4h:flow', 'refuted', '테스트')
     block, warn = j.check('btc', [('4h', 'flow'), ('5m', 'tsmom')])
-    assert len(block) == 1 and '반증' in block[0] and any('근거 없음' in w for w in warn)
+    assert len(block) == 1 and '반증' in block[0] and any('못 찾음' in w for w in warn)
     block, warn = j.check('btc', [('4h', 'flow')], retest='새 데이터 1년 추가')
     assert not block and warn                                                  # 사유가 있으면 경고만 (일지에 남는다)
     j.set_status('btc_presample|4h:keltner', 'preregistered', '테스트용 재등록')
@@ -1175,3 +1175,30 @@ def test_cli_trend_hold_guards(pe):
     assert pe.main(['--lab', '--trend-hold', '--oracle']) == 2
     assert pe.main(['--lab', '--trend-hold', '--universe']) == 2
     assert pe.main(['--lab', '--trend-hold', '--stop-pct', '1']) == 2
+
+
+# ── 비용 곡선: 본전이 되는 왕복 비용 ─────────────────────────────────────
+def test_breakeven_interpolates_where_mean_r_crosses_zero(pe):
+    assert pe._lab_breakeven([(0.0, 0.10), (0.0008, 0.02), (0.0014, -0.04)]) == 0.0008 + 0.0006 * 0.02 / 0.06
+    assert pe._lab_breakeven([(0.0, -0.01), (0.0014, -0.2)]) is None                 # 비용 0 에서도 손실 → 방향에서 진다
+    assert pe._lab_breakeven([(0.0, 0.3), (0.0014, 0.1)]) == float('inf')
+
+
+def test_cost_curve_sweeps_costs_and_restores_fees(pe):
+    base = _trend_1m(1300, 0.0000004, seed=3)
+    res = pe.lab_cost_curve(base, tfs=('1h',), families=['tsmom', 'donchian'], levels=(0.0, 0.0007))
+    assert (pe.TAKER_FEE, pe.MAKER_FEE, pe.SLIPPAGE_T) == pe.LAB_DEFAULT_FEES and pe.lab_fee_tag() == ''   # 끝나면 원래 수수료
+    assert '비용 곡선' in res['report'] and '본전 비용' in res['report'] and set(res['runs']) == {0.0, 0.0007}
+    traded = [r for r in res['rows'] if r['by'][0.0]['n'] > 0 and r['by'][0.0007]['n'] > 0]
+    assert traded and any(r['by'][0.0]['mean_r'] > r['by'][0.0007]['mean_r'] for r in traded)   # 비용이 줄면 평균R 이 오른다
+    keys = pe.lab_curve_keys(('1h',), ['tsmom'], 0.01)
+    assert keys == ['btc|1h:tsmom|taker|stop1|rt0', 'btc|1h:tsmom|taker|stop1|rt0.04', 'btc|1h:tsmom|taker|stop1|rt0.08',
+                    'btc|1h:tsmom|taker|stop1']                                     # 기본 비용 단계 = 이미 센 1% 손절 절차
+
+
+def test_cli_cost_curve_guards(pe):
+    assert pe.main(['--lab', '--cost-curve', '--universe']) == 2
+    assert pe.main(['--lab', '--cost-curve', '--fees', '0.04,0.02']) == 2
+    assert pe.main(['--lab', '--cost-curve', '--oracle']) == 2
+    assert pe.main(['--lab', '--cost-curve', '--tfs', '1m']) == 2
+    assert pe.lab_fee_tag() == ''
