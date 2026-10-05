@@ -43,6 +43,8 @@ python pattern_edge_v612.py --lab --signal --seed 70        # 지금 신호: 추
 python pattern_edge_v612.py --lab --stop-pct 1              # 짧은 시간봉(5m/15m/1h) · 가격 1% 고정 손절 · 익절 2R/3R/신호 중 선택 · 계좌 위험 1/2/3% 별 결과
 #   --tp 2,3,5 : 익절 R 배수 후보 · --tfs 5m,15m : 시간봉 · --surrogate-n 20 : 같은 설정의 운의 크기
 python pattern_edge_v612.py --lab --stop-pct 1 --cost maker_entry --fees 0.045,0.018   # 내 실제 수수료(시장가%,지정가%)로 다시 (별개의 시험으로 집계)
+python pattern_edge_v612.py --lab --oracle                  # 정답 단서 학습: '+2%가 −1%보다 먼저 왔나'(정답)를 붙이고, 그 시점의 단서 18개로 확률을 배워 상위 확률에서만 진입
+#   --tfs 15m|1h|4h · --stop-pct 1 · --tp 2 · --hold 24 : 정답 정의 바꾸기 (설정마다 새 시험으로 집계) · 분위표·단서표 함께 출력
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
 #   모든 보고서 끝에 '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7(켈리)/3.1(반켈리)' 와 이번 최고 샤프를 함께 보인다.
 #   모든 Lab 실행은 연구 일지에 자동 기록되고, DSR 은 누적 시험 절차 수로 보정되며, holdout 시작은 2026-01-01 로 고정된다.

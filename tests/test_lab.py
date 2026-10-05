@@ -943,3 +943,98 @@ def test_cli_fees_guards(pe):
     assert pe.main(['--lab', '--fees', '0.045']) == 2
     assert pe.main(['--lab', '--fees', '0.045,0.018', '--universe']) == 2
     assert pe.lab_fee_tag() == ''                                                # 거절된 실행은 수수료를 바꾸지 않는다
+
+
+# ── 정답에서 단서 찾기 (--oracle): 삼중 장벽 정답 + 로지스틱 회귀 ────────────────
+def test_barrier_labels_rules(pe):
+    sl, tp, hold = 0.01, 0.02, 3
+    o = np.array([100, 100, 100, 100, 100, 100, 100, 100], dtype=float)
+    h = np.array([100, 102.5, 100, 100, 100, 100, 100, 100], dtype=float)     # 봉1: 롱 익절(+2%)
+    l = np.array([100, 99.5, 100, 100, 100, 100, 100, 100], dtype=float)
+    c = np.array([100, 101, 100.5, 100.5, 100.5, 100.5, 100.5, 100.5], dtype=float)
+    rl, xl, rs, xs = pe.lab_barrier_labels(o, h, l, c, sl, tp, hold, 0.0)
+    assert abs(rl[0] - 2.0) < 1e-9 and xl[0] == 1                             # 봉0 마감 결정 → 봉1 시가 진입 → 익절
+    assert abs(rs[0] - (-1.0)) < 1e-9 and xs[0] == 1                          # 숏은 같은 봉에서 손절(102.5 ≥ 101)
+    assert abs(rl[1] - 0.5) < 1e-9 and xl[1] == 4                             # 아무것도 안 닿으면 hold 봉 종가 청산
+    assert np.isnan(rl[-1]) and np.isnan(rl[len(c) - hold - 1]) and xl[-1] == -1  # 결과를 모르는 끝부분은 정답 없음
+    h2 = h.copy()
+    l2 = l.copy()
+    h2[1], l2[1] = 102.5, 98.5                                                # 같은 봉에서 익절·손절 둘 다 → 손절로 본다
+    rl2, _, _, _ = pe.lab_barrier_labels(o, h2, l2, c, sl, tp, hold, 0.0)
+    assert abs(rl2[0] - (-1.0)) < 1e-9
+    o3, l3 = o.copy(), l.copy()
+    o3[2], l3[2] = 97.0, 96.0                                                 # 갭으로 손절선 아래에서 시작 → 시가에 청산
+    rl3, _, _, _ = pe.lab_barrier_labels(o3, np.full(8, 100.0), l3, np.full(8, 100.0), sl, tp, hold, 0.0)
+    assert abs(rl3[0] - (-3.0)) < 1e-9
+    rl4, _, _, _ = pe.lab_barrier_labels(o, h, l, c, sl, tp, hold, 0.0014)
+    assert abs(rl4[0] - (2.0 - 0.14)) < 1e-9                                  # 왕복 비용은 R 에서 뺀다
+
+
+def test_logit_learns_the_planted_sign_and_ranks(pe):
+    g = np.random.default_rng(0)
+    X = g.normal(0, 1, (4000, 3))
+    y = (X[:, 0] - 0.5 * X[:, 1] + g.normal(0, 1, 4000) > 0).astype(float)
+    w = pe._logit_fit(X, y)
+    assert w[1] > 0.8 and w[2] < -0.3 and abs(w[3]) < 0.15
+    p = pe._logit_predict(w, np.array([[-2.0, 0, 0], [0, 0, 0], [2.0, 0, 0]]))
+    assert p[0] < 0.2 < p[1] < 0.8 < p[2]
+
+
+def _oracle_frame(days, planted, seed=5):
+    """1시간봉. planted > 0 이면 관측 가능한 테이커 체결강도(느린 숨은 상태)가 이후 방향을 미리 알려 준다."""
+    g = np.random.default_rng(seed)
+    n = days * 24
+    st = np.empty(n)
+    acc = 0.0
+    for i in range(n):
+        acc = 0.97 * acc + g.normal(0, 0.25)
+        st[i] = acc
+    r = g.normal(0, 0.004, n) + planted * np.r_[0.0, np.tanh(st[:-1])]
+    c = 30000 * np.exp(np.cumsum(r))
+    o = np.r_[c[0], c[:-1]]
+    hi = np.maximum(o, c) * (1 + np.abs(g.normal(0, 0.001, n)))
+    lo = np.minimum(o, c) * (1 - np.abs(g.normal(0, 0.001, n)))
+    v = np.exp(g.normal(3, 0.3, n))
+    share = np.clip(0.5 + 0.15 * np.tanh(st) + g.normal(0, 0.03, n), 0.01, 0.99) if planted else \
+        np.clip(0.5 + g.normal(0, 0.05, n), 0.01, 0.99)
+    return pd.DataFrame(dict(open=o, high=hi, low=lo, close=c, volume=v, taker_buy_base=v * share, trades=1.0, era=1.0),
+                        index=pd.date_range('2019-09-09', periods=n, freq='1h'))
+
+
+def test_oracle_finds_a_planted_clue_and_rejects_random_walk(pe):
+    noise = pe.lab_run_oracle(None, tf='1h', frame=_oracle_frame(1500, 0.0))
+    m = noise['rows'][0]['oos']
+    assert not (m['n'] >= 100 and m['ci_lo'] > 0 and m['dsr'] >= 0.9)
+    assert '미통과' in noise['report'] and '기준선' in noise['report']
+    real = pe.lab_run_oracle(None, tf='1h', frame=_oracle_frame(1500, 0.0012))
+    m = real['rows'][0]['oos']
+    assert m['n'] >= 100 and m['mean_r'] > 0.2 and m['ci_lo'] > 0
+    top = [nm for nm, w, agree in real['clues'][1][:3]]
+    assert any('체결강도' in nm for nm in top)                                 # 심어 둔 단서를 단서로 찾아낸다
+    cal = real['calib_long']
+    assert cal[-1][2] > cal[0][2] + 0.15                                      # 위쪽 분위의 실제 승률이 확실히 높다
+    assert '분위' in real['report'] and '단서 (롱' in real['report']
+
+
+def test_oracle_never_touches_holdout_prices(pe):
+    f = _oracle_frame(1100, 0.0012, seed=8)
+    hold = f.index[-1] - pd.DateOffset(months=3)
+    a = pe.lab_run_oracle(None, tf='1h', frame=f, holdout_start=hold)
+    g = f.copy()
+    after = g.index >= hold
+    g.loc[after, ['open', 'high', 'low', 'close']] *= np.exp(np.cumsum(np.random.default_rng(1).normal(0, 0.02, after.sum())))[:, None]
+    b = pe.lab_run_oracle(None, tf='1h', frame=g, holdout_start=hold)
+    assert a['rows'][0]['oos']['n'] == b['rows'][0]['oos']['n'] > 0
+    assert np.allclose(a['rows'][0]['oos_r'], b['rows'][0]['oos_r'])
+    assert a['calib_long'] == b['calib_long'] and a['base_long'] == b['base_long']
+
+
+def test_cli_oracle_guards(pe):
+    assert pe.main(['--lab', '--oracle', '--universe']) == 2
+    assert pe.main(['--lab', '--oracle', '--only', '4h:flow']) == 2
+    assert pe.main(['--lab', '--oracle', '--surrogate-n', '5']) == 2
+    assert pe.main(['--lab', '--oracle', '--tfs', '5m']) == 2
+    assert pe.main(['--lab', '--oracle', '--stop-pct', '9']) == 2
+    assert pe.main(['--lab', '--oracle', '--tp', 'x']) == 2
+    assert pe.main(['--lab', '--oracle', '--hold', '1']) == 2
+    assert pe.main(['--lab', '--oracle', '--cost', 'maker_entry']) == 2

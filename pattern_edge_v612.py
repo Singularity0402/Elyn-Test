@@ -5815,6 +5815,14 @@ RESEARCH_HISTORY = [
                  '중앙 −0.136 · 최고 +0.175, 1h Keltner p(최고 절차) 0.238. 15m·5m 변동성 돌파는 같은 절차의 섞은 차트 20개를 모두 '
                  '이겼지만(p 0.048) 실제도 손실 근처 → 실제 차트의 구조는 있으나 비용을 넘지 못함. 남은 지렛대 = 실제 수수료(--fees).',
          lessons=['L2', 'L15', 'L18']),
+    dict(date='2026-10-05', kind='idea', title='사용자 제안: 실제 정답을 먼저 정하고, 그 정답 앞에 있던 단서를 배워 확률이 가장 높은 곳만 진입',
+         summary='정답 = 각 봉 마감에 들어갔다면 +2%(익절 2R)가 −1%(손절)보다 24봉 안에 먼저 왔는가 (같은 봉이면 손절, 롱·숏 따로). '
+                 '단서 18개 = 그 시점에 이미 알 수 있던 값(수익률·변동성·이동평균 거리·Bollinger·Donchian·테이커 체결강도·거래량·펀딩비 '
+                 '백분위·시각·주말). 직전 2년의 (단서 → 정답)으로 로지스틱 회귀를 배워 다음 3개월에만 적용, 정답 구간이 test·holdout 과 '
+                 '겹치는 표본은 지움. 진입 = train 확률 상위 5/10/20% 중 train 이 고른 문턱. 판정 기준은 실행 전에 고정: 체결 ≥ 100, '
+                 '달묶음 CI 하한 > 0, DSR(누적 절차) ≥ 0.9 → 통과해도 이미 본 기간이므로 사전등록 후 앞으로의 데이터로 확인. '
+                 '분위표(예측 확률 10분위별 실제 승률)로 "확률이 높다고 본 곳이 정말 더 이겼나"를 따로 본다. 실행: --lab --oracle',
+         lessons=['L1', 'L6', 'L11', 'L15']),
 ]
 
 
@@ -6764,6 +6772,275 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
     return dict(rows=out, report='\n'.join(L))
 
 
+# ── 정답에서 단서 찾기: 과거 각 시점에 '실제로 무슨 일이 있었는지'(정답 라벨)를 붙이고, 그 시점에 알 수 있던 단서로 ───────
+#    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
+#    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
+LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
+LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
+LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
+                       'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
+                       '테이커 체결강도(12)', '테이커 체결강도(48)', '거래량 z', '펀딩비 백분위', '시각 sin', '시각 cos', '주말']
+
+
+@njit(cache=False)
+def lab_barrier_labels(o, h, l, c, sl, tp, hold, cost):
+    """
+    정답 라벨: 봉 i 마감에 결정 → 봉 i+1 시가 진입. 롱은 +tp 익절·−sl 손절, 숏은 반대, hold 봉 안에 안 닿으면 그 봉 종가 청산.
+    같은 봉에서 둘 다 닿으면 손절로 본다 (보수). 반환: 롱 R, 롱 청산 봉, 숏 R, 숏 청산 봉 (R = 순손익 / sl, 끝부분은 NaN).
+    """
+    n = len(c)
+    rl = np.full(n, np.nan)
+    rs = np.full(n, np.nan)
+    xl = np.full(n, -1, dtype=np.int64)
+    xs = np.full(n, -1, dtype=np.int64)
+    for i in range(n - hold - 1):
+        e = o[i + 1]
+        for side in (1, -1):
+            tpx = e * (1.0 + side * tp)
+            slx = e * (1.0 - side * sl)
+            px = c[i + hold]
+            x = i + hold
+            for j in range(i + 1, i + hold + 1):
+                if (side > 0 and l[j] <= slx) or (side < 0 and h[j] >= slx):
+                    px = slx
+                    if (side > 0 and o[j] < slx) or (side < 0 and o[j] > slx):
+                        px = o[j]
+                    x = j
+                    break
+                if (side > 0 and h[j] >= tpx) or (side < 0 and l[j] <= tpx):
+                    px = tpx
+                    x = j
+                    break
+            r = (side * (px / e - 1.0) - cost) / sl
+            if side > 0:
+                rl[i] = r
+                xl[i] = x
+            else:
+                rs[i] = r
+                xs[i] = x
+    return rl, xl, rs, xs
+
+
+def _oracle_features(df, funding=None):
+    """정답 시점에 이미 알 수 있던 단서 (봉 마감 기준, 미래 데이터 없음)."""
+    ind = _lab_indicators(df)
+    c, h, l, v, tb, atr = ind['c'], ind['h'], ind['l'], ind['v'], ind['tb'], ind['atr']
+    lc = np.log(c)
+    a = atr.replace(0, np.nan)
+    ma20, sd20 = c.rolling(20).mean(), c.rolling(20).std()
+    hi55, lo55 = h.rolling(55).max(), l.rolling(55).min()
+    imb = lambda N: (2 * tb - v).rolling(N).sum() / v.rolling(N).sum()
+    fp = _lab_funding_pct(df.index, int((df.index[1] - df.index[0]).total_seconds() // 60), funding) \
+        if funding is not None else None
+    hr = df.index.hour.values + df.index.minute.values / 60.0
+    cols = [lc.diff(1), lc.diff(4), lc.diff(24), lc.diff(168), atr, atr / atr.rolling(168).mean(),
+            (c / c.ewm(span=20, adjust=False).mean() - 1) / a, (c / c.ewm(span=100, adjust=False).mean() - 1) / a,
+            (c / c.rolling(200).mean() - 1) / a, (c - ma20) / sd20, (c - lo55) / (hi55 - lo55),
+            imb(12), imb(48), np.log(v / v.rolling(168).median()),
+            pd.Series(np.nan_to_num(fp, nan=0.5) if fp is not None else np.full(len(c), 0.5), index=c.index),
+            pd.Series(np.sin(2 * np.pi * hr / 24), index=c.index), pd.Series(np.cos(2 * np.pi * hr / 24), index=c.index),
+            pd.Series((df.index.dayofweek.values >= 5).astype(float), index=c.index)]
+    X = np.column_stack([np.asarray(x, dtype=np.float64) for x in cols])
+    X[~np.isfinite(X)] = np.nan
+    return X
+
+
+def _logit_fit(X, y, lam_frac=0.001, iters=30):
+    """L2 로지스틱 회귀 (뉴턴법). 특성은 미리 표준화. 반환 [절편, 계수...]."""
+    n, d = X.shape
+    Xb = np.column_stack([np.ones(n), X])
+    w = np.zeros(d + 1)
+    R = np.eye(d + 1) * lam_frac * n
+    R[0, 0] = 0.0
+    for _ in range(iters):
+        p = 1.0 / (1.0 + np.exp(-np.clip(Xb @ w, -30, 30)))
+        g = Xb.T @ (p - y) + R @ w
+        H = (Xb * (p * (1 - p))[:, None]).T @ Xb + R
+        step = np.linalg.solve(H + 1e-9 * np.eye(d + 1), g)
+        w -= step
+        if np.abs(step).max() < 1e-7:
+            break
+    return w
+
+
+def _logit_predict(w, X):
+    return 1.0 / (1.0 + np.exp(-np.clip(w[0] + X @ w[1:], -30, 30)))
+
+
+def lab_run_oracle(base1m, tf='1h', sl=0.01, tp_r=2.0, hold=24, holdout_start=None, train_years=LAB_TRAIN_YEARS,
+                   test_months=LAB_TEST_MONTHS, holdout_months=LAB_HOLDOUT_MONTHS, funding=None, futures_only=True,
+                   n_trials_declared=None, status=None, frame=None):
+    """
+    정답 단서 학습을 롤링 WFO 로: 각 test 구간마다 직전 train 의 (단서 → 정답) 으로 롱·숏 확률 모델을 따로 배우고,
+    train 예측 확률 상위 q% 구간의 평균R 이 1σ 하한으로 양수인 쪽만, 그 문턱을 넘는 시점에 진입한다 (포지션은 겹치지 않음).
+    """
+    status = status or (lambda *a, **k: None)
+    t_wall = time.time()
+    if frame is None:
+        base = normalize_frame(base1m)
+        if futures_only and (base['era'].values == ERA_FUT).any():
+            base = base[base['era'].values == ERA_FUT]
+        df = Snapshot(base, base.index[-1].to_pydatetime() + timedelta(minutes=1)).tf(tf)
+        df = df[df['complete'].values > 0.5]
+    else:
+        df = normalize_frame(frame)
+    idx = df.index
+    o, h, l, c = (df[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+    cost = 2 * (TAKER_FEE + SLIPPAGE_T)
+    status(f'Lab 정답 단서 학습 {tf}: 정답 라벨(+{tp_r * sl:.1%} 먼저 vs −{sl:.1%} 먼저, {hold}봉) 계산...', 'blue')
+    rl, xl, rs, xs = lab_barrier_labels(o, h, l, c, float(sl), float(tp_r * sl), int(hold), float(cost))
+    X = _oracle_features(df, funding)
+    ok = np.isfinite(X).all(axis=1)
+    bar_h = INTERVALS[tf] / 60.0
+    train_n = int(train_years * 365.25 * 24 / bar_h)
+    test_n = max(1, int(test_months * 30.44 * 24 / bar_h))
+    hold_start = pd.Timestamp(holdout_start) if holdout_start is not None else idx[-1] - pd.DateOffset(months=int(holdout_months))
+    i_hold = int(idx.searchsorted(hold_start))
+    i_end = max(0, i_hold - hold - 1)                                    # 정답 구간이 holdout 가격에 닿는 봉은 쓰지 않는다
+    trades, calib_l, calib_s, coefs, chosen = [], [], [], [], []
+    for s0 in range(train_n, i_end, test_n):
+        e0 = min(s0 + test_n, i_end)
+        tr = np.arange(max(0, s0 - train_n), max(0, s0 - hold - 1))       # 결과 구간이 test 와 겹치는 표본은 지운다
+        tr = tr[ok[tr] & np.isfinite(rl[tr]) & np.isfinite(rs[tr])]
+        if len(tr) < 500:
+            chosen.append((str(idx[s0])[:10], None))
+            continue
+        mu, sd = X[tr].mean(0), X[tr].std(0)
+        sd[sd < 1e-12] = 1.0
+        Z = lambda rows: np.clip((X[rows] - mu) / sd, -5, 5)
+        models, fitted = {}, {}
+        for side, R in ((1, rl), (-1, rs)):
+            w = _logit_fit(Z(tr), (R[tr] > 0).astype(np.float64))
+            fitted[side] = w
+            p_tr = _logit_predict(w, Z(tr))
+            for q in LAB_ORACLE_Q:
+                tau = float(np.quantile(p_tr, 1 - q))
+                sel = tr[p_tr >= tau]
+                x = R[sel]
+                neff = max(2, len(np.unique(idx.values[sel].astype('datetime64[D]'))))
+                score = x.mean() - x.std(ddof=1) / math.sqrt(neff)
+                if score > 0 and (side not in models or score > models[side][2]):
+                    models[side] = (w, tau, score, q)
+            coefs.append((side, w[1:].copy()))
+        chosen.append((str(idx[s0])[:10], {sd_: round(m[3], 2) for sd_, m in models.items()} or None))
+        te = np.arange(s0, e0)
+        te = te[ok[te] & np.isfinite(rl[te]) & np.isfinite(rs[te])]
+        if not len(te):
+            continue
+        Zte = Z(te)
+        pl = _logit_predict(models[1][0], Zte) if 1 in models else None
+        ps = _logit_predict(models[-1][0], Zte) if -1 in models else None
+        calib_l += list(zip(_logit_predict(fitted[1], Zte), rl[te]))           # 진입 여부와 무관하게 모든 봉의 예측·정답
+        calib_s += list(zip(_logit_predict(fitted[-1], Zte), rs[te]))
+        busy = -1
+        for k, i in enumerate(te):
+            if i <= busy:
+                continue
+            cand = []
+            if pl is not None and pl[k] >= models[1][1]:
+                cand.append((models[1][2], 1))
+            if ps is not None and ps[k] >= models[-1][1]:
+                cand.append((models[-1][2], -1))
+            if not cand:
+                continue
+            side = max(cand)[1]
+            R, X_ = (rl, xl) if side > 0 else (rs, xs)
+            trades.append((i, int(X_[i]), side, float(R[i])))
+            busy = int(X_[i])
+    T = np.array([t[0] for t in trades], dtype=np.int64)
+    XI = np.array([t[1] for t in trades], dtype=np.int64)
+    SD = np.array([t[2] for t in trades], dtype=np.int64)
+    RR = np.array([t[3] for t in trades], dtype=np.float64)
+    om = T < i_hold
+    oos_start, oos_end = idx[min(train_n, len(idx) - 1)], idx[max(min(i_hold, len(idx)) - 1, 0)]
+    years = max((oos_end - oos_start).days / 365.25, 1e-6)
+    met = _lab_metrics(RR[om], years, n_trials=max(int(n_trials_declared or 0), 2))
+    if met['n'] >= 5:
+        met['ci_lo'], met['ci_hi'] = _month_cluster_ci(RR[om], idx.values[T[om]]), \
+            _month_cluster_ci(RR[om], idx.values[T[om]], q=0.95)
+    _lab_attach_growth(met, RR[om], idx.values[XI[om]], oos_start, oos_end)
+    met.update(long_n=int(((SD > 0) & om).sum()), short_n=int(((SD < 0) & om).sum()),
+               long_r=float(RR[(SD > 0) & om].mean()) if ((SD > 0) & om).any() else float('nan'),
+               short_r=float(RR[(SD < 0) & om].mean()) if ((SD < 0) & om).any() else float('nan'))
+    rl_, rs_ = rl[:i_end], rs[:i_end]
+    base_l = float(np.mean(rl_[np.isfinite(rl_)] > 0)) if np.isfinite(rl_).any() else float('nan')
+    base_s = float(np.mean(rs_[np.isfinite(rs_)] > 0)) if np.isfinite(rs_).any() else float('nan')
+
+    def deciles(pairs):
+        if len(pairs) < 50:
+            return []
+        p, r = np.array([a for a, _ in pairs]), np.array([b for _, b in pairs])
+        edges = np.quantile(p, np.linspace(0, 1, 11))
+        out = []
+        for k in range(10):
+            m = (p >= edges[k]) & ((p <= edges[k + 1]) if k == 9 else (p < edges[k + 1]))
+            if m.any():
+                out.append((k + 1, float(p[m].mean()), float(np.mean(r[m] > 0)), float(r[m].mean()), int(m.sum())))
+        return out
+    clues = {}
+    for side in (1, -1):
+        W = np.array([w for s_, w in coefs if s_ == side])
+        if len(W):
+            mean_w = W.mean(0)
+            order = np.argsort(-np.abs(mean_w))[:5]
+            clues[side] = [(LAB_ORACLE_FEATURES[j], float(mean_w[j]), float(np.mean(np.sign(W[:, j]) == np.sign(mean_w[j]))))
+                           for j in order]
+    row = dict(tf=tf, family='oracle', oos=met, oos_r=RR[om], oos_t=idx.values[T[om]], windows=len(chosen),
+               idle_windows=sum(1 for _, m in chosen if m is None), last_params=chosen[-1][1] if chosen else None)
+    res = dict(rows=[row], tf=tf, sl=sl, tp_r=tp_r, hold=hold, data=f'{idx[0]:%Y-%m-%d} ~ {idx[-1]:%Y-%m-%d}',
+               holdout_start=str(hold_start), base_long=base_l, base_short=base_s, cost_r=cost / sl,
+               calib_long=deciles(calib_l), calib_short=deciles(calib_s), clues=clues,
+               n_dsr=max(int(n_trials_declared or 0), 2), seconds=round(time.time() - t_wall, 1))
+    res['report'] = lab_oracle_report(res)
+    return res
+
+
+def lab_oracle_report(res):
+    r = res['rows'][0]
+    m = r['oos']
+    be = (1 + res['cost_r']) / (1 + res['tp_r'])
+    L = [f'━━━ 정답 단서 학습 · {SYMBOL} {res["tf"]} · {res["data"]} · {res["seconds"]}초 ━━━',
+         f'정답: 각 봉 마감에 들어갔다면 +{res["tp_r"] * res["sl"]:.1%}(익절 {res["tp_r"]:g}R)가 −{res["sl"]:.1%}(손절)보다 먼저 왔는가 '
+         f'({res["hold"]}봉 안, 같은 봉이면 손절로 침). 단서 {len(LAB_ORACLE_FEATURES)}개는 그 시점에 이미 알 수 있던 값만.',
+         f'배우기: 직전 {LAB_TRAIN_YEARS:g}년 정답으로 롱·숏 확률 모델(로지스틱 회귀)을 따로 → 다음 {LAB_TEST_MONTHS}개월에만 적용. '
+         f'결과가 test 와 겹치는 train 정답은 지움. 진입 = train 확률 상위 {"/".join(f"{q:.0%}" for q in LAB_ORACLE_Q)} 중 train 이 고른 문턱 이상.',
+         f'기준선: 아무 때나 들어가면 이길 확률 롱 {res["base_long"]:.1%} · 숏 {res["base_short"]:.1%} · '
+         f'수수료(1R 의 {res["cost_r"]:.0%})를 넘으려면 약 {be:.0%} 이상 필요',
+         '─' * 100]
+    if m['n'] == 0:
+        L.append(f'거래 0건 — 모든 test 구간({r["windows"]}개)에서 train 상위 확률 구간도 비용을 넘지 못해 쉼.')
+    else:
+        L += [f'표본외 체결 {m["n"]}건 (연 {m["n_year"]:.0f}) · 승률 {m["win"]:.0%} · 평균 {m["mean_r"]:+.3f}R · 달묶음 90% CI '
+              f'[{np.nan_to_num(m["ci_lo"]):+.3f}, {np.nan_to_num(m["ci_hi"]):+.3f}] · PF {m["pf"]:.2f} · DSR {m["dsr"]:.2f} '
+              f'(누적 {res["n_dsr"]}개 보정)',
+              f'연환산 샤프 {np.nan_to_num(m["sharpe"]):+.2f} · 보수 하루복리 {m["g_day"]:+.3%} @ 거래당 위험 {m["f_star"]:.1%} · '
+              f'롱 {m["long_n"]}건 {np.nan_to_num(m["long_r"]):+.3f}R · 숏 {m["short_n"]}건 {np.nan_to_num(m["short_r"]):+.3f}R · '
+              f'쉰 test 구간 {r["idle_windows"]}/{r["windows"]}']
+        rows, streak = lab_risk_table(r['oos_r'], m['n'] / max(m['n_year'], 1e-9))
+        L.append('계좌 위험별: ' + ' · '.join(f'{f:.0%}: ×{mult:.2f} (낙폭 {dd:.0%})' for f, mult, d, dd in rows)
+                 + f' · 최장 연속 손실 {streak}번')
+    for name, cal, base in (('롱', res['calib_long'], res['base_long']), ('숏', res['calib_short'], res['base_short'])):
+        if not cal:
+            continue
+        L += ['─' * 100, f'"확률이 높다고 본 시점이 정말 더 이겼나" — 표본외 {name} 예측 확률 10분위 (모든 봉, 기준선 {base:.1%})',
+              f'{"분위":>4}{"예측 확률":>10}{"실제 승률":>10}{"평균R":>9}{"봉 수":>8}']
+        for k, pm, wr, mr, nn in cal:
+            if k in (1, 2, 5, 9, 10):
+                L.append(f'{k:>4}{pm:>10.1%}{wr:>10.1%}{mr:>+9.3f}{nn:>8}')
+    for side, name in ((1, '롱'), (-1, '숏')):
+        if res['clues'].get(side):
+            L.append(f'단서 ({name} 정답 확률을 가장 크게 움직인 것, 표준화 계수 · 창마다 같은 방향 비율): ' +
+                     ' · '.join(f'{nm} {w:+.2f} ({agree:.0%})' for nm, w, agree in res['clues'][side]))
+    L.append('─' * 100)
+    passed = m['n'] >= 100 and m['ci_lo'] > 0 and m['dsr'] >= 0.9
+    L.append('▶ 사전 기준(체결 ≥ 100, 달묶음 CI 하한 > 0, DSR ≥ 0.9) ' +
+             ('통과 — 사전등록 후 앞으로의 데이터로 확인할 후보' if passed else '미통과 — 이 단서로는 정답을 비용 이상으로 맞히지 못했다'))
+    L.append(lab_sharpe_line(res['rows']))
+    L.append('※ 분위표에서 위쪽 분위의 실제 승률이 기준선과 손익분기 승률을 꾸준히 넘어야 "확률적으로 가장 높은 곳"이 실재한다. '
+             '이 결과는 이미 본 BTC 기간의 탐색이다.')
+    return '\n'.join(L)
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -6823,8 +7100,10 @@ def main(argv=None):
         final = lopt('--final', None) if '--final' in argv else None
         alt_pre, prosp, wick = '--alt-presample' in argv, '--prospective' in argv, '--wick' in argv
         signal = '--signal' in argv
+        oracle = '--oracle' in argv
         stop_pct = None
         fees = None
+        ora = dict(tf='1h', sl=0.01, tp_r=2.0, hold=24)
         tfs_x, tp_x = LAB_FIXED_TFS, LAB_FIXED_TP
         regime = lopt('--regime', None) if '--regime' in argv else None
         symbols = universe = None
@@ -6851,6 +7130,22 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if oracle:
+                if universe or symbols or presample or alt_pre or prosp or wick or signal or only or '--final' in argv \
+                        or '--regime' in argv or '--reveal-holdout' in argv or '--surrogate-n' in argv or '--surrogate' in argv:
+                    raise ValueError('--oracle 은 BTC 단독 실행입니다 (--tfs·--stop-pct·--tp·--hold·--fees 만 함께 씀)')
+                if cost != 'taker':
+                    raise ValueError('--oracle 은 시장가 진입·청산 비용으로 정답을 매깁니다 (--cost 없이, 수수료는 --fees 로)')
+                try:
+                    ora['tf'] = lopt('--tfs', ora['tf']).split(',')[0].strip()
+                    ora['sl'] = float(lopt('--stop-pct', ora['sl'] * 100)) / 100.0
+                    ora['tp_r'] = float(str(lopt('--tp', ora['tp_r'])).split(',')[0])
+                    ora['hold'] = int(lopt('--hold', ora['hold']))
+                except ValueError:
+                    raise ValueError('--oracle 옵션 형식: --tfs 1h --stop-pct 1 --tp 2 --hold 24')
+                if ora['tf'] not in ('15m', '1h', '4h') or not 0.002 <= ora['sl'] <= 0.05 \
+                        or not 0.5 <= ora['tp_r'] <= 10 or not 2 <= ora['hold'] <= 500:
+                    raise ValueError('--oracle 범위: --tfs 15m/1h/4h · --stop-pct 0.2~5 · --tp 0.5~10 · --hold 2~500')
             if '--fees' in argv:
                 try:
                     fees = tuple(float(x) / 100.0 for x in lopt('--fees', '').split(','))
@@ -6861,7 +7156,7 @@ def main(argv=None):
                 if universe or symbols or presample or alt_pre or prosp or signal or '--final' in argv \
                         or '--regime' in argv or '--reveal-holdout' in argv:
                     raise ValueError('--fees 는 BTC 탐색(--stop-pct·--cost·--wick·--only·--surrogate-n)에만 씁니다')
-            if '--stop-pct' in argv:
+            if '--stop-pct' in argv and not oracle:
                 try:
                     stop_pct = float(lopt('--stop-pct', ''))
                 except ValueError:
@@ -6974,7 +7269,9 @@ def main(argv=None):
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
-        if signal:
+        if oracle:
+            keys = [f'btc|{ora["tf"]}:oracle|{cost_key}|sl{ora["sl"] * 100:g}tp{ora["tp_r"]:g}h{ora["hold"]}']
+        elif signal:
             keys = []                                       # 신호 보기 = 시험이 아니다
         elif regime:
             keys = [f'regime|{a}:{b}|{cost}' for a, b in pairs]
@@ -7005,6 +7302,13 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if oracle:
+                res = lab_run_oracle(base, tf=ora['tf'], sl=ora['sl'], tp_r=ora['tp_r'], hold=ora['hold'], holdout_start=anchor,
+                                     funding=funding, n_trials_declared=n_cum, status=status)
+                print(res['report'])
+                note('lab', f'정답 단서 학습 ({ora["tf"]}, 손절 {ora["sl"]:.1%}, 익절 {ora["tp_r"]:g}R, {ora["hold"]}봉)',
+                     top=lab_top_lines(res))
+                return 0
             if wick:
                 res = lab_run_wick(base, holdout_start=anchor, n_trials_declared=n_cum, status=status)
                 print(res['report'])
