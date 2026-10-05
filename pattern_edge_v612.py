@@ -5684,6 +5684,13 @@ TH_LEVERAGE = (1.0, 1.5, 2.0)       # 참고용(판정 아님): 선물로 같은
 TH_REGISTERED = '2026-10-05'
 TH_KEY = 'trend_hold|1d:btc'
 TH_PROCEDURES = ('trend_hold|1d:btc|spot', 'trend_hold|1d:btc|perp', 'trend_hold|1d:eth|spot')
+# 사전등록 P6 (단타: 변동성 돌파를 처음 보는 구간·실제 비용으로) 의 고정 규칙
+P6_TFS = ('5m', '15m', '1h')
+P6_COST_SIDE = 0.0006               # 한쪽 = 시장가 0.05%(기본 등급) + 작은 주문 슬리피지 0.01% → 왕복 0.12%
+P6_STOP = 0.01
+P6_KEY = 'short_presample|volbreak'
+P6_PROCEDURES = tuple(f'short_presample|{tf}:volbreak|rt0.12' for tf in P6_TFS)
+P6_REGISTERED = '2026-10-05'
 
 
 RESEARCH_LESSONS = [
@@ -5727,6 +5734,9 @@ RESEARCH_LESSONS = [
     ('L21', '"근거 없음"은 "없다"가 아니라 "이 방법·이 비용에서 못 찾았다"이다. 판정 문구는 시험한 범위를 넘어 말하지 않는다. 같은 '
             '전략도 비용이 다르면 결론이 달라진다 → 비용을 바꿔 가며 본전이 되는 비용을 잰다. — 사용자 지적(2026-10-05): "근거가 '
             '없는 게 아니라 너가 못 찾은 거야" · 헤지펀드의 단타는 낮은 비용·지정가 리베이트·속도 위에서 산다'),
+    ('L22', '단타 후보는 통계적 유의성이 아니라 "거래당 수수료 전 엣지 ÷ 왕복 비용"으로 거른다. 거래가 많으면 아주 작은 엣지도 '
+            '유의해지지만, 그 크기는 비용이 거의 없는 마켓메이커만 가져갈 수 있다. — 비용 곡선: 비용 0 에서 유일하게 통과한 5m RSI(2)는 '
+            '12,695건 +0.013R, 본전 왕복 0.017%'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5768,7 +5778,16 @@ RESEARCH_PREREG = [dict(
          why='153개 절차의 결론: 짧은 시간봉 예측은 수수료를 넘지 못했고(L2·L18·정답 단서 학습), 가장 단단한 사실은 BTC 의 장기 '
              '상승 표류와 숏의 실패(L20)다. 사용자 목표가 "장기적으로 가장 빠르면서 지속 가능한 성장"으로 바뀌었으므로, 예측 대신 '
              '표류를 타고 폭락을 추세 이탈로 피하는 저회전 규칙을 시험한다. 이동평균 기간·변동성 목표는 데이터를 보기 전에 흔히 쓰는 '
-             '값으로 고정했다(이 환경에서는 실데이터를 볼 수 없어 결과를 모르는 상태에서 등록).')]
+             '값으로 고정했다(이 환경에서는 실데이터를 볼 수 없어 결과를 모르는 상태에서 등록).'),
+    dict(id='P6', registered=P6_REGISTERED, scope='short_presample', pairs=['volbreak'],
+         rule=f'변동성 돌파(일중) {"/".join(P6_TFS)}, 가격 {P6_STOP:.0%} 고정 손절, 익절 2R·3R·신호 중 train 이 고름. BTC 전체 이력(스팟 '
+              f'2017-08~ + 선물) 롤링 WFO(train 2년 → test 3개월), 왕복 비용 {2 * P6_COST_SIDE:.2%}(시장가 0.05% + 슬리피지 '
+              f'0.01%, 한쪽). 표본외 중 이 절차들의 성과를 본 적 없는 구간(표본외 시작 ~ {RESEARCH_SEEN_FROM} 전날)의 세 시간봉 거래를 '
+              '합쳐 한 가설로 판정한다. 합산 거래 < 30 → 판정 불가 · 합산 평균R ≤ 0 → 반증 · 달묶음 부트스트랩 단측 5% 하한 > 0 → 확인 · '
+              '그 외 → 반증 안 됨. 시간봉별 결과와 수수료 전 평균R 을 함께 보인다. 한 번만.',
+         why='비용 곡선(누적 249)에서 수수료 전 엣지가 세 시간봉 모두에서 일관된 단타 전략군은 변동성 돌파뿐이었다(비용 0 평균R '
+             '+0.117/+0.105/+0.113, 하한 모두 양수). 15m·5m 는 날짜 섞은 차트 20개도 모두 이겼다. 다만 249개 중에서 고른 것이므로 '
+             '(L1·L11), 고를 때 쓰지 않은 구간과 소매 계정의 현실적 비용에서 다시 확인한다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -5891,6 +5910,20 @@ RESEARCH_HISTORY = [
                  '전략을 왕복 0/0.04/0.08/0.14% 로 다시 돌려 전략마다 본전 비용을 잼 → 사용자의 실제 수수료와 비교. 비용 단계마다 새 '
                  '절차(누적 약 +96). 실행: --lab --cost-curve',
          lessons=['L2', 'L18', 'L21']),
+    dict(date='2026-10-05', kind='review', title='비용 곡선 결과 (5m/15m/1h × 왕복 0/0.04/0.08/0.14%, 누적 153 → 249)',
+         summary='사전 기준 통과는 비용 0 의 5m RSI(2) 하나(12,695건 +0.013R, 하한 +0.009) — 본전 왕복 0.017%, 마켓메이커만 가져갈 '
+                 '크기(L22). 수수료 전 엣지가 세 시간봉 모두에서 일관된 것은 변동성 돌파뿐: 비용 0 평균R 5m +0.117(1114건, 하한 +0.046) · '
+                 '15m +0.105(984건, +0.030) · 1h +0.113(882건, +0.028), 본전 왕복 5m 0.114% · 15m ≥0.14% · 1h 0.079%. 1h Bollinger '
+                 '(346건)·1h 펀딩비 역추세(54건)는 0.14% 에서도 양수지만 비용 0 하한부터 음수. 테이커 체결강도 본전 15m 0.097% · 1h 0.089%. '
+                 '추세·EMA·시계열 모멘텀은 비용 0 에서도 음수 → 비용이 아니라 방향에서 진다. 결론: 사용자 말대로 수수료 전 구조는 있다. '
+                 '그 크기가 소매 비용(왕복 약 0.1%)과 비슷한 것이 문제다. 표시 버그 수정: 위 비용 단계에서 쉰 전략(15m Donchian·5m 개장 '
+                 '레인지)이 "≥0.14%"로 보이던 것 → "≥(마지막 거래 단계)·위 쉼".',
+         lessons=['L2', 'L21', 'L22']),
+    dict(date='2026-10-05', kind='prereg', title='사전등록 P6: 단타 변동성 돌파 (5m/15m/1h) — 처음 보는 구간 · 왕복 0.12%',
+         summary='비용 곡선에서 유일하게 세 시간봉 모두 수수료 전 엣지가 있던 변동성 돌파를, 고를 때 쓰지 않은 2019-08 ~ 2021-11 구간과 '
+                 '소매 계정의 현실적 비용(시장가 0.05% + 슬리피지 0.01%, 한쪽)으로 한 번 판정. 판정 규칙은 P6 참조. '
+                 '실행: --lab --short-presample',
+         lessons=['L1', 'L11', 'L14', 'L22']),
 ]
 
 
@@ -5918,6 +5951,8 @@ def _research_seed_keys():
              '1h': [f for f in base10 if f != 'session'] + ['funding', 'analog', 'tod']}
     keys += [f'btc|{tf}:{f}|taker|stop1' for tf, fams in fixed.items() for f in fams
              if tf in {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h')}.get(f, ('5m', '15m', '1h'))]
+    stop1 = [k for k in keys if k.endswith('|taker|stop1')]
+    keys += [f'{k}|rt{x}' for k in stop1 for x in ('0', '0.04', '0.08')]                     # 비용 곡선 (누적 +96)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -5969,6 +6004,11 @@ def _research_seed_status():
     put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
                                          '→ 앞으로의 검증 중', '2026-10-05')
     put(TH_KEY, 'preregistered', 'P5: 실행 전 등록', TH_REGISTERED)
+    put(P6_KEY, 'preregistered', 'P6: 실행 전 등록', P6_REGISTERED)
+    for tf, why in (('5m', '비용 0 +0.117R(1114건, 하한 +0.046) · 본전 왕복 0.114%'),
+                    ('15m', '비용 0 +0.105R(984건, 하한 +0.030) · 왕복 0.14% 에서도 +0.023R'),
+                    ('1h', '비용 0 +0.113R(882건, 하한 +0.028) · 본전 왕복 0.079%')):
+        put(f'btc|{tf}:volbreak', 'candidate', f'비용 곡선(1% 손절): {why} → 세 시간봉 모두 수수료 전 엣지 → P6', '2026-10-05')
     put('btc|1h:oracle', 'no_evidence', '정답 단서 학습 4개 설정 통과 0: 2R/24봉 1006건 −0.092R CI [−0.147, −0.036] · 48봉 '
                                        '2R/3R/5R −0.071/−0.038/−0.049R. 수수료 0 이어도 +0.05~+0.10R', '2026-10-05')
     put('btc|4h:oracle', 'no_evidence', '정답 단서 학습 3개 설정(손절 2%, 60봉) 통과 0: +0.052/+0.059/−0.066R, CI 하한 모두 음수 · '
@@ -6855,11 +6895,11 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-05f · 비용 곡선'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-05g · 비용 곡선 · P6 단타 판정'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
-                           '--no-funding', '--trend-hold', '--cost-curve'})
+                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -7368,6 +7408,15 @@ def _lab_breakeven(points):
     return float('inf')
 
 
+def _lab_be_text(r, levels=LAB_CURVE_COSTS):
+    """본전 비용 표시. 위 비용 단계에서 쉬었으면(거래 없음) 그 단계까지 양수였다는 것만 말한다."""
+    if r['be'] is None:
+        return '없음'
+    if r['be'] == float('inf'):
+        return f'≥{r["be_last"]:.2%}' + ('' if r['be_last'] >= 2 * levels[-1] - 1e-12 else '·위 쉼')
+    return f'{r["be"]:.3%}'
+
+
 def lab_cost_curve(base1m, tfs=LAB_FIXED_TFS, families=None, fixed_stop=0.01, tp_list=LAB_FIXED_TP, holdout_start=None,
                    funding=None, n_trials_declared=None, status=None, levels=LAB_CURVE_COSTS):
     status = status or (lambda *a, **k: None)
@@ -7390,9 +7439,11 @@ def lab_cost_curve(base1m, tfs=LAB_FIXED_TFS, families=None, fixed_stop=0.01, tp
     for (tf, fam), by in table.items():
         pts = [(2 * lv, by[lv]['mean_r']) for lv in levels if lv in by and by[lv]['n'] > 0]
         m0 = by.get(levels[0], {})
-        rows.append(dict(tf=tf, family=fam, by=by, be=_lab_breakeven(pts) if pts and pts[0][0] == 0 else None,
+        be = _lab_breakeven(pts) if pts and pts[0][0] == 0 else None
+        rows.append(dict(tf=tf, family=fam, by=by, be=be, be_last=pts[-1][0] if pts else None,
                          n0=m0.get('n', 0), lo0=m0.get('ci_lo', float('nan')), r0=m0.get('mean_r', float('nan'))))
-    rows.sort(key=lambda r: (-(r['be'] if r['be'] is not None else -1), -np.nan_to_num(r['r0'], nan=-9)))
+    rows.sort(key=lambda r: (-(-1 if r['be'] is None else r['be_last'] if r['be'] == float('inf') else r['be']),
+                             -np.nan_to_num(r['r0'], nan=-9)))
     passed = [(r['tf'], r['family'], lv) for r in rows for lv in levels
               if lv in r['by'] and r['by'][lv]['n'] >= 50 and r['by'][lv]['ci_lo'] > 0 and r['by'][lv]['dsr'] >= 0.9]
     hdr = ''.join(f'{"왕복 " + format(2 * lv, ".2%"):>12}' for lv in levels)
@@ -7407,7 +7458,7 @@ def lab_cost_curve(base1m, tfs=LAB_FIXED_TFS, families=None, fixed_stop=0.01, tp
             continue
         cells = ''.join(f'{(format(r["by"][lv]["mean_r"], "+.3f") if lv in r["by"] and r["by"][lv]["n"] > 0 else "쉼"):>12}'
                         for lv in levels)
-        be = '없음' if r['be'] is None else (f'≥{2 * levels[-1]:.2%}' if r['be'] == float('inf') else f'{r["be"]:.3%}')
+        be = _lab_be_text(r, levels)
         L.append(f'{r["tf"]:<5}{LAB_FAMILY_KO.get(r["family"], r["family"]):<22}{cells}{r["n0"]:>9}'
                  f'{np.nan_to_num(r["lo0"]):>+11.3f}{be:>11}')
     idle = [f'{r["tf"]}:{r["family"]}' for r in rows if all(r['by'].get(lv, {}).get('n', 0) == 0 for lv in levels)]
@@ -7425,6 +7476,59 @@ def lab_cost_curve(base1m, tfs=LAB_FIXED_TFS, families=None, fixed_stop=0.01, tp
           f'※ 비용 단계마다 새 시험으로 센다 (DSR 누적 {max(int(n_trials_declared or 0), 2)}개). 비용 0 에서의 통과는 실전 증거가 아니라 '
           '"수수료를 얼마까지 낮춰야 하는가"를 알려 주는 진단이다.']
     return dict(report='\n'.join(L), rows=rows, runs=runs, passed=passed, levels=levels)
+
+
+def lab_short_presample_verdict(n, mean_r, lo):
+    """사전등록 P6 의 판정 규칙 (세 시간봉 합산 한 가설)."""
+    if n < 30:
+        return '판정 불가 (합산 거래 < 30)'
+    if not mean_r > 0:
+        return '반증 — 처음 보는 구간에서 실제 비용을 넘지 못했다'
+    if lo > 0:
+        return '확인 — 처음 보는 구간에서도 실제 비용을 넘었다 (앞으로의 데이터로 계속 채점할 단타 후보)'
+    return '반증 안 됨 — 방향은 맞지만 입증은 아니다'
+
+
+def lab_short_presample(base1m, funding=None, seen_from=RESEARCH_SEEN_FROM, n_trials_declared=None, status=None):
+    """
+    P6: 변동성 돌파 5m/15m/1h 를 BTC 전체 이력(스팟+선물)으로 롤링 WFO 하고, 왕복 0.12% 비용에서 표본외 중
+    [표본외 시작, seen_from) 의 거래만 합쳐 판정한다. seen_from 이후는 계산만 하고 보이지 않는다.
+    """
+    saved = (TAKER_FEE, MAKER_FEE, SLIPPAGE_T)
+    try:
+        lab_set_fees(taker=P6_COST_SIDE, slip=0.0)
+        res = lab_run(base1m, tfs=P6_TFS, families=['volbreak'], futures_only=False, holdout_start=seen_from, cost_mode='taker',
+                      funding=funding, fixed_stop=P6_STOP, tp_list=LAB_FIXED_TP, n_trials_declared=n_trials_declared, status=status)
+    finally:
+        lab_set_fees(*saved)
+    cost_r = 2 * P6_COST_SIDE / P6_STOP
+    rows = sorted([r for r in res['rows'] if r['family'] == 'volbreak'], key=lambda r: P6_TFS.index(r['tf']))
+    R = np.concatenate([np.asarray(r['oos_r'], dtype=np.float64) for r in rows]) if rows else np.zeros(0)
+    T = np.concatenate([np.asarray(r['oos_t']) for r in rows]) if rows else np.zeros(0, dtype='datetime64[ns]')
+    n = len(R)
+    mean = float(R.mean()) if n else float('nan')
+    lo = _month_cluster_ci(R, T, q=0.05) if n >= 5 else float('nan')
+    verdict = lab_short_presample_verdict(n, mean, lo)
+    start = min((r.get('oos_start') for r in rows if r.get('oos_start') is not None), default=None)
+    L = [f'━━━ 사전등록 P6 · 단타 변동성 돌파 · 처음 보는 BTC 구간 · {res["data"]} ━━━',
+         f'규칙({P6_REGISTERED} 실행 전 고정): {"/".join(P6_TFS)} 변동성 돌파, 가격 {P6_STOP:.0%} 고정 손절, 왕복 비용 {2 * P6_COST_SIDE:.2%} '
+         f'(1R 의 {cost_r:.0%}). 표본외 중 성과를 본 적 없는 구간(~{str(seen_from)[:10]} 전날) 거래만 세 시간봉 합쳐 판정.'
+         + (f' 표본외 시작 {str(start)[:10]}.' if start is not None else ''),
+         '판정 규칙: 합산 거래 < 30 → 판정 불가 · 합산 평균R ≤ 0 → 반증 · 달묶음 부트스트랩 단측 5% 하한 > 0 → 확인 · 그 외 → 반증 안 됨',
+         '─' * 100,
+         f'{"TF":<5}{"체결":>6}{"승률":>7}{"평균R":>9}{"수수료 전":>10}{"단측5% 하한":>12}  마지막 파라미터']
+    for r in rows:
+        m = r['oos']
+        lo_r = _month_cluster_ci(np.asarray(r['oos_r'], dtype=np.float64), np.asarray(r['oos_t']), q=0.05) if m['n'] >= 5 \
+            else float('nan')
+        L.append(f'{r["tf"]:<5}{m["n"]:>6}{np.nan_to_num(m["win"]):>7.0%}{np.nan_to_num(m["mean_r"]):>+9.3f}'
+                 f'{np.nan_to_num(m["mean_r"]) + cost_r if m["n"] else 0.0:>+10.3f}{np.nan_to_num(lo_r):>+12.3f}  {r.get("last_params")}')
+    L += [f'{"합산":<5}{n:>6}{np.mean(R > 0) if n else 0.0:>7.0%}{np.nan_to_num(mean):>+9.3f}'
+          f'{np.nan_to_num(mean) + cost_r if n else 0.0:>+10.3f}{np.nan_to_num(lo):>+12.3f}',
+          '─' * 100, f'▶ {verdict}',
+          '※ 이 구간(2019-08 ~ 2021-11)은 변동성이 크고 강세장 위주였다. 확인되어도 다른 국면(L12)과 앞으로의 데이터로 다시 본다. '
+          '수수료 전 = 평균R + 비용(1R 의 ' + f'{cost_r:.0%}) — 지정가 익절 등으로 비용을 줄이면 이 사이 어딘가가 된다.']
+    return dict(report='\n'.join(L), verdict=verdict, n=n, mean_r=mean, lo=lo, rows=rows, res=res)
 
 
 def lab_prior_reveals(engine):
@@ -7495,6 +7599,7 @@ def main(argv=None):
         oracle = '--oracle' in argv
         th = '--trend-hold' in argv
         curve = '--cost-curve' in argv
+        p6 = '--short-presample' in argv
         stop_pct = None
         fees = None
         ora = dict(tf='1h', sl=0.01, tp_list=(2.0,), hold=24)
@@ -7524,6 +7629,8 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if p6 and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--short-presample', '--no-funding', '--retest'}):
+                raise ValueError('--short-presample(P6)는 단독으로 씁니다 (규칙·비용은 사전등록대로 고정)')
             if curve and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--cost-curve', '--stop-pct', '--tfs', '--tp', '--no-funding',
                                                                    '--retest'}):
                 raise ValueError('--cost-curve 는 BTC 단독입니다 (--stop-pct · --tfs · --tp 만 함께, 비용은 스스로 바꿔 가며 돈다)')
@@ -7600,6 +7707,10 @@ def main(argv=None):
         journal = ResearchJournal.load()
         print(f'[LAB] {VERSION} · 빌드 {LAB_BUILD}')
         print(journal.banner())
+        if p6 and journal.state(P6_KEY) not in (None, 'preregistered') and not retest:
+            print(f'[LAB] P6 는 이미 판정되었습니다 ({RESEARCH_STATE_KO.get(journal.state(P6_KEY))}) — 처음 보는 구간은 한 번만 씁니다 '
+                  '(L8·L14). 정말 다시 하려면 --retest "사유"')
+            return 2
         if fees:
             lab_set_fees(*fees)
             print(f'[LAB] 수수료: 시장가 {TAKER_FEE:.3%} · 지정가 {MAKER_FEE:.3%} · 슬리피지 {SLIPPAGE_T:.3%} '
@@ -7671,7 +7782,9 @@ def main(argv=None):
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
-        if th:
+        if p6:
+            keys = list(P6_PROCEDURES)
+        elif th:
             keys = list(TH_PROCEDURES)
         elif oracle:
             keys = [f'btc|{ora["tf"]}:oracle|{cost_key}|sl{ora["sl"] * 100:g}tp{t:g}h{ora["hold"]}' for t in ora['tp_list']]
@@ -7708,14 +7821,27 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if p6:
+                reg = next((x for x in journal.d.get('prereg', []) if x.get('id') == 'P6'), None)
+                if reg:
+                    print(f'[LAB] 사전등록 P6 ({reg["registered"]}) 규칙: {reg["rule"]}')
+                res = lab_short_presample(base, funding=funding, seen_from=journal.seen_from, n_trials_declared=n_cum,
+                                          status=status)
+                print(res['report'])
+                if res['n'] >= 30:
+                    st = {'확인': 'confirmed', '반증': 'refuted', '반증 안 됨': 'not_refuted'}[res['verdict'].split(' —')[0]]
+                    journal.set_status(P6_KEY, st, f'P6: 처음 보는 구간 합산 {res["n"]}건 평균R {res["mean_r"]:+.3f} 하한 '
+                                                   f'{res["lo"]:+.3f} (왕복 {2 * P6_COST_SIDE:.2%}) → {res["verdict"]}')
+                note('presample', 'P6 단타 변동성 돌파 — 처음 보는 구간 판정', top=[res['verdict']] +
+                     [f'{r["tf"]}: {r["oos"]["n"]}건 {np.nan_to_num(r["oos"]["mean_r"]):+.3f}R' for r in res['rows']])
+                return 0
             if curve:
                 res = lab_cost_curve(base, tfs=tfs_x, families=lab_available_families(funding), fixed_stop=stop_pct / 100.0,
                                      tp_list=tp_x, holdout_start=anchor, funding=funding, n_trials_declared=n_cum, status=status)
                 print(res['report'])
                 note('lab', f'비용 곡선 ({"/".join(tfs_x)}, 가격 {stop_pct:g}% 손절, 왕복 '
                      f'{"/".join(f"{2 * lv:.2%}" for lv in res["levels"])})',
-                     top=[f'{r["tf"]}:{r["family"]} 0%:{np.nan_to_num(r["r0"]):+.3f}R 본전 '
-                          f'{"없음" if r["be"] is None else ("≥최대" if r["be"] == float("inf") else format(r["be"], ".3%"))}'
+                     top=[f'{r["tf"]}:{r["family"]} 0%:{np.nan_to_num(r["r0"]):+.3f}R 본전 {_lab_be_text(r, res["levels"])}'
                           for r in res['rows'][:8]])
                 return 0
             if th:

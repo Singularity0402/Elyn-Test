@@ -412,28 +412,28 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 153 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 249 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.TH_KEY) == 'preregistered'                              # P5 는 실행 전 등록 상태로 시작
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
     assert j.state('btc_stop1|short:all') == 'no_evidence'
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger')]
-    assert len(pe.RESEARCH_LESSONS) == 21 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 153 and j.n_trials(['btc|4h:keltner|maker']) == 154
+    assert len(pe.RESEARCH_LESSONS) == 22 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 249 and j.n_trials(['btc|4h:keltner|maker']) == 250
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 154 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 250 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 153 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 249 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -1202,3 +1202,38 @@ def test_cli_cost_curve_guards(pe):
     assert pe.main(['--lab', '--cost-curve', '--oracle']) == 2
     assert pe.main(['--lab', '--cost-curve', '--tfs', '1m']) == 2
     assert pe.lab_fee_tag() == ''
+
+
+def test_breakeven_text_does_not_claim_levels_where_the_strategy_rested(pe):
+    lv = pe.LAB_CURVE_COSTS
+    assert pe._lab_be_text(dict(be=float('inf'), be_last=0.0008), lv) == '≥0.08%·위 쉼'
+    assert pe._lab_be_text(dict(be=float('inf'), be_last=0.0014), lv) == '≥0.14%'
+    assert pe._lab_be_text(dict(be=None, be_last=None), lv) == '없음'
+    assert pe._lab_be_text(dict(be=0.00114, be_last=0.0014), lv) == '0.114%'
+
+
+# ── 사전등록 P6: 단타 변동성 돌파 · 처음 보는 구간 · 왕복 0.12% ────────────────
+def test_short_presample_verdict_rule(pe):
+    v = pe.lab_short_presample_verdict
+    assert v(20, 0.5, 0.2).startswith('판정 불가') and v(300, -0.01, -0.1).startswith('반증 —')
+    assert v(300, 0.08, 0.01).startswith('확인') and v(300, 0.03, -0.05).startswith('반증 안 됨')
+
+
+def test_short_presample_judges_only_the_unseen_window_at_fixed_cost(pe):
+    base = _trend_1m(1100, 0.0000004, seed=5)
+    res = pe.lab_short_presample(base, seen_from='2022-06-01')
+    assert (pe.TAKER_FEE, pe.MAKER_FEE, pe.SLIPPAGE_T) == pe.LAB_DEFAULT_FEES                # 끝나면 원래 수수료
+    assert {r['tf'] for r in res['rows']} == set(pe.P6_TFS) and '1R 의 12%' in res['report']
+    for r in res['rows']:
+        assert all(t < np.datetime64('2022-06-01') for t in np.asarray(r['oos_t']))       # 처음 보는 구간의 거래만
+    assert res['n'] == sum(r['oos']['n'] for r in res['rows']) and ('합산' in res['report'])
+
+
+def test_cli_short_presample_runs_once(pe):
+    assert pe.main(['--lab', '--short-presample', '--universe']) == 2
+    assert pe.main(['--lab', '--short-presample', '--stop-pct', '2']) == 2               # 규칙은 사전등록대로 고정
+    j = pe.ResearchJournal.load()
+    assert j.state(pe.P6_KEY) == 'preregistered'
+    j.set_status(pe.P6_KEY, 'refuted', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--short-presample']) == 2                                     # 판정된 뒤에는 네트워크 전에 거절
