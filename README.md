@@ -45,6 +45,8 @@ python pattern_edge_v612.py --lab --stop-pct 1              # 짧은 시간봉(5
 python pattern_edge_v612.py --lab --stop-pct 1 --cost maker_entry --fees 0.045,0.018   # 내 실제 수수료(시장가%,지정가%)로 다시 (별개의 시험으로 집계)
 python pattern_edge_v612.py --lab --oracle                  # 정답 단서 학습: '+2%가 −1%보다 먼저 왔나'(정답)를 붙이고, 그 시점의 단서 18개로 확률을 배워 상위 확률에서만 진입
 #   --tfs 15m|1h|4h · --stop-pct 1 · --tp 2 · --hold 24 : 정답 정의 바꾸기 (설정마다 새 시험으로 집계) · 분위표·단서표 함께 출력
+python pattern_edge_v612.py --lab --oracle --tp 2,3,5         # 끝머리 지도: 목표만 멀리 두며 '큰 움직임을 미리 알 수 있나' 비교 (목표마다 새 시험)
+#   Lab 출력 첫 줄의 '[LAB] V612 · 빌드 …' 로 어느 파일이 돌았는지 확인. 모르는 옵션은 실행 없이 거절합니다.
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
 #   모든 보고서 끝에 '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7(켈리)/3.1(반켈리)' 와 이번 최고 샤프를 함께 보인다.
 #   모든 Lab 실행은 연구 일지에 자동 기록되고, DSR 은 누적 시험 절차 수로 보정되며, holdout 시작은 2026-01-01 로 고정된다.

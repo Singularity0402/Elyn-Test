@@ -1038,3 +1038,44 @@ def test_cli_oracle_guards(pe):
     assert pe.main(['--lab', '--oracle', '--tp', 'x']) == 2
     assert pe.main(['--lab', '--oracle', '--hold', '1']) == 2
     assert pe.main(['--lab', '--oracle', '--cost', 'maker_entry']) == 2
+    assert pe.main(['--lab', '--oracle', '--tp', '2,2']) == 2                 # 같은 목표 두 번
+    assert pe.main(['--lab', '--oracle', '--tp', '1,2,3,4,5,6']) == 2         # 최대 5개
+    assert pe.main(['--lab', '--oracle', '--tp', '2,20']) == 2
+
+
+def test_lab_rejects_unknown_options_instead_of_running_something_else(pe, capsys):
+    assert pe.main(['--lab', '--orcale']) == 2                                # 오타·옛 파일 → 다른 실행으로 새지 않는다
+    out = capsys.readouterr().out
+    assert '모르는 옵션' in out and pe.LAB_BUILD in out
+
+
+def test_oracle_map_compares_targets_against_random_and_break_even(pe):
+    f = _oracle_frame(1500, 0.0012)
+    outs = [pe.lab_run_oracle(None, tf='1h', frame=f, tp_r=t) for t in (2.0, 3.0)]
+    txt = pe.lab_oracle_map(outs)
+    assert '끝머리 지도' in txt and ' 2R' in txt and ' 3R' in txt
+    assert '38%' in txt and '28%' in txt and '33%' in txt and '25%' in txt   # 손익분기 (1.14/3, 1.14/4) · 무작위 1/3, 1/4
+
+
+def test_cli_oracle_runs_each_target_and_records_one_procedure_each(pe, monkeypatch, capsys):
+    g = np.random.default_rng(0)
+    n = 900 * 1440
+    c = 30000 * np.exp(np.cumsum(g.normal(0, 0.0006, n)))
+    o = np.r_[c[0], c[:-1]]
+    base = pd.DataFrame(dict(open=o, high=np.maximum(o, c) * 1.0002, low=np.minimum(o, c) * 0.9998, close=c, volume=1.0,
+                             taker_buy_base=0.5, trades=1.0, era=1.0), index=pd.date_range('2023-01-01', periods=n, freq='1min'))
+
+    class FakeStore:
+        def __init__(self):
+            self.base, self.http = base, None
+
+        def refresh(self):
+            pass
+    monkeypatch.setattr(pe, 'DataStore', FakeStore)
+    monkeypatch.setattr(pe, 'load_funding_history', lambda *a, **k: None)
+    assert pe.main(['--lab', '--oracle', '--tp', '2,3']) == 0
+    out = capsys.readouterr().out
+    assert pe.LAB_BUILD in out and out.count('━━━ 정답 단서 학습') == 2 and '끝머리 지도' in out
+    j = pe.ResearchJournal.load()
+    assert {'btc|1h:oracle|taker|sl1tp2h24', 'btc|1h:oracle|taker|sl1tp3h24'} <= set(j.d['procedures'])
+    assert j.d['entries'][-1]['title'].startswith('정답 단서 학습 (1h, 손절 1.0%, 익절 2/3R')

@@ -5823,6 +5823,17 @@ RESEARCH_HISTORY = [
                  '달묶음 CI 하한 > 0, DSR(누적 절차) ≥ 0.9 → 통과해도 이미 본 기간이므로 사전등록 후 앞으로의 데이터로 확인. '
                  '분위표(예측 확률 10분위별 실제 승률)로 "확률이 높다고 본 곳이 정말 더 이겼나"를 따로 본다. 실행: --lab --oracle',
          lessons=['L1', 'L6', 'L11', 'L15']),
+    dict(date='2026-10-05', kind='bug', title='--oracle 첫 실행이 옛 파일로 돌아 일반 Lab(43개 절차)이 대신 실행됨',
+         summary='옛 파일은 모르는 옵션(--oracle)을 조용히 무시하고 기본 Lab 을 돌렸다 → 결과가 이전 Lab #4 와 같았고 새 절차는 없음. '
+                 '사용자는 그것을 정답 단서 학습 결과로 읽을 뻔했다. 고친 것: Lab 은 모르는 옵션이 있으면 아무것도 실행하지 않고 거절, '
+                 '모든 Lab 출력 첫 줄에 파일 빌드를 표시.'),
+    dict(date='2026-10-05', kind='idea', title='사용자 질문: 끝머리(움직임이 어디까지 가는지)도 예측하면 손익비로 이득을 볼 수 있지 않나',
+         summary='방향 없는 차트에서 +kR 이 −1R 보다 먼저 올 확률은 1/(1+k) 이고, 손익분기 승률은 (1+비용R)/(1+k) → 목표를 멀리 두는 '
+                 '것만으로는 언제나 수수료만큼 손해. 이득은 "큰 움직임이 1/(1+k) 보다 자주 오는 시점"을 단서로 미리 알 때만 생긴다. '
+                 '4h Bollinger(승률 32%, +0.878R → 이긴 거래 평균 약 4~5R)가 이미 그런 구조. 시험: 같은 단서·손절·보유에서 익절 목표만 '
+                 '2/3/5R 로 바꿔 상위 10% 실제 승률 vs 손익분기를 비교(끝머리 지도). 목표마다 새 절차로 누적 집계. '
+                 '실행: --lab --oracle --tp 2,3,5 (4h 는 --tfs 4h --stop-pct 2 --hold 60)',
+         lessons=['L6', 'L15', 'L18']),
 ]
 
 
@@ -6776,6 +6787,11 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
+LAB_BUILD = '2026-10-05c · 정답 단서 학습 · 끝머리 지도'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
+                           '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
+                           '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
+                           '--no-funding'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -7005,7 +7021,7 @@ def lab_oracle_report(res):
          f'배우기: 직전 {LAB_TRAIN_YEARS:g}년 정답으로 롱·숏 확률 모델(로지스틱 회귀)을 따로 → 다음 {LAB_TEST_MONTHS}개월에만 적용. '
          f'결과가 test 와 겹치는 train 정답은 지움. 진입 = train 확률 상위 {"/".join(f"{q:.0%}" for q in LAB_ORACLE_Q)} 중 train 이 고른 문턱 이상.',
          f'기준선: 아무 때나 들어가면 이길 확률 롱 {res["base_long"]:.1%} · 숏 {res["base_short"]:.1%} · '
-         f'수수료(1R 의 {res["cost_r"]:.0%})를 넘으려면 약 {be:.0%} 이상 필요',
+         f'수수료(1R 의 {res["cost_r"]:.0%})를 넘으려면 익절·손절로만 끝날 때 약 {be:.0%} 이상 필요',
          '─' * 100]
     if m['n'] == 0:
         L.append(f'거래 0건 — 모든 test 구간({r["windows"]}개)에서 train 상위 확률 구간도 비용을 넘지 못해 쉼.')
@@ -7038,6 +7054,32 @@ def lab_oracle_report(res):
     L.append(lab_sharpe_line(res['rows']))
     L.append('※ 분위표에서 위쪽 분위의 실제 승률이 기준선과 손익분기 승률을 꾸준히 넘어야 "확률적으로 가장 높은 곳"이 실재한다. '
              '이 결과는 이미 본 BTC 기간의 탐색이다.')
+    return '\n'.join(L)
+
+
+def lab_oracle_map(results):
+    """같은 단서·손절·보유로 익절 목표만 바꾼 결과 비교 — '끝머리(움직임이 어디까지 가는지)를 예측할 수 있나'."""
+    r0 = results[0]
+    L = [f'━━━ 끝머리 지도 · {SYMBOL} {r0["tf"]} · 손절 {r0["sl"]:.1%} · {r0["hold"]}봉 안 · 목표만 멀리 ━━━',
+         f'{"익절":>5}{"손익분기 승률":>12}{"무작위 승률":>11}{"기준선 롱/숏":>14}{"상위10% 실제 롱/숏":>18}'
+         f'{"상위10% 평균R 롱/숏":>20}{"체결":>6}{"평균R":>8}{"CI하한":>8}  판정']
+    for res in results:
+        m = res['rows'][0]['oos']
+        be = (1 + res['cost_r']) / (1 + res['tp_r'])
+        top = lambda cal, j: next((x[j] for x in cal if x[0] == 10), float('nan'))
+        passed = m['n'] >= 100 and m['ci_lo'] > 0 and m['dsr'] >= 0.9
+        L.append(f'{res["tp_r"]:>4g}R{be:>12.0%}{1 / (1 + res["tp_r"]):>11.0%}'
+                 f'{res["base_long"]:>8.0%}/{res["base_short"]:<5.0%}'
+                 f'{top(res["calib_long"], 2):>12.0%}/{top(res["calib_short"], 2):<5.0%}'
+                 f'{top(res["calib_long"], 3):>+13.2f}/{top(res["calib_short"], 3):<+6.2f}'
+                 f'{m["n"]:>6}{np.nan_to_num(m["mean_r"]):>+8.3f}{np.nan_to_num(m["ci_lo"]):>+8.3f}  {"통과" if passed else "미통과"}')
+    L += ['─' * 100,
+          '무작위 승률 = 방향 없는 차트에서 +목표가 −1R 보다 먼저 올 확률 1/(1+목표). 목표를 멀리 두면 승률이 정확히 그만큼 떨어지고 '
+          '수수료만큼 손해다 → 손익비만으로는 이득이 생기지 않는다.',
+          '기준선·실제 승률은 보유 시간이 끝나 조금이라도 번 경우도 "이김"으로 센다 → 목표가 멀수록 무작위 승률보다 높게 보인다. '
+          '최종 판단은 평균R 과 CI 하한으로 한다.',
+          '끝머리를 "예측했다" = 상위 10% 의 평균R 이 꾸준히 양수이고, 그 줄의 표본외 CI 하한이 0 보다 큰 것. '
+          '여러 목표를 본 만큼 DSR 은 누적 절차 수로 보정된다.']
     return '\n'.join(L)
 
 
@@ -7084,6 +7126,12 @@ def main(argv=None):
         print(f'\n[연구 일지] {j.export_md()} 에도 저장했습니다.')
         return 0
     if '--lab' in argv:
+        unknown = [a for a in argv if a.startswith('--') and a not in LAB_CLI_FLAGS]
+        if unknown:
+            print(f'[LAB] 모르는 옵션: {" ".join(unknown)} — 이 파일(빌드 {LAB_BUILD})에는 없는 기능입니다. '
+                  '오타이거나 옛 파일입니다 → 최신 pattern_edge_v612.py 로 바꿨는지 확인하세요. (아무것도 실행하지 않음)')
+            return 2
+
         def lopt(name, default):
             return argv[argv.index(name) + 1] if name in argv and len(argv) > argv.index(name) + 1 else default
 
@@ -7103,7 +7151,7 @@ def main(argv=None):
         oracle = '--oracle' in argv
         stop_pct = None
         fees = None
-        ora = dict(tf='1h', sl=0.01, tp_r=2.0, hold=24)
+        ora = dict(tf='1h', sl=0.01, tp_list=(2.0,), hold=24)
         tfs_x, tp_x = LAB_FIXED_TFS, LAB_FIXED_TP
         regime = lopt('--regime', None) if '--regime' in argv else None
         symbols = universe = None
@@ -7139,13 +7187,15 @@ def main(argv=None):
                 try:
                     ora['tf'] = lopt('--tfs', ora['tf']).split(',')[0].strip()
                     ora['sl'] = float(lopt('--stop-pct', ora['sl'] * 100)) / 100.0
-                    ora['tp_r'] = float(str(lopt('--tp', ora['tp_r'])).split(',')[0])
+                    ora['tp_list'] = tuple(float(x) for x in str(lopt('--tp', '2')).split(',') if x.strip())
                     ora['hold'] = int(lopt('--hold', ora['hold']))
                 except ValueError:
                     raise ValueError('--oracle 옵션 형식: --tfs 1h --stop-pct 1 --tp 2 --hold 24')
-                if ora['tf'] not in ('15m', '1h', '4h') or not 0.002 <= ora['sl'] <= 0.05 \
-                        or not 0.5 <= ora['tp_r'] <= 10 or not 2 <= ora['hold'] <= 500:
-                    raise ValueError('--oracle 범위: --tfs 15m/1h/4h · --stop-pct 0.2~5 · --tp 0.5~10 · --hold 2~500')
+                if ora['tf'] not in ('15m', '1h', '4h') or not 0.002 <= ora['sl'] <= 0.05 or not 2 <= ora['hold'] <= 500 \
+                        or not 1 <= len(ora['tp_list']) <= 5 or len(set(ora['tp_list'])) != len(ora['tp_list']) \
+                        or any(not 0.5 <= t <= 10 for t in ora['tp_list']):
+                    raise ValueError('--oracle 범위: --tfs 15m/1h/4h · --stop-pct 0.2~5 · --tp 0.5~10 (여러 개면 쉼표, 최대 5개, '
+                                     '예: --tp 2,3,5) · --hold 2~500')
             if '--fees' in argv:
                 try:
                     fees = tuple(float(x) / 100.0 for x in lopt('--fees', '').split(','))
@@ -7197,6 +7247,7 @@ def main(argv=None):
             print(f'[LAB] {e}')
             return 2
         journal = ResearchJournal.load()
+        print(f'[LAB] {VERSION} · 빌드 {LAB_BUILD}')
         print(journal.banner())
         if fees:
             lab_set_fees(*fees)
@@ -7270,7 +7321,7 @@ def main(argv=None):
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
         if oracle:
-            keys = [f'btc|{ora["tf"]}:oracle|{cost_key}|sl{ora["sl"] * 100:g}tp{ora["tp_r"]:g}h{ora["hold"]}']
+            keys = [f'btc|{ora["tf"]}:oracle|{cost_key}|sl{ora["sl"] * 100:g}tp{t:g}h{ora["hold"]}' for t in ora['tp_list']]
         elif signal:
             keys = []                                       # 신호 보기 = 시험이 아니다
         elif regime:
@@ -7303,11 +7354,16 @@ def main(argv=None):
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
             if oracle:
-                res = lab_run_oracle(base, tf=ora['tf'], sl=ora['sl'], tp_r=ora['tp_r'], hold=ora['hold'], holdout_start=anchor,
-                                     funding=funding, n_trials_declared=n_cum, status=status)
-                print(res['report'])
-                note('lab', f'정답 단서 학습 ({ora["tf"]}, 손절 {ora["sl"]:.1%}, 익절 {ora["tp_r"]:g}R, {ora["hold"]}봉)',
-                     top=lab_top_lines(res))
+                outs = []
+                for t in ora['tp_list']:
+                    res = lab_run_oracle(base, tf=ora['tf'], sl=ora['sl'], tp_r=t, hold=ora['hold'], holdout_start=anchor,
+                                         funding=funding, n_trials_declared=n_cum, status=status)
+                    print(res['report'] + '\n')
+                    outs.append(res)
+                if len(outs) > 1:
+                    print(lab_oracle_map(outs))
+                note('lab', f'정답 단서 학습 ({ora["tf"]}, 손절 {ora["sl"]:.1%}, 익절 {"/".join(f"{t:g}" for t in ora["tp_list"])}R, '
+                     f'{ora["hold"]}봉)', top=[f'익절 {r_["tp_r"]:g}R · {x}' for r_ in outs for x in lab_top_lines(r_)])
                 return 0
             if wick:
                 res = lab_run_wick(base, holdout_start=anchor, n_trials_declared=n_cum, status=status)
