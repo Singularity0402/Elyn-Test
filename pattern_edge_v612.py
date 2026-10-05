@@ -5691,6 +5691,7 @@ P6_STOP = 0.01
 P6_KEY = 'short_presample|volbreak'
 P6_PROCEDURES = tuple(f'short_presample|{tf}:volbreak|rt0.12' for tf in P6_TFS)
 P6_REGISTERED = '2026-10-05'
+P6_TRACK_SINCE = '2026-10-06'       # P6 판정(사용자 PC 2026-10-06 01:44 KST) 다음부터의 데이터가 앞으로의 검증
 
 
 RESEARCH_LESSONS = [
@@ -5791,7 +5792,9 @@ RESEARCH_PREREG = [dict(
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
-                     ]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
+                     ] + [dict(pair=f'{tf}:volbreak', scope='btc', since=P6_TRACK_SINCE, stop=P6_STOP, cost=P6_COST_SIDE,
+                               why=f'P6 확인(처음 보는 구간 1197건 +0.201R, 하한 +0.043) → 같은 규칙·같은 비용(왕복 '
+                                   f'{2 * P6_COST_SIDE:.2%})으로 앞으로의 데이터 채점') for tf in P6_TFS]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
 RESEARCH_HISTORY = [
     dict(date='2026-10-01', kind='audit', title='V611 객관 감사 → V612',
          summary='알려진 결함 전부 재현·수정, 새 결함 20개(N-01~N-20), null 이 약 1.4배 관대함을 측정, 미검증 신호 위험 25% 로 축소 '
@@ -5924,6 +5927,14 @@ RESEARCH_HISTORY = [
                  '소매 계정의 현실적 비용(시장가 0.05% + 슬리피지 0.01%, 한쪽)으로 한 번 판정. 판정 규칙은 P6 참조. '
                  '실행: --lab --short-presample',
          lessons=['L1', 'L11', 'L14', 'L22']),
+    dict(date='2026-10-06', kind='review', title='P6 결과 — 단타 변동성 돌파, 처음 보는 BTC 구간, 왕복 0.12%: 확인',
+         summary='표본외 시작 2019-08-21 ~ 2021-11-26. 합산 1197건 승률 35% 평균R +0.201 (수수료 전 +0.321), 달묶음 단측 5% 하한 +0.043 '
+                 '→ 확인. 5m 425건 +0.229(하한 +0.024) · 15m 440건 +0.267(+0.075) · 1h 332건 +0.079(−0.055). 마지막 설정은 세 시간봉 '
+                 '모두 kr 0.5 · 익절 3R. 249개 절차 중 처음으로 "고를 때 쓰지 않은 구간 + 현실적 비용"을 넘은 단타. 단, 국면 차이가 크다: '
+                 '2022~2026(비용 곡선, 선물 표본외)에서 왕복 0.12% 를 보간하면 5m 약 −0.01R · 15m 약 +0.03R · 1h 약 −0.06R. 두 국면 모두 '
+                 '양수는 15m 뿐(L17) → 15m 를 1순위로, 세 시간봉 모두 같은 규칙·같은 비용으로 2026-10-06 부터 앞으로의 데이터 채점. '
+                 '승률 35%·익절 3R 구조라 10번 안팎의 연속 손절(해에 따라 그 이상)이 정상 범위.',
+         lessons=['L12', 'L13', 'L17', 'L18']),
 ]
 
 
@@ -5953,6 +5964,7 @@ def _research_seed_keys():
              if tf in {'session': ('5m', '15m'), 'volbreak': ('5m', '15m', '1h')}.get(f, ('5m', '15m', '1h'))]
     stop1 = [k for k in keys if k.endswith('|taker|stop1')]
     keys += [f'{k}|rt{x}' for k in stop1 for x in ('0', '0.04', '0.08')]                     # 비용 곡선 (누적 +96)
+    keys += list(P6_PROCEDURES)                                                               # P6 (누적 252)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6004,7 +6016,8 @@ def _research_seed_status():
     put('btc|4h:bollinger', 'candidate', '2022~2026 82건 +0.878R CI 하한 +0.302 (2026 포함), DSR(누적) 0.13 · 묶음 9개 +0.215R '
                                          '→ 앞으로의 검증 중', '2026-10-05')
     put(TH_KEY, 'preregistered', 'P5: 실행 전 등록', TH_REGISTERED)
-    put(P6_KEY, 'preregistered', 'P6: 실행 전 등록', P6_REGISTERED)
+    put(P6_KEY, 'confirmed', 'P6: 처음 보는 구간(2019-08-21 ~ 2021-11-26) 합산 1197건 평균R +0.201 하한 +0.043 (왕복 0.12%) '
+                             '→ 확인 · 5m 425건 +0.229 · 15m 440건 +0.267 · 1h 332건 +0.079(하한 −0.055)', '2026-10-06')
     for tf, why in (('5m', '비용 0 +0.117R(1114건, 하한 +0.046) · 본전 왕복 0.114%'),
                     ('15m', '비용 0 +0.105R(984건, 하한 +0.030) · 왕복 0.14% 에서도 +0.023R'),
                     ('1h', '비용 0 +0.113R(882건, 하한 +0.028) · 본전 왕복 0.079%')):
@@ -6570,6 +6583,14 @@ def lab_prospective(base1m, tracking, funding=None, cost_mode='taker', status=No
                 continue
             res = lab_run(None, tf_frames=eth_frames, only=pairs, holdout_start=t['since'], reveal_holdout=True,
                           cost_mode=cost_mode, status=status, symbol='ETHUSDT')
+        elif t.get('stop'):
+            saved = (TAKER_FEE, MAKER_FEE, SLIPPAGE_T)
+            try:
+                lab_set_fees(taker=t['cost'], slip=0.0)
+                res = lab_run(base1m, only=pairs, futures_only=False, holdout_start=t['since'], reveal_holdout=True,
+                              cost_mode='taker', funding=funding, status=status, fixed_stop=t['stop'], tp_list=LAB_FIXED_TP)
+            finally:
+                lab_set_fees(*saved)
         else:
             res = lab_run(base1m, only=pairs, futures_only=False, holdout_start=t['since'], reveal_holdout=True,
                           cost_mode=cost_mode, funding=funding, status=status)
@@ -6832,11 +6853,13 @@ def lab_live_state(o, h, l, c, atr, target, stop_k, max_hold, fixed_stop=0.0, tp
     return dict(pos=pos, entry=entry, stop=stop, t_in=t_in, blocked=blocked, want_next=int(target[-1]), entries=entries)
 
 
-def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='taker', status=None):
+def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='taker', status=None, fixed=None):
     """
     추적 중인 후보의 '지금' 신호 (종이 매매·연구 추적용 — 실전 인증 아님). 가장 최근 WFO 창이 고른 설정으로 마지막 완결 봉까지
     재생하고, 다음 봉 시가에 할 일(진입/유지/청산/대기)과 손절가를 보인다. 신호 시각은 실행 시각 그대로 기록한다 (소급 금지).
+    fixed = {'15m:volbreak': (가격 손절 비율, 한쪽 비용)} — 가격 % 고정 손절·R 배수 익절로 등록된 후보 (P6).
     """
+    fixed = fixed or {}
     base = normalize_frame(base1m)
     if futures_only and (base['era'].values == ERA_FUT).any():
         base = base[base['era'].values == ERA_FUT]
@@ -6846,8 +6869,16 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
     L = [f'━━━ 지금 신호 (종이 매매·연구 추적용 — 실전 인증 아님) · {SYMBOL} · 실행 {utcnow():%Y-%m-%d %H:%M} UTC ━━━']
     out = []
     for tf, fam in lab_pairs(pairs) or []:
-        res = lab_run(base, only=[(tf, fam)], futures_only=futures_only, cost_mode=cost_mode, status=status,
-                      holdout_start=base.index[-1] + timedelta(days=1))
+        fx = fixed.get(f'{tf}:{fam}')
+        saved = (TAKER_FEE, MAKER_FEE, SLIPPAGE_T)
+        try:
+            if fx:
+                lab_set_fees(taker=fx[1], slip=0.0)
+            res = lab_run(base, only=[(tf, fam)], futures_only=futures_only, cost_mode=cost_mode, status=status,
+                          holdout_start=base.index[-1] + timedelta(days=1), fixed_stop=fx[0] if fx else 0.0,
+                          tp_list=LAB_FIXED_TP)
+        finally:
+            lab_set_fees(*saved)
         r = res['rows'][0] if res['rows'] else None
         p = (r or {}).get('current_params')
         df = snap.tf(tf)
@@ -6862,22 +6893,33 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
         o, h, l, c, atr = (ind[k].values for k in ('o', 'h', 'l', 'c', 'atr'))
         mh = int(p['N']) if fam == 'meanrev' else int(p['H']) if fam in ('funding', 'analog', 'tod') \
             else int(LAB_MAX_HOLD.get(fam, 0))
-        st = lab_live_state(o, h, l, c, atr, _lab_target(fam, p, ind), float(p['k']), mh)
+        tp_r = float(p.get('tp', 0.0)) if fx else 0.0
+        st = lab_live_state(o, h, l, c, atr, _lab_target(fam, p, ind), float(p['k']), mh,
+                            fixed_stop=fx[0] if fx else 0.0, tp_r=tp_r)
         side_ko = {1: '롱', -1: '숏', 0: '없음'}
+        nxt = last_bar + pd.Timedelta(minutes=INTERVALS[tf])
+        if fx:
+            stop_txt = f'손절 = 진입가 {"-" if st["want_next"] >= 0 else "+"} {fx[0]:.1%}'
+            tp_txt = f' · 익절 = 진입가 {"+" if st["want_next"] >= 0 else "-"} {tp_r * fx[0]:.1%} ({tp_r:g}R, 지정가)' if tp_r > 0 \
+                else ' · 익절 없음 (신호가 바뀌면 청산)'
+        else:
+            stop_txt = f'손절 = 시가 {"-" if st["want_next"] > 0 else "+"} {p["k"]:g}×ATR (지금 기준 약 {p["k"] * atr[-1]:.2%})'
+            tp_txt = ''
+        tp_px = st['entry'] + st['pos'] * tp_r * abs(st['entry'] - st['stop']) if st['pos'] and tp_r > 0 else None
         if st['pos'] != 0 and st['want_next'] != st['pos']:
-            action = f'다음 봉 시가({last_bar + pd.Timedelta(minutes=INTERVALS[tf])} UTC)에 {side_ko[st["pos"]]} 청산'
+            action = f'다음 봉 시가({nxt} UTC)에 {side_ko[st["pos"]]} 청산'
         elif st['pos'] != 0:
-            action = f'{side_ko[st["pos"]]} 유지 · 손절 {st["stop"]:,.1f}'
+            action = f'{side_ko[st["pos"]]} 유지 · 손절 {st["stop"]:,.1f}' + (f' · 익절 {tp_px:,.1f}' if tp_px else '')
         elif st['want_next'] != 0 and st['want_next'] != st['blocked'] and atr[-1] > 1e-5:
-            action = (f'다음 봉 시가({last_bar + pd.Timedelta(minutes=INTERVALS[tf])} UTC)에 {side_ko[st["want_next"]]} 진입 · '
-                      f'손절 = 시가 {"-" if st["want_next"] > 0 else "+"} {p["k"]:g}×ATR (지금 기준 약 {p["k"] * atr[-1]:.2%})')
+            action = f'다음 봉 시가({nxt} UTC)에 {side_ko[st["want_next"]]} 진입 · {stop_txt}{tp_txt}'
         else:
             action = '대기 (신호 없음)' + (' — 손절 직후라 같은 방향 재진입은 신호가 한 번 바뀐 뒤' if st['blocked'] else '')
         L.append(f'■ {name} · 설정 {p} · 마지막 완결 봉 {last_bar} UTC')
         if st['pos'] != 0:
-            L.append(f'   보유: {side_ko[st["pos"]]} (진입 {df.index[st["t_in"]]} UTC @ {st["entry"]:,.1f}, 손절 {st["stop"]:,.1f})')
+            L.append(f'   보유: {side_ko[st["pos"]]} (진입 {df.index[st["t_in"]]} UTC @ {st["entry"]:,.1f}, 손절 {st["stop"]:,.1f}'
+                     + (f', 익절 {tp_px:,.1f}' if tp_px else '') + ')')
         L.append(f'   ▶ {action}')
-        stop_frac = (abs(st['entry'] - st['stop']) / st['entry']) if st['pos'] else p['k'] * atr[-1]
+        stop_frac = (abs(st['entry'] - st['stop']) / st['entry']) if st['pos'] else fx[0] if fx else p['k'] * atr[-1]
         notional = seed * risk_frac / max(stop_frac, 1e-6)
         if notional < min_notional:
             L.append(f'   시드 {seed:,.0f}달러 · 미검증 위험 {risk_frac:.2%} → 명목 {notional:,.0f}달러 < 최소주문 {min_notional:,.0f}달러. '
@@ -6886,20 +6928,56 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
             lev = int(min(MAX_LEV, max(1, math.ceil(notional / (seed * MARGIN_CAP)))))
             L.append(f'   시드 {seed:,.0f}달러 · 미검증 위험 {risk_frac:.2%}: 명목 약 {notional:,.0f}달러 · 격리 {lev}배')
         out.append(dict(pair=f'{tf}:{fam}', state='position' if st['pos'] else 'flat', pos=st['pos'], action=action,
-                        params=p, last_bar=str(last_bar), stop=st['stop'] if st['pos'] else None))
+                        params=p, last_bar=str(last_bar), stop=st['stop'] if st['pos'] else None, tp=tp_px))
     L.append('※ 후보일 뿐 인증된 전략이 아니다. 앞으로의 데이터(--prospective)로 20건 이상 쌓일 때까지 결론을 내지 않는다.')
     return dict(rows=out, report='\n'.join(L))
+
+
+def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5, sleep=time.sleep, now=time.time,
+              max_cycles=None, emit=print, record=None):
+    """
+    지켜보기: 봉이 닫힐 때마다(step_min 분 경계 + 20초) 데이터를 이어 받고 같은 규칙으로 다시 계산해, 할 일이 바뀐 후보가 있으면
+    알린다 (소리 + 화면). 주문은 하지 않는다 — 사람이 보고 직접 누른다. 신호 시각은 계산한 그 시각 그대로 남긴다 (소급 금지).
+    """
+    last, cycles = {}, 0
+    while max_cycles is None or cycles < max_cycles:
+        if cycles:
+            sleep(step_min * 60 - (now() % (step_min * 60)) + 20)
+        cycles += 1
+        try:
+            store.refresh()
+            res = lab_live_signal(store.base, pairs, seed=seed, cost_mode=cost_mode, fixed=fixed)
+        except Exception as e:
+            emit(f'⚠ {utcnow():%H:%M} UTC 데이터 갱신·계산 실패 — 다음 봉에 다시: {e}')
+            continue
+        changed = [r for r in res['rows'] if last.get(r['pair']) != r.get('action', r['state'])]
+        for r in res['rows']:
+            last[r['pair']] = r.get('action', r['state'])
+        if changed:
+            if cycles > 1:
+                emit('\a' + '!' * 30 + ' 할 일이 바뀌었습니다 ' + '!' * 30)
+                try:
+                    import winsound
+                    winsound.MessageBeep()
+                except Exception:
+                    pass
+            emit(res['report'])
+            if record:
+                record(changed)
+        else:
+            emit(f'· {utcnow():%H:%M} UTC 변화 없음 (후보 {len(res["rows"])}개) — 다음 봉을 기다립니다')
+    return last
 
 
 # ── 정답에서 단서 찾기: 과거 각 시점에 '실제로 무슨 일이 있었는지'(정답 라벨)를 붙이고, 그 시점에 알 수 있던 단서로 ───────
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-05g · 비용 곡선 · P6 단타 판정'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-06a · P6 확인 · 단타 추적·지켜보기'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
-                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample'})
+                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample', '--watch'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -7629,6 +7707,8 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if '--watch' in argv and not signal:
+                raise ValueError('--watch 는 --signal 과 함께 씁니다 (예: --signal --watch --seed 70)')
             if p6 and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--short-presample', '--no-funding', '--retest'}):
                 raise ValueError('--short-presample(P6)는 단독으로 씁니다 (규칙·비용은 사전등록대로 고정)')
             if curve and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--cost-curve', '--stop-pct', '--tfs', '--tp', '--no-funding',
@@ -7891,7 +7971,20 @@ def main(argv=None):
                     print('[LAB] 추적 중인 BTC 후보가 없습니다.')
                     return 0
                 seed = float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70')))
-                res = lab_live_signal(base, ','.join(t['pair'] for t in live), seed=seed, cost_mode=cost, status=status)
+                fixed = {t['pair']: (float(t['stop']), float(t['cost'])) for t in live if t.get('stop')}
+                pairs_s = ','.join(t['pair'] for t in live)
+                if '--watch' in argv:
+                    step = min(INTERVALS[lab_pairs(t['pair'])[0][0]] for t in live)
+                    print(f'[LAB] 지켜보기 시작: {step}분 봉이 닫힐 때마다 다시 계산하고, 할 일이 바뀌면 소리로 알립니다. '
+                          '주문은 직접 하세요. 끝내려면 Ctrl+C')
+                    try:
+                        lab_watch(store, pairs_s, fixed=fixed, seed=seed, cost_mode=cost, step_min=step,
+                                  record=lambda ch: note('signal', '지켜보기 — 할 일 바뀜',
+                                                         top=[f'{r["pair"]}: {r.get("action", r["state"])}' for r in ch]))
+                    except KeyboardInterrupt:
+                        print('\n[LAB] 지켜보기를 끝냈습니다.')
+                    return 0
+                res = lab_live_signal(base, pairs_s, seed=seed, cost_mode=cost, status=status, fixed=fixed)
                 print(res['report'])
                 note('signal', '지금 신호 (종이 매매·연구 추적)', top=[f'{r["pair"]}: {r.get("action", r["state"])}'
                                                               for r in res['rows']])

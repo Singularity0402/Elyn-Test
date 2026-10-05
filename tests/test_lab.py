@@ -412,7 +412,7 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 249 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 252 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
@@ -421,19 +421,21 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
     assert j.state('btc_stop1|short:all') == 'no_evidence'
-    assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger')]
+    assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger'), ('btc', '5m:volbreak'),
+                                                                 ('btc', '15m:volbreak'), ('btc', '1h:volbreak')]
+    assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
     assert len(pe.RESEARCH_LESSONS) == 22 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 249 and j.n_trials(['btc|4h:keltner|maker']) == 250
+    assert j.n_trials(['btc|4h:flow|taker']) == 252 and j.n_trials(['btc|4h:keltner|maker']) == 253
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 250 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 253 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 249 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 252 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -1232,8 +1234,50 @@ def test_short_presample_judges_only_the_unseen_window_at_fixed_cost(pe):
 def test_cli_short_presample_runs_once(pe):
     assert pe.main(['--lab', '--short-presample', '--universe']) == 2
     assert pe.main(['--lab', '--short-presample', '--stop-pct', '2']) == 2               # 규칙은 사전등록대로 고정
-    j = pe.ResearchJournal.load()
-    assert j.state(pe.P6_KEY) == 'preregistered'
-    j.set_status(pe.P6_KEY, 'refuted', '테스트')
-    j.save()
+    assert pe.ResearchJournal.load().state(pe.P6_KEY) == 'confirmed'                      # 사용자 PC 판정(2026-10-06)이 기록됨
     assert pe.main(['--lab', '--short-presample']) == 2                                     # 판정된 뒤에는 네트워크 전에 거절
+
+
+# ── P6 이후: 같은 규칙·같은 비용으로 앞으로의 데이터 채점, 지금 신호, 지켜보기 ────────────────
+def test_live_signal_for_fixed_stop_candidate_shows_price_stop_and_take_profit(pe):
+    base = _trend_1m(900, 0.0000004, seed=6)
+    res = pe.lab_live_signal(base, '15m:volbreak', seed=70, fixed={'15m:volbreak': (0.01, 0.0006)})
+    assert (pe.TAKER_FEE, pe.MAKER_FEE, pe.SLIPPAGE_T) == pe.LAB_DEFAULT_FEES
+    r = res['rows'][0]
+    assert r['pair'] == '15m:volbreak'
+    if r['state'] == 'position':
+        assert r['stop'] is not None and abs(abs(r['tp'] - r['stop']) / r['stop'] - 0.01 * (1 + r['params']['tp'])) < 0.002 \
+            if r['tp'] else True
+    elif '진입' in r['action']:
+        assert '손절 = 진입가' in r['action'] and '1.0%' in r['action']
+    assert '최소주문' in res['report'] or '명목' in res['report']
+
+
+def test_prospective_scores_fixed_stop_candidate_with_its_own_cost(pe):
+    base = _trend_1m(1100, 0.0000004, seed=7)
+    t = dict(pair='15m:volbreak', scope='btc', since='2022-06-01', stop=0.01, cost=0.0006)
+    res = pe.lab_prospective(base, [t])
+    assert (pe.TAKER_FEE, pe.MAKER_FEE, pe.SLIPPAGE_T) == pe.LAB_DEFAULT_FEES
+    assert res['rows'][0]['n'] > 0 and 'btc|15m:volbreak' in res['report']
+
+
+def test_watch_alerts_only_when_the_action_changes(pe):
+    base = _trend_1m(900, 0.0000004, seed=6)
+
+    class Store:
+        def __init__(self):
+            self.base, self.n = base.iloc[:-60 * 24 * 3], 0
+
+        def refresh(self):
+            self.n += 1
+            self.base = base.iloc[:len(self.base) + (60 * 24 if self.n == 3 else 0)]    # 세 번째에만 하루치 새 봉
+    out, rec = [], []
+    st = Store()
+    pe.lab_watch(st, '15m:volbreak', fixed={'15m:volbreak': (0.01, 0.0006)}, sleep=lambda s: None, now=lambda: 0.0,
+                 max_cycles=3, emit=out.append, record=rec.append)
+    assert st.n == 3 and '지금 신호' in out[0] and rec                                  # 첫 계산은 항상 보인다
+    assert any('변화 없음' in x for x in out[1:])                                       # 같은 데이터면 조용히
+
+
+def test_cli_watch_requires_signal(pe):
+    assert pe.main(['--lab', '--watch']) == 2
