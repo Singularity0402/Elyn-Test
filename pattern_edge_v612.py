@@ -5701,7 +5701,16 @@ P8_PROCEDURES = ('carry|btc|1x', 'carry|eth|1x')
 P8_LOOKBACK = 9                     # 직전 정산 9번(3일) 평균 펀딩비 > 0 일 때만 캐리를 든다
 P8_SPOT_COST = 0.0010 + 0.0001      # 현물 시장가 + 슬리피지 (한 번 사고팔 때마다)
 P8_PERP_COST = 0.0005 + 0.0001      # 선물 시장가 + 슬리피지
-P8_REGISTERED = '2026-10-06'       # P6 판정(사용자 PC 2026-10-06 01:44 KST) 다음부터의 데이터가 앞으로의 검증
+P8_REGISTERED = '2026-10-06'
+# 사전등록 P9 (백지 탐색): 정답(삼중 장벽)에서 공통점을 찾는 단타 규칙 수천 개를 처음부터 만들고, 처음 보는 두 구간으로 거른다
+P9_KEY = 'blank|rules'
+P9_TFS = ('5m', '15m', '1h')
+P9_HOLD = {'5m': 48, '15m': 32, '1h': 24}      # 정답의 보유 한도: 4시간 · 8시간 · 하루
+P9_STOP, P9_TP_R, P9_COST = 0.01, 3.0, 0.0012   # 가격 1% 손절 · 3R 익절 · 왕복 0.12% (P6 와 같은 현실 비용)
+P9_DISCOVERY = ('2022-01-01', '2024-07-01')    # 찾기
+P9_VALID = (('2019-08-21', '2021-11-27'), ('2024-07-01', RESEARCH_HOLDOUT_CURRENT))   # 검증 1(처음 보는 구간) · 검증 2
+P9_TOPK, P9_MIN_N, P9_ZWIN = 20, 100, 500
+P9_REGISTERED = '2026-10-10'       # P6 판정(사용자 PC 2026-10-06 01:44 KST) 다음부터의 데이터가 앞으로의 검증
 
 
 RESEARCH_LESSONS = [
@@ -5811,7 +5820,17 @@ RESEARCH_PREREG = [dict(
               f'{P8_SPOT_COST:.2%} + 선물 {P8_PERP_COST:.2%}, 증거금 1배, {RESEARCH_HOLDOUT_CURRENT} 전날까지 전 기간. 비용 후 수익 ≤ 0 → '
               '반증 · 샤프 달묶음 단측 5% 하한 > 0 이고 최대낙폭 ≤ 5% → 확인 · 그 외 → 반증 안 됨. ETH 는 보고만.',
          why='사용자 요청: "기존 것으로 안 보이면 전혀 다른 시선에서 확률적·장기적 우상향 고정 메커니즘". 지금까지 시험한 것은 모두 '
-             '가격 방향 예측이었다. 캐리는 방향을 맞히지 않는다 — 레버리지 롱 수요가 숏에게 내는 펀딩비라는 구조적 이전을 받는다.')]
+             '가격 방향 예측이었다. 캐리는 방향을 맞히지 않는다 — 레버리지 롱 수요가 숏에게 내는 펀딩비라는 구조적 이전을 받는다.'),
+    dict(id='P9', registered=P9_REGISTERED, scope='blank', pairs=['rules'],
+         rule=f'정답 = 진입했다면 +{P9_TP_R:g}R 이 −1R(가격 {P9_STOP:.0%})보다 먼저 왔나 (보유 한도 5m 48봉 · 15m 32봉 · 1h 24봉, 왕복 '
+              f'{P9_COST:.2%}). 단서 12~13개(직전 {P9_ZWIN}봉 z) × 문턱 4개 + UTC 시간대 4개 + 주말/평일 → 원자 1~2개 조합 × 롱/숏 × '
+              f'5m/15m/1h = 규칙 수천 개(전부 일지에 센다). 찾기 {P9_DISCOVERY[0]} ~ {P9_DISCOVERY[1]} 에서 거래 ≥ {P9_MIN_N} 중 t 상위 '
+              f'{P9_TOPK}개 → 검증 1 {P9_VALID[0][0]} ~ {P9_VALID[0][1]} · 검증 2 {P9_VALID[1][0]} ~ {P9_VALID[1][1]} 전날. 규칙마다 두 '
+              f'구간 모두 평균R > 0 이고 합산 단측 {0.05 / P9_TOPK:.2%} 하한 > 0 → 확인 · 합산 평균R ≤ 0 → 반증 · 그 외 → 반증 안 됨. '
+              '한 번만.',
+         why='사용자 제안: "백지라고 가정하고 정답으로부터 차트의 공통점을 찾아 단타 전략을 처음부터 수백·수천 가지 세워 보라." 사람이 '
+             '이름 붙인 전략군 대신 기계가 조합을 만든다. 규칙이 수천 개면 찾기 구간의 1등은 운만으로도 좋아 보이므로(규칙 N 개의 '
+             '최고 t ≈ √(2 ln N) ≈ 4), 고를 때 쓰지 않은 두 구간과 Bonferroni 로만 판정한다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -5964,6 +5983,14 @@ RESEARCH_HISTORY = [
                  '2021-11 이후 국면을 같은 규칙·비용으로 판정. 그리고 "전혀 다른 시선": 지금까지는 모두 방향 예측이었으므로, 방향을 '
                  '맞히지 않는 구조적 수익인 펀딩비 캐리를 P8 로 판정. P5(장기 추세 보유)와 함께 --lab --proof 한 번에 실행.',
          lessons=['L12', 'L14', 'L17', 'L21']),
+    dict(date='2026-10-10', kind='prereg', title='사전등록 P9: 백지 탐색 — 정답에서 공통점을 찾는 단타 규칙 수천 개',
+         summary='사용자 제안(2026-10-06): "하루 1% 에 근접하는 장기적 확신을 찾으면 빠르게 부자가 되고 AI 에 투자할 수 있다. 이제 '
+                 '기회는 더 잘 찾고 리스크는 더 관리하는 식으로 다듬으면 된다. 방법이 안 보이면 백지라고 가정하고 정답으로부터 '
+                 '공통점을 찾아 단타 전략을 수백·수천 가지 세워 보라." → 정답(+3R 이 −1R 보다 먼저)에 대해 단서 원자 1~2개 조합 × '
+                 '롱/숏 × 5m/15m/1h 로 규칙 수천 개를 기계가 만든다. 찾기 2022-01~2024-06, 상위 20개만 처음 보는 2019-08~2021-11 과 '
+                 '2024-07~2026-10 에서 Bonferroni 판정. 합성 데이터 시험: 심은 단서(체결강도)는 20개 모두 확인, 무작위 차트는 0개 '
+                 '(최고 t 1.90 < 운의 한도 약 4.0). --lab --proof 에 포함, 단독은 --lab --blank.',
+         lessons=['L1', 'L6', 'L11', 'L19', 'L22']),
 ]
 
 
@@ -6048,6 +6075,7 @@ def _research_seed_status():
     put(P7_KEY, 'preregistered', 'P7: 실행 전 등록', P8_REGISTERED)
     put(P7_KEY_15M, 'preregistered', 'P7: 실행 전 등록', P8_REGISTERED)
     put(P8_KEY, 'preregistered', 'P8: 실행 전 등록', P8_REGISTERED)
+    put(P9_KEY, 'preregistered', 'P9: 실행 전 등록', P9_REGISTERED)
     put(P6_KEY, 'confirmed', 'P6: 처음 보는 구간(2019-08-21 ~ 2021-11-26) 합산 1197건 평균R +0.201 하한 +0.043 (왕복 0.12%) '
                              '→ 확인 · 5m 425건 +0.229 · 15m 440건 +0.267 · 1h 332건 +0.079(하한 −0.055)', '2026-10-06')
     for tf, why in (('5m', '비용 0 +0.117R(1114건, 하한 +0.046) · 본전 왕복 0.114%'),
@@ -7005,11 +7033,12 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-06b · 과거 차트 증명 일괄(P5·P7·P8)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-10a · 과거 차트 증명 일괄(P5·P7·P8·P9 백지 탐색)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
-                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample', '--watch', '--proof'})
+                           '--no-funding', '--trend-hold', '--cost-curve', '--short-presample', '--watch', '--proof',
+                           '--blank'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -7780,6 +7809,190 @@ def lab_carry(funding_btc, funding_eth=None, end=RESEARCH_HOLDOUT_CURRENT, seed=
     return dict(report='\n'.join(L), verdict=verdict, btc=B, eth=E, levs=levs)
 
 
+def _p9_features(df, funding=None):
+    """백지 탐색의 단서: 봉 마감 기준으로 이미 알 수 있던 값만. 대부분은 직전 500봉으로 표준화(z)한다."""
+    ind = _lab_indicators(df)
+    c, h, l, v, tb, atr = ind['c'], ind['h'], ind['l'], ind['v'], ind['tb'], ind['atr']
+    lc = np.log(c)
+    a = atr.replace(0, np.nan)
+    z = lambda x: (x - x.rolling(P9_ZWIN, min_periods=P9_ZWIN).mean()) / x.rolling(P9_ZWIN, min_periods=P9_ZWIN).std()
+    ma20, sd20 = c.rolling(20).mean(), c.rolling(20).std()
+    hi55, lo55 = h.rolling(55).max(), l.rolling(55).min()
+    imb = lambda N: (2 * tb - v).rolling(N).sum() / v.rolling(N).sum().replace(0, np.nan)
+    feats = [('1봉 수익', z(lc.diff(1) / a)), ('4봉 수익', z(lc.diff(4) / a)), ('24봉 수익', z(lc.diff(24) / a)),
+             ('96봉 수익', z(lc.diff(96) / a)), ('변동성', z(atr)), ('EMA20 거리', z((c / c.ewm(span=20, adjust=False).mean() - 1) / a)),
+             ('EMA100 거리', z((c / c.ewm(span=100, adjust=False).mean() - 1) / a)), ('Bollinger 위치', (c - ma20) / sd20),
+             ('Donchian 위치', ((c - lo55) / (hi55 - lo55) - 0.5) * 5), ('체결강도(12)', z(imb(12))), ('체결강도(48)', z(imb(48))),
+             ('거래량', z(np.log(v.where(v > 0) / v.rolling(168).median())))]
+    if funding is not None:
+        fp = _lab_funding_pct(df.index, int((df.index[1] - df.index[0]).total_seconds() // 60), funding)
+        if fp is not None:
+            feats.append(('펀딩비 백분위', pd.Series((fp - 0.5) * 5, index=df.index)))
+    return feats
+
+
+def _p9_atoms(df, funding=None):
+    """단서 → 원자(참/거짓): 연속 단서마다 > +1 · > +2 · < −1 · < −2, 그리고 UTC 시간대 4개 · 주말/평일."""
+    rows, names, fid = [], [], []
+    for j, (nm, x) in enumerate(_p9_features(df, funding)):
+        x = np.asarray(x, dtype=np.float64)
+        for th, lab in ((1.0, '> +1'), (2.0, '> +2'), (-1.0, '< −1'), (-2.0, '< −2')):
+            rows.append(np.nan_to_num(x, nan=0.0) > th if th > 0 else np.nan_to_num(x, nan=0.0) < th)
+            names.append(f'{nm} {lab}')
+            fid.append(j)
+    hr = df.index.hour.values
+    for k, (a, b) in enumerate(((0, 8), (8, 13), (13, 21), (21, 24))):
+        rows.append((hr >= a) & (hr < b))
+        names.append(f'UTC {a}-{b}시')
+        fid.append(100)
+    wk = df.index.dayofweek.values >= 5
+    rows += [wk, ~wk]
+    names += ['주말', '평일']
+    fid += [101, 101]
+    return np.ascontiguousarray(np.array(rows, dtype=np.uint8)), names, np.array(fid)
+
+
+def _p9_rules(fid):
+    """원자 1개 또는 서로 다른 단서의 원자 2개 × 롱/숏. 반환 (원자 a, 원자 b(-1 = 없음), 방향)."""
+    m = len(fid)
+    pa, pb = list(range(m)), [-1] * m
+    for a in range(m):
+        for b in range(a + 1, m):
+            if fid[a] != fid[b]:
+                pa.append(a)
+                pb.append(b)
+    pa, pb = np.array(pa * 2, dtype=np.int64), np.array(pb * 2, dtype=np.int64)
+    side = np.r_[np.ones(len(pa) // 2), -np.ones(len(pa) // 2)].astype(np.int64)
+    return pa, pb, side
+
+
+@njit(cache=False)
+def _p9_scan(A, pa, pb, side, rl, xl, rs, xs, i0, i1):
+    """규칙마다 [i0, i1) 에서 조건이 참인 봉에 정답대로 진입 (포지션은 겹치지 않음) → (거래 수, R 합, R² 합)."""
+    nr = len(pa)
+    n = np.zeros(nr, dtype=np.int64)
+    s1 = np.zeros(nr)
+    s2 = np.zeros(nr)
+    for k in range(nr):
+        a, b, sd = pa[k], pb[k], side[k]
+        busy = -1
+        for i in range(i0, i1):
+            if i <= busy or A[a, i] == 0 or (b >= 0 and A[b, i] == 0):
+                continue
+            r = rl[i] if sd > 0 else rs[i]
+            if np.isnan(r):
+                continue
+            n[k] += 1
+            s1[k] += r
+            s2[k] += r * r
+            busy = xl[i] if sd > 0 else xs[i]
+    return n, s1, s2
+
+
+def p9_procedure_keys(with_funding):
+    m = (13 if with_funding else 12) * 4 + 6
+    fid = np.array([j for j in range(13 if with_funding else 12) for _ in range(4)] + [100] * 4 + [101] * 2)
+    assert len(fid) == m
+    nr = len(_p9_rules(fid)[0])
+    return [f'blank|{tf}:r{k}' for tf in P9_TFS for k in range(nr)]
+
+
+def lab_blank_search(base1m=None, funding=None, frames=None, tfs=P9_TFS, discovery=P9_DISCOVERY, valid=P9_VALID,
+                     topk=P9_TOPK, min_n=P9_MIN_N, status=None):
+    """
+    P9 백지 탐색: 정답(진입했다면 +3R 이 −1R 보다 먼저 왔나, 왕복 0.12%)을 모든 봉에 붙이고, 단서 원자 1~2개의 조합 × 롱/숏 ×
+    시간봉으로 규칙 수천 개를 만든다. 찾기 구간에서 t 값 상위 topk 개만 골라, 고를 때 쓰지 않은 두 구간에서 판정한다.
+    """
+    status = status or (lambda *a, **k: None)
+    t_wall = time.time()
+    if frames is None:
+        base = normalize_frame(base1m)
+        snap = Snapshot(base, base.index[-1].to_pydatetime() + timedelta(minutes=1))
+        frames = {}
+        for tf in tfs:
+            d = snap.tf(tf)
+            frames[tf] = d[d['complete'].values > 0.5]
+    cands, total, pos_frac, data = [], 0, [], {}
+    for tf in tfs:
+        df = normalize_frame(frames[tf])
+        status(f'P9 백지 탐색 {tf}: 정답·단서 원자 만들고 규칙 훑는 중...', 'blue')
+        o, h, l, c = (df[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+        hold = P9_HOLD.get(tf, 24)
+        rl, xl, rs, xs = lab_barrier_labels(o, h, l, c, P9_STOP, P9_TP_R * P9_STOP, hold, P9_COST)
+        A, names, fid = _p9_atoms(df, funding)
+        pa, pb, side = _p9_rules(fid)
+        total += len(pa)
+        idx = df.index
+        win = lambda a_, b_: (int(idx.searchsorted(pd.Timestamp(a_))), max(int(idx.searchsorted(pd.Timestamp(b_))) - hold - 1, 0))
+        i0, i1 = win(*discovery)
+        n, s1, s2 = _p9_scan(A, pa, pb, side, rl, xl, rs, xs, i0, i1)
+        with np.errstate(invalid='ignore', divide='ignore'):
+            mean = s1 / np.maximum(n, 1)
+            sd = np.sqrt(np.maximum(s2 / np.maximum(n, 1) - mean ** 2, 0) * n / np.maximum(n - 1, 1))
+            t = np.where((n >= min_n) & (sd > 0), mean / sd * np.sqrt(n), -np.inf)
+        ok = n >= min_n
+        pos_frac.append((int(ok.sum()), int((mean[ok] > 0).sum())))
+        data[tf] = (A, names, pa, pb, side, rl, xl, rs, xs, win)
+        for k in np.argsort(-t)[:topk]:
+            if np.isfinite(t[k]):
+                cands.append((float(t[k]), tf, int(k), int(n[k]), float(mean[k])))
+    cands.sort(key=lambda x: -x[0])
+    cands = cands[:topk]
+    zq = norm_ppf(1 - 0.05 / max(topk, 1))
+    rows = []
+    for tt, tf, k, nd, md in cands:
+        A, names, pa, pb, side, rl, xl, rs, xs, win = data[tf]
+        sel = np.array([k], dtype=np.int64)
+        vs = []
+        for a_, b_ in valid:
+            j0, j1 = win(a_, b_)
+            vn, v1, v2 = _p9_scan(A, pa[sel], pb[sel], side[sel], rl, xl, rs, xs, j0, j1)
+            vs.append((int(vn[0]), float(v1[0]), float(v2[0])))
+        N = sum(v[0] for v in vs)
+        S1 = sum(v[1] for v in vs)
+        S2 = sum(v[2] for v in vs)
+        pm = S1 / N if N else float('nan')
+        psd = math.sqrt(max(S2 / N - pm ** 2, 0) * N / max(N - 1, 1)) if N > 1 else float('nan')
+        lo = pm - zq * psd / math.sqrt(N) if N > 1 else float('nan')
+        means = [v[1] / v[0] if v[0] else float('nan') for v in vs]
+        if N < 30:
+            verdict = '판정 불가'
+        elif not pm > 0:
+            verdict = '반증'
+        elif all(m_ > 0 for m_ in means) and lo > 0:
+            verdict = '확인'
+        else:
+            verdict = '반증 안 됨'
+        b = int(pb[k])
+        rule = f'{"롱" if side[k] > 0 else "숏"} · {names[int(pa[k])]}' + (f' 그리고 {names[b]}' if b >= 0 else '')
+        rows.append(dict(tf=tf, rid=k, rule=rule, t=tt, n_d=nd, mean_d=md, valid=[(v[0], mm) for v, mm in zip(vs, means)],
+                         n_v=N, mean_v=pm, lo=lo, verdict=verdict))
+    conf = [r for r in rows if r['verdict'] == '확인']
+    exp_t = math.sqrt(2 * math.log(max(total, 2)))
+    cost_r = P9_COST / P9_STOP
+    L = [f'━━━ 사전등록 P9 · 백지 탐색: 정답에서 공통점을 찾아 단타 규칙 {total:,}개를 처음부터 · {time.time() - t_wall:.0f}초 ━━━',
+         f'정답: 진입했다면 +{P9_TP_R * P9_STOP:.0%}({P9_TP_R:g}R)가 −{P9_STOP:.0%}보다 먼저 왔나 (보유 한도 '
+         + ' · '.join(f'{tf} {P9_HOLD.get(tf, 24)}봉' for tf in tfs) + f', 왕복 {P9_COST:.2%} = 1R 의 {cost_r:.0%}).',
+         '규칙: 단서마다 > +1 · > +2 · < −1 · < −2 (직전 500봉 기준) + UTC 시간대 4개 · 주말/평일 → 원자 1~2개 조합 × 롱/숏 × '
+         f'{"/".join(tfs)}.',
+         f'찾기 {discovery[0]} ~ {discovery[1]}: 거래 ≥ {min_n} 중 t 상위 {topk}개 → 검증 1 {valid[0][0]} ~ {valid[0][1]} (이 규칙들에겐 '
+         f'처음) · 검증 2 {valid[1][0]} ~ {valid[1][1]}.',
+         f'판정: 두 검증 구간 모두 평균R > 0 이고 합산 단측 {0.05 / max(topk, 1):.2%} 하한(5% ÷ {topk}) > 0 → 확인.',
+         '찾기 구간: ' + ' · '.join(f'{tf} 거래 ≥ {min_n} 규칙 {a:,}개 중 평균R > 0 {b / max(a, 1):.0%}' for tf, (a, b) in zip(tfs, pos_frac))
+         + f' · 최고 t {cands[0][0] if cands else float("nan"):.2f} (규칙 {total:,}개를 무작위로 만들어도 최고 t 는 약 {exp_t:.1f} 까지 나온다)',
+         '─' * 100,
+         f'{"순위":<4}{"TF":<5}{"규칙":<44}{"찾기 n":>7}{"평균R":>8}{"t":>6}{"검증1 n":>8}{"평균R":>8}{"검증2 n":>8}{"평균R":>8}{"합산 하한":>10}  판정']
+    for i, r in enumerate(rows, 1):
+        (n1, m1), (n2, m2) = r['valid'][0], r['valid'][1]
+        L.append(f'{i:<4}{r["tf"]:<5}{r["rule"][:43]:<44}{r["n_d"]:>7}{r["mean_d"]:>+8.3f}{r["t"]:>6.2f}{n1:>8}{np.nan_to_num(m1):>+8.3f}'
+                 f'{n2:>8}{np.nan_to_num(m2):>+8.3f}{np.nan_to_num(r["lo"]):>+10.3f}  {r["verdict"]}')
+    L += ['─' * 100,
+          (f'▶ 확인 {len(conf)}개: ' + ' | '.join(f'{r["tf"]} {r["rule"]} (검증 {r["n_v"]}건 {r["mean_v"]:+.3f}R)' for r in conf)) if conf else
+          f'▶ 확인 0개 — 찾기 구간의 상위 {topk}개는 고를 때 쓰지 않은 구간에서 비용을 넘지 못했다 (찾기 구간의 좋은 성적은 고른 덕분)',
+          '※ 확인된 규칙도 2022~24 에서 고른 것이다. 실전 전에는 L13 처럼 무너지면 멈추는 규칙과 함께 쓴다.']
+    return dict(report='\n'.join(L), rows=rows, confirmed=conf, total=total, exp_t=exp_t)
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -7850,6 +8063,7 @@ def main(argv=None):
         curve = '--cost-curve' in argv
         p6 = '--short-presample' in argv
         proof = '--proof' in argv
+        blank = '--blank' in argv
         stop_pct = None
         fees = None
         ora = dict(tf='1h', sl=0.01, tp_list=(2.0,), hold=24)
@@ -7879,6 +8093,8 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if blank and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--blank', '--no-funding', '--retest'}):
+                raise ValueError('--blank(P9 백지 탐색)는 단독으로 씁니다 (규칙은 사전등록대로 고정)')
             if proof and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--proof', '--seed', '--no-funding', '--retest'}):
                 raise ValueError('--proof 는 단독으로 씁니다 (사전등록한 과거 차트 판정을 한 번에, --seed 70 만 함께)')
             if '--watch' in argv and not signal:
@@ -7961,6 +8177,10 @@ def main(argv=None):
         journal = ResearchJournal.load()
         print(f'[LAB] {VERSION} · 빌드 {LAB_BUILD}')
         print(journal.banner())
+        if blank and journal.state(P9_KEY) not in (None, 'preregistered') and not retest:
+            print(f'[LAB] P9 는 이미 판정되었습니다 ({RESEARCH_STATE_KO.get(journal.state(P9_KEY))}) — 처음 보는 구간은 한 번만 씁니다 '
+                  '(L8·L14). 정말 다시 하려면 --retest "사유"')
+            return 2
         if p6 and journal.state(P6_KEY) not in (None, 'preregistered') and not retest:
             print(f'[LAB] P6 는 이미 판정되었습니다 ({RESEARCH_STATE_KO.get(journal.state(P6_KEY))}) — 처음 보는 구간은 한 번만 씁니다 '
                   '(L8·L14). 정말 다시 하려면 --retest "사유"')
@@ -8036,10 +8256,13 @@ def main(argv=None):
                       f'({", ".join(str(ev.get("declared") or "전체") for ev in prior)}) — '
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
-        pend = {k: journal.state(k) in (None, 'preregistered') for k in (TH_KEY, P7_KEY, P8_KEY)}
+        pend = {k: journal.state(k) in (None, 'preregistered') for k in (TH_KEY, P7_KEY, P8_KEY, P9_KEY)}
         if proof:
             keys = (list(TH_PROCEDURES) if pend[TH_KEY] else []) + (list(P7_PROCEDURES) if pend[P7_KEY] else []) + \
-                (list(P8_PROCEDURES) if pend[P8_KEY] and funding is not None else [])
+                (list(P8_PROCEDURES) if pend[P8_KEY] and funding is not None else []) + \
+                (p9_procedure_keys(funding is not None) if pend[P9_KEY] else [])
+        elif blank:
+            keys = p9_procedure_keys(funding is not None)
         elif p6:
             keys = list(P6_PROCEDURES)
         elif th:
@@ -8072,6 +8295,13 @@ def main(argv=None):
             keys = lab_planned_keys('btc', LAB_TFS, lab_available_families(funding), cost_key, pairs)
         n_cum = journal.n_trials([] if sur else keys)
 
+        def apply_p9(r9):
+            conf = r9['confirmed']
+            journal.set_status(P9_KEY, 'confirmed' if conf else 'no_evidence',
+                               f'P9 규칙 {r9["total"]:,}개 → 상위 {len(r9["rows"])}개 중 두 검증 구간 통과 {len(conf)}개'
+                               + (': ' + ' | '.join(f'{r["tf"]} {r["rule"]} ({r["n_v"]}건 {r["mean_v"]:+.3f}R)' for r in conf[:5])
+                                  if conf else ' — 이 방법·이 비용으로 못 찾음'))
+
         def note(kind, title, summary='', top=(), **extra):
             try:
                 journal.record(kind, [] if sur else keys, title=title, summary=summary, top=list(top),
@@ -8079,6 +8309,12 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if blank:
+                r9 = lab_blank_search(base, funding=funding, status=status)
+                print(r9['report'])
+                apply_p9(r9)
+                note('blank', 'P9 백지 탐색 — 판정', top=[f'{r["tf"]} {r["rule"]}: {r["verdict"]}' for r in r9['rows'][:10]])
+                return 0
             if proof:
                 seed = float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70')))
                 vmap = {'확인': 'confirmed', '반증': 'refuted', '반증 안 됨': 'not_refuted'}
@@ -8126,10 +8362,16 @@ def main(argv=None):
                                            f'P8 BTC 1배: 연복리 {b8["cagr"]:+.1%} · 샤프 {b8["sharpe"]:+.2f}(하한 {b8["sharpe_lo"]:+.2f}) · '
                                            f'최대낙폭 {b8["mdd"]:.1%} → {r8["verdict"]}')
                         summ.append(('P8 펀딩비 캐리 (방향 중립)', r8['verdict'], '최소 주문이 작은 계약(ETH 등)이면 70달러로 가능'))
+                if pend[P9_KEY]:
+                    r9 = lab_blank_search(base, funding=funding, status=status)
+                    print(r9['report'] + '\n')
+                    apply_p9(r9)
+                    summ.append(('P9 백지 탐색', f'규칙 {r9["total"]:,}개 → 두 검증 구간 통과 {len(r9["confirmed"])}개',
+                                 '확인된 규칙은 BTC 선물 최소주문·1% 손절 → 거래당 위험 약 1.4%' if r9['confirmed'] else ''))
                 L = ['━━━ 과거 차트 증명 요약 (사전 규칙상 "확인"만 실제 70달러 단계로) ━━━']
                 for k, name in ((TH_KEY, 'P5 롱 전용 일봉 추세 보유 (장기)'), (P6_KEY, 'P6 단타 변동성 돌파 2019-08~2021-11'),
                                 (P7_KEY, 'P7 단타 변동성 돌파 2021-11 이후 (합산)'), (P7_KEY_15M, 'P7 단타 변동성 돌파 2021-11 이후 (15m)'),
-                                (P8_KEY, 'P8 펀딩비 캐리 (방향 중립)')):
+                                (P8_KEY, 'P8 펀딩비 캐리 (방향 중립)'), (P9_KEY, 'P9 백지 탐색 (규칙 수천 개)')):
                     stt = journal.state(k)
                     L.append(f'  {name:<34} {RESEARCH_STATE_KO.get(stt, stt or "-")}')
                 L += [f'  · {a}: {c}' for a, b, c in summ if c]

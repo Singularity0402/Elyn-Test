@@ -416,7 +416,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.TH_KEY) == 'preregistered'                              # P5 는 실행 전 등록 상태로 시작
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
@@ -1342,15 +1342,18 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     monkeypatch.setattr(pe, 'lab_trend_hold', lambda *a, **k: dict(
         report='P5 보고서', verdict='반증 — 테스트', target_now=0.5, hold=hold,
         spot=dict(sharpe=0.5, sharpe_lo=-0.1, cagr=0.1, mdd=0.6)))
+    monkeypatch.setattr(pe, 'lab_blank_search', lambda *a, **k: dict(
+        report='P9 보고서', rows=[], confirmed=[], total=8436, exp_t=4.3))
     monkeypatch.setattr(pe, 'lab_short_regime', lambda *a, **k: dict(
         report='P7 보고서', verdict='반증 — 테스트', verdict_15m='반증 안 됨 — 테스트', n=900, mean_r=-0.01, lo=-0.1,
         n15=300, mean15=0.03, lo15=-0.05))
     assert pe.main(['--lab', '--proof', '--seed', '70']) == 0
     out = capsys.readouterr().out
-    assert 'P5 보고서' in out and 'P7 보고서' in out and '펀딩비 캐리' in out and '과거 차트 증명 요약' in out
+    assert 'P5 보고서' in out and 'P7 보고서' in out and 'P9 보고서' in out and '펀딩비 캐리' in out and '과거 차트 증명 요약' in out
     j = pe.ResearchJournal.load()
     assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P7_KEY) == 'refuted' and j.state(pe.P7_KEY_15M) == 'not_refuted'
     assert j.state(pe.P8_KEY) in ('confirmed', 'not_refuted') and set(pe.P8_PROCEDURES) <= set(j.d['procedures'])
+    assert j.state(pe.P9_KEY) == 'no_evidence' and 'blank|5m:r0' in j.d['procedures']        # 규칙 수천 개도 모두 센다
     assert pe.main(['--lab', '--proof']) == 0                                              # 다시 돌리면 판정 없이 요약만
     out2 = capsys.readouterr().out
     assert 'P7 보고서' not in out2 and '과거 차트 증명 요약' in out2
@@ -1359,3 +1362,65 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
 def test_cli_proof_guards(pe):
     assert pe.main(['--lab', '--proof', '--oracle']) == 2
     assert pe.main(['--lab', '--proof', '--universe']) == 2
+
+
+# ── 사전등록 P9: 백지 탐색 (정답에서 공통점을 찾는 단타 규칙 수천 개) ─────────────────────
+def test_p9_scan_matches_a_plain_python_reference(pe):
+    g = np.random.default_rng(3)
+    n = 400
+    A = (g.random((3, n)) < 0.3).astype(np.uint8)
+    rl, rs = g.normal(0, 1, n), g.normal(0, 1, n)
+    xl = np.minimum(np.arange(n) + g.integers(1, 6, n), n - 1).astype(np.int64)
+    xs = np.minimum(np.arange(n) + g.integers(1, 6, n), n - 1).astype(np.int64)
+    pa, pb, side = np.array([0, 1, 0]), np.array([-1, 2, 2]), np.array([1, -1, -1])
+    got = pe._p9_scan(A, pa, pb, side, rl, xl, rs, xs, 50, 350)
+    for k in range(3):
+        busy, R = -1, []
+        for i in range(50, 350):
+            if i <= busy or not A[pa[k], i] or (pb[k] >= 0 and not A[pb[k], i]):
+                continue
+            R.append(rl[i] if side[k] > 0 else rs[i])
+            busy = xl[i] if side[k] > 0 else xs[i]
+        assert got[0][k] == len(R) and abs(got[1][k] - sum(R)) < 1e-9 and abs(got[2][k] - sum(r * r for r in R)) < 1e-9
+
+
+def test_p9_rule_count_and_procedure_keys_agree(pe):
+    A, names, fid = pe._p9_atoms(_oracle_frame(60, 0.0))
+    assert len(names) == 12 * 4 + 6 and A.dtype == np.uint8
+    nr = len(pe._p9_rules(fid)[0])
+    assert nr == 2 * (54 + (54 * 53 // 2 - (12 * 6 + 6 + 1)))                         # 같은 단서끼리는 조합하지 않는다
+    keys = pe.p9_procedure_keys(False)
+    assert len(keys) == 3 * nr and keys[0] == 'blank|5m:r0' and len(pe.p9_procedure_keys(True)) > len(keys)
+
+
+P9_TEST_WINDOWS = dict(discovery=('2021-01-01', '2022-07-01'), valid=(('2020-01-01', '2021-01-01'), ('2022-07-01', '2023-10-01')))
+
+
+def test_blank_search_finds_a_planted_clue_and_rejects_random_walk(pe):
+    real = pe.lab_blank_search(frames={'1h': _oracle_frame(1500, 0.0012)}, tfs=('1h',), **P9_TEST_WINDOWS)
+    assert real['confirmed'] and all('체결강도' in r['rule'] for r in real['confirmed'][:5])    # 심어 둔 단서를 찾는다
+    assert real['rows'][0]['t'] > real['exp_t']
+    noise = pe.lab_blank_search(frames={'1h': _oracle_frame(1500, 0.0)}, tfs=('1h',), **P9_TEST_WINDOWS)
+    assert not noise['confirmed'] and noise['rows'][0]['t'] < noise['exp_t']                  # 1등도 운의 한도 안
+    assert '확인 0개' in noise['report'] and str(noise['total']) not in ('', '0')
+
+
+def test_blank_search_does_not_use_bars_whose_answer_reaches_past_the_window(pe):
+    f = _oracle_frame(1500, 0.0012)
+    a = pe.lab_blank_search(frames={'1h': f}, tfs=('1h',), **P9_TEST_WINDOWS)
+    g = f.copy()
+    after = g.index >= pd.Timestamp('2023-10-01')
+    g.loc[after, ['open', 'high', 'low', 'close']] *= 3.0                                     # 마지막 검증 구간 뒤를 마구 바꿔도
+    b = pe.lab_blank_search(frames={'1h': g}, tfs=('1h',), **P9_TEST_WINDOWS)
+    assert [(r['rule'], r['n_v'], round(r['mean_v'], 9)) for r in a['rows']] == \
+        [(r['rule'], r['n_v'], round(r['mean_v'], 9)) for r in b['rows']]                    # 결과는 그대로
+
+
+def test_cli_blank_guards_and_runs_once(pe):
+    assert pe.main(['--lab', '--blank', '--oracle']) == 2
+    assert pe.main(['--lab', '--blank', '--tfs', '1h']) == 2
+    j = pe.ResearchJournal.load()
+    assert j.state(pe.P9_KEY) == 'preregistered'
+    j.set_status(pe.P9_KEY, 'no_evidence', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--blank']) == 2                                                 # 판정된 뒤에는 네트워크 전에 거절

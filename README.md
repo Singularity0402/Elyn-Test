@@ -49,7 +49,8 @@ python pattern_edge_v612.py --lab --oracle --tp 2,3,5         # 끝머리 지도
 python pattern_edge_v612.py --lab --trend-hold --seed 70     # 사전등록 P5: 롱 전용 일봉 추세 보유 vs 보유만 (판정 1회) · 이후엔 매일 '지금 목표 비중'과 앞으로의 성적
 python pattern_edge_v612.py --lab --cost-curve               # 비용 곡선: 단타 전략(5m/15m/1h, 1% 손절)을 왕복 0/0.04/0.08/0.14% 로 다시 돌려 전략마다 '본전 비용'
 python pattern_edge_v612.py --lab --short-presample          # 사전등록 P6: 단타 변동성 돌파(5m/15m/1h)를 처음 보는 구간(2019-08~2021-11)·왕복 0.12% 로 판정 (한 번만)
-python pattern_edge_v612.py --lab --proof --seed 70          # 과거 차트 증명 일괄: 남은 사전등록 판정(P5 장기 추세 보유 · P7 단타 다른 국면 · P8 펀딩비 캐리)을 한 번에 + 요약
+python pattern_edge_v612.py --lab --proof --seed 70          # 과거 차트 증명 일괄: 남은 사전등록 판정(P5 장기 추세 보유 · P7 단타 다른 국면 · P8 펀딩비 캐리 · P9 백지 탐색)을 한 번에 + 요약
+python pattern_edge_v612.py --lab --blank                    # 사전등록 P9 단독: 정답에서 공통점을 찾는 단타 규칙 약 1만 개 → 처음 보는 두 구간으로 판정 (한 번만)
 python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 추적 후보(P6 단타 포함)를 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
 #   Lab 출력 첫 줄의 '[LAB] V612 · 빌드 …' 로 어느 파일이 돌았는지 확인. 모르는 옵션은 실행 없이 거절합니다.
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
