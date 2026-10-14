@@ -52,9 +52,9 @@ python pattern_edge_v612.py --lab --short-presample          # 사전등록 P6: 
 python pattern_edge_v612.py --lab --proof --seed 70          # 과거 차트 증명 일괄: 남은 사전등록 판정(P5 장기 추세 보유 · P7 단타 다른 국면 · P8 펀딩비 캐리 · P9 백지 탐색 · P10·P11 대가의 방법)을 한 번에 + 요약
 python pattern_edge_v612.py --lab --blank                    # 사전등록 P9 단독: 정답에서 공통점을 찾는 단타 규칙 약 1만 개 → 처음 보는 두 구간으로 판정 (한 번만)
 python pattern_edge_v612.py --lab --masters                  # 사전등록 P10 단독: 대가의 방법(다바스 박스 · BNF 이격도 · cis 거래량 모멘텀)을 고정 규칙으로 BTC 전체 역사에서 판정 (한 번만)
-python pattern_edge_v612.py --lab --equity --seed 70         # 시드 백테스트: 확인된 다바스 박스 4h(--tfs 1d)를 2018-01 부터 현물로 했다면 시드가 얼마가 됐나 (위험 1·2·3%·전부 매수, 연도·시작 해별, 위험 곡선)
+python pattern_edge_v612.py --lab --equity --seed 70         # 시드 백테스트: 확인된 다바스 박스 4h(--tfs 1d)를 2018-01 부터 현물로 했다면 시드가 얼마가 됐나 (위험 1·2·3%·전부 매수, 연도·시작 해별, 위험 곡선 + 확인된 다바스·터틀을 한 계좌에서 돌린 포트폴리오)
 python pattern_edge_v612.py --lab --masters2                 # 사전등록 P11 단독: 다바스 ETH 재현 · 터틀 규칙 1·2(BTC) — 다바스 BTC 와 함께 돌릴 엣지 찾기 (한 번만, --proof 에도 포함)
-python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 【실전】다바스 박스 4h(과거 차트 두 국면 확인) + 【연구 추적】을 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
+python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 【실전】다바스 박스 4h·터틀 1·2 4h(과거 차트 두 국면 확인) + 【연구 추적】을 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
 #   Lab 출력 첫 줄의 '[LAB] V612 · 빌드 …' 로 어느 파일이 돌았는지 확인. 모르는 옵션은 실행 없이 거절합니다.
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
 #   모든 보고서 끝에 '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7(켈리)/3.1(반켈리)' 와 이번 최고 샤프를 함께 보인다.

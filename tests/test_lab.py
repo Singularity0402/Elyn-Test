@@ -412,7 +412,7 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 10024 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 10030 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
@@ -424,20 +424,21 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_stop1|short:all') == 'no_evidence'
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger'), ('btc', '5m:volbreak'),
                                                                  ('btc', '15m:volbreak'), ('btc', '1h:volbreak'),
-                                                                 ('btc', '4h:darvas'), ('btc', '1d:darvas')]
+                                                                 ('btc', '4h:darvas'), ('btc', '1d:darvas'),
+                                                                 ('btc', '4h:turtle1'), ('btc', '4h:turtle2')]
     assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
     assert len(pe.RESEARCH_LESSONS) == 24 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 10024 and j.n_trials(['btc|4h:keltner|maker']) == 10025
+    assert j.n_trials(['btc|4h:flow|taker']) == 10030 and j.n_trials(['btc|4h:keltner|maker']) == 10031
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 10025 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 10031 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 10024 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 10030 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -1597,8 +1598,34 @@ def test_masters2_turtle_and_eth_replication(pe):
 
 def test_cli_masters2_guards_and_runs_once(pe):
     assert pe.main(['--lab', '--masters2', '--oracle']) == 2
-    j = pe.ResearchJournal.load()
-    assert j.state(pe.P11_KEY) == 'preregistered'
-    j.set_status(pe.P11_KEY, 'no_evidence', '테스트')
-    j.save()
+    assert pe.ResearchJournal.load().state(pe.P11_KEY) == 'confirmed'                      # 사용자 PC 판정(2026-10-16)이 기록됨
     assert pe.main(['--lab', '--masters2']) == 2
+
+
+# ── 포트폴리오: 확인된 BTC 4h 전략 여러 개를 한 계좌에서 ─────────────────────────────
+def test_portfolio_sim_closes_trades_stopped_on_their_entry_bar(pe):
+    t0, t1, t2 = np.datetime64('2020-01-01T00'), np.datetime64('2020-01-01T04'), np.datetime64('2020-01-01T08')
+    trades = [(t0, t0, -0.01, 0.01),                                                       # 진입 봉에서 바로 손절
+              (t0, t1, 0.02, 0.01), (t1, t2, 0.02, 0.01)]
+    E, mdd = pe._portfolio_sim(trades, 0.01, lev_cap=3.0)
+    assert abs(E - (1 - 0.01) * 1.02 * 1.02) < 0.02                                        # 모두 청산되고 손익이 반영된다
+    one, _ = pe._portfolio_sim([(t0, t1, 0.10, 0.05)], 0.50, lev_cap=3.0)
+    assert abs(one - 1.30) < 1e-12                                                         # 위험 50%/손절 5% = 10배 → 3배로 묶임
+
+
+def test_portfolio_backtest_reports_overlap_and_compares_with_solo(pe):
+    f = _trend_frame(240, 1430, 0.0006, 2)
+    res = pe.lab_portfolio_backtest(frame=f, funding=None, start='2019-03-01', risks=(0.01, 0.02))
+    assert set(res['per']) == {('darvas', '4h'), ('turtle1', '4h'), ('turtle2', '4h')}
+    assert '겹침' in res['report'] and '혼자' in res['report'] and '숏' in res['report']
+
+
+def test_turtle_live_signal_matches_the_backtest_state(pe):
+    f = _trend_frame(240, 1430, 0.0006, 2)
+    for m in ('turtle1', 'turtle2'):
+        t = pe._m_trades_full(m, f, 0, len(f))
+        live = pe.lab_masters_live(None, m, '4h', seed=70, frame=f)
+        pos = int(t['state'][0])
+        assert live['pair'] == f'4h:{m}' and (live['state'] in ('position', 'exit')) == (pos != 0)
+        if live['state'] == 'position':
+            assert abs(live['stop'] - t['state'][2]) < 1e-9 and '청산' in live['action']

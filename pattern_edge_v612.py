@@ -5881,7 +5881,10 @@ RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CU
                                    f'{2 * P6_COST_SIDE:.2%})으로 앞으로의 데이터 채점') for tf in P6_TFS] + \
     [dict(pair=f'{tf}:darvas', scope='btc', since='2026-10-15', method='darvas', verdict_key=f'masters|{tf}:darvas',
           why=f'P10 확인(다바스 박스 {tf}, 두 국면 모두 양수) → 실전(현물, 롱 전용)과 함께 같은 규칙으로 앞으로의 데이터 채점')
-     for tf in ('4h', '1d')]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
+     for tf in ('4h', '1d')] + \
+    [dict(pair=f'4h:{m}', scope='btc', since='2026-10-16', method=m, verdict_key=f'masters2|btc:4h:{m}',
+          why='P11 확인(터틀 4h, 두 국면 모두 양수) → 실전(선물, 롱·숏)과 함께 같은 규칙으로 앞으로의 데이터 채점')
+     for m in ('turtle1', 'turtle2')]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
 RESEARCH_HISTORY = [
     dict(date='2026-10-01', kind='audit', title='V611 객관 감사 → V612',
          summary='알려진 결함 전부 재현·수정, 새 결함 20개(N-01~N-20), null 이 약 1.4배 관대함을 측정, 미검증 신호 위험 25% 로 축소 '
@@ -6073,6 +6076,14 @@ RESEARCH_HISTORY = [
                  '지나고 나서 고른 값이라 실제로는 그 절반 이하가 안전. 하루 1% 와는 여전히 거리가 멀다. --equity 에 위험 곡선(선물 3배까지)을 '
                  '추가. 남은 가속 = 서로 다른 확인된 엣지를 함께 → P11(다바스 ETH 재현 · 터틀 1·2 BTC).',
          lessons=['L15', 'L18', 'L24']),
+    dict(date='2026-10-16', kind='review', title='P11 결과 — 터틀 규칙 1·2 BTC 4h 확인, 다바스 ETH 재현 안 됨 · 포트폴리오 백테스트',
+         summary='터틀 1 (20/10) BTC 4h 481건 승률 35% +0.420R(국면별 +0.635 / +0.274, 하한 +0.078) · 터틀 2 (55/20) BTC 4h 245건 +0.746R'
+                 '(+1.240 / +0.411, 하한 +0.074) → 확인. 1d 는 둘 다 양수지만 거래가 적어 반증 안 됨. 다바스 ETH 4h 225건 +0.084R, 국면 2 '
+                 '−0.124R → 재현 안 됨(다바스의 일반성은 약해졌다, BTC 한정). 확인된 BTC 4h 전략 3개(다바스·터틀 1·터틀 2)는 모두 돌파 '
+                 '추세추종이라 많이 겹칠 수 있다 → --equity 에 한 선물 계좌 포트폴리오 백테스트(실제 펀딩비, 노출 3배까지, 겹침 비율)를 '
+                 '추가. 출시 전 발견한 버그: 진입 봉에서 바로 손절된 거래의 청산이 진입보다 먼저 처리되어 포지션이 영원히 열려 있던 문제 → '
+                 '같은 거래는 진입 뒤에 청산하도록 고치고, 끝에 열린 포지션이 남으면 멈추는 검사를 넣음. 터틀 지금 신호 추가(선물, 롱·숏).',
+         lessons=['L16', 'L17', 'L24']),
 ]
 
 
@@ -6105,6 +6116,7 @@ def _research_seed_keys():
     keys += list(P6_PROCEDURES)                                                               # P6 (누적 252)
     keys += list(TH_PROCEDURES) + list(P7_PROCEDURES) + list(P8_PROCEDURES) + p9_procedure_keys(True) + \
         list(P10_PROCEDURES)                                                                  # --proof 2026-10-15 (누적 10,024)
+    keys += list(P11_PROCEDURES)                                                              # P11 2026-10-16 (누적 10,030)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6163,7 +6175,14 @@ def _research_seed_status():
         '2026-10-15')
     put(P9_KEY, 'no_evidence', 'P9 규칙 9,756개 → 상위 20개 중 두 검증 구간 통과 0개 (최고 t 2.90 < 운의 한도 4.3)', '2026-10-15')
     put(P10_KEY, 'confirmed', 'P10 확인: 다바스 박스 4h, 다바스 박스 1d', '2026-10-15')
-    put(P11_KEY, 'preregistered', 'P11: 실행 전 등록', P11_REGISTERED)
+    put(P11_KEY, 'confirmed', 'P11 확인: BTC 터틀 규칙 1 (20/10) 4h, BTC 터틀 규칙 2 (55/20) 4h', '2026-10-16')
+    for k_, st_, why_ in (('eth:4h:darvas', 'not_refuted', 'ETH 다바스 4h 225건 +0.084R · 국면별 +0.427 / −0.124 → 재현 안 됨'),
+                          ('eth:1d:darvas', 'not_refuted', 'ETH 다바스 1d 31건 +0.639R 하한 −0.183'),
+                          ('btc:4h:turtle1', 'confirmed', '터틀 1 4h 481건 +0.420R 하한 +0.078 · 국면별 +0.635 / +0.274'),
+                          ('btc:1d:turtle1', 'not_refuted', '터틀 1 1d 82건 +1.181R 하한 −0.696'),
+                          ('btc:4h:turtle2', 'confirmed', '터틀 2 4h 245건 +0.746R 하한 +0.074 · 국면별 +1.240 / +0.411'),
+                          ('btc:1d:turtle2', 'not_refuted', '터틀 2 1d 40건 +1.464R 하한 −0.866')):
+        put(f'masters2|{k_}', st_, f'P11 {why_}', '2026-10-16')
     for k_, st_, why_ in (('1h:darvas', 'not_refuted', '892건 +0.107R 하한 −0.018 · 국면별 +0.137 / +0.082'),
                           ('4h:darvas', 'confirmed', '220건 +0.415R 하한 +0.032 · 국면별 +0.577(89) / +0.305(131)'),
                           ('1d:darvas', 'confirmed', '31건 +0.924R 하한 +0.165 · 국면별 +1.077(16) / +0.761(15)'),
@@ -7139,7 +7158,7 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-16a · 시드 백테스트(위험 곡선) · P11 대가의 방법 2'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-16b · 다바스·터틀 실전 신호 · 포트폴리오 백테스트'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
@@ -8100,20 +8119,24 @@ def lab_blank_search(base1m=None, funding=None, frames=None, tfs=P9_TFS, discove
 
 
 @njit(cache=False)
-def _m_sim(o, h, l, c, el, es, xl, xs, sdist, max_hold, cost, i0, i1):
+def _m_sim_full(o, h, l, c, el, es, xl, xs, sdist, max_hold, cost, i0, i1):
     """
     대가의 방법 공용 시뮬레이터: 봉 i 마감 신호 → 봉 i+1 시가 진입, 손절 거리 = 신호 봉의 sdist(가격 비율). 청산 = 손절(갭이면 시가)
     · 청산 신호(다음 봉 시가) · 최대 보유. 같은 봉에서 진입하면 그 봉의 손절부터 본다(보수). R = (손익 − 왕복 비용) ÷ 손절 거리.
+    반환 (진입 봉, R, 방향, 청산 봉, 손절 거리, 마지막 상태[보유 방향, 진입가, 손절가, 대기 방향, 대기 손절 거리, 청산 대기, 진입 봉]).
     """
     n = i1
     ent = np.empty(n, dtype=np.int64)
     rr = np.empty(n, dtype=np.float64)
+    sde = np.empty(n, dtype=np.int64)
+    xit = np.empty(n, dtype=np.int64)
+    dd = np.empty(n, dtype=np.float64)
     m = 0
     pos, pend, xpend = 0, 0, False
     entry, d, stop, t_in, pend_d = 0.0, 0.0, 0.0, 0, 0.0
     for i in range(i0, i1):
         if pos != 0 and xpend:
-            ent[m], rr[m] = t_in, (pos * (o[i] / entry - 1.0) - cost) / d
+            ent[m], rr[m], sde[m], xit[m], dd[m] = t_in, (pos * (o[i] / entry - 1.0) - cost) / d, pos, i, d
             m += 1
             pos, xpend = 0, False
         if pos == 0 and pend != 0:
@@ -8124,22 +8147,29 @@ def _m_sim(o, h, l, c, el, es, xl, xs, sdist, max_hold, cost, i0, i1):
                 px = stop
                 if (pos > 0 and o[i] < stop) or (pos < 0 and o[i] > stop):
                     px = o[i]
-                ent[m], rr[m] = t_in, (pos * (px / entry - 1.0) - cost) / d
+                ent[m], rr[m], sde[m], xit[m], dd[m] = t_in, (pos * (px / entry - 1.0) - cost) / d, pos, i, d
                 m += 1
                 pos = 0
             elif max_hold > 0 and i - t_in + 1 >= max_hold:
-                ent[m], rr[m] = t_in, (pos * (c[i] / entry - 1.0) - cost) / d
+                ent[m], rr[m], sde[m], xit[m], dd[m] = t_in, (pos * (c[i] / entry - 1.0) - cost) / d, pos, i, d
                 m += 1
                 pos = 0
         if pos != 0:
             if (pos > 0 and xl[i]) or (pos < 0 and xs[i]):
                 xpend = True
-        elif pend == 0 and i + 1 < i1 and sdist[i] > 0:
+        elif pend == 0 and sdist[i] > 0:
             if el[i]:
                 pend, pend_d = 1, sdist[i]
             elif es[i]:
                 pend, pend_d = -1, sdist[i]
-    return ent[:m], rr[:m]
+    state = np.array([pos, entry, stop, pend, pend_d, 1.0 if xpend else 0.0, t_in], dtype=np.float64)
+    return ent[:m], rr[:m], sde[:m], xit[:m], dd[:m], state
+
+
+def _m_sim(o, h, l, c, el, es, xl, xs, sdist, max_hold, cost, i0, i1):
+    """_m_sim_full 의 (진입 봉, R) 만."""
+    r = _m_sim_full(o, h, l, c, el, es, xl, xs, sdist, max_hold, cost, i0, i1)
+    return r[0], r[1]
 
 
 @njit(cache=False)
@@ -8211,6 +8241,26 @@ def _m_frames(base1m):
             d = snap.tf(tf)
             out[tf] = d[d['complete'].values > 0.5]
     return out
+
+
+def _m_trades_full(method, df, i0, i1):
+    """방법 하나 → dict(진입·청산 봉, R, 방향, 손절 거리, 마지막 상태, 터틀이면 다음 봉의 돌파·청산 기준가)."""
+    ind = _lab_indicators(df)
+    o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
+    atr = ind['atr'].values
+    if method == 'darvas':
+        e, R, st, x, d = _m_darvas(o, h, l, c, 3, 3 * P10_COST, P10_COST, i0, i1)
+        return dict(ent=e, rr=R, side=np.ones(len(e), dtype=np.int64), xit=x, d=d, state=st, atr=atr[-1])
+    if method in ('turtle1', 'turtle2'):
+        N, M = (20, 10) if method == 'turtle1' else (55, 20)
+        hN, lN = ind['h'].rolling(N).max().shift(1).values, ind['l'].rolling(N).min().shift(1).values
+        hM, lM = ind['h'].rolling(M).max().shift(1).values, ind['l'].rolling(M).min().shift(1).values
+        e, R, sd_, x, d, st = _m_sim_full(o, h, l, c, c > hN, c < lN, c < lM, c > hM, np.nan_to_num(2.0 * atr), 0, P10_COST, i0, i1)
+        return dict(ent=e, rr=R, side=sd_, xit=x, d=d, state=st, atr=atr[-1],
+                    next_hi_n=float(h[-N:].max()), next_lo_n=float(l[-N:].min()),
+                    next_hi_m=float(h[-M:].max()), next_lo_m=float(l[-M:].min()), N=N, M=M)
+    e, R = _m_trades(method, df, i0, i1)
+    return dict(ent=e, rr=R, side=np.ones(len(e), dtype=np.int64), xit=e, d=np.full(len(e), np.nan), state=None, atr=atr[-1])
 
 
 def _m_trades(method, df, i0, i1):
@@ -8330,8 +8380,10 @@ def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
     대가의 방법 '지금' 신호 (다바스 박스). 백테스트와 같은 함수로 마지막 완결 봉까지 재생해 박스·보유 상태와 다음 할 일을 보인다.
     롱 전용이라 현물로 할 수 있다: 살 금액 = 시드 × 위험 ÷ 손절 거리 (시드 넘지 않음, 레버리지 없음). 주문은 사람이 직접.
     """
+    if method in ('turtle1', 'turtle2'):
+        return _turtle_live(base1m, method, tf, seed=seed, risk=risk, frame=frame)
     if method != 'darvas':
-        raise ValueError('지금 신호는 다바스 박스만 지원합니다')
+        raise ValueError('지금 신호는 다바스 박스·터틀만 지원합니다')
     df = frame if frame is not None else _masters_frame(base1m, tf)
     ind = _lab_indicators(df)
     o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
@@ -8371,6 +8423,47 @@ def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
     return dict(pair=f'{tf}:{method}', state=state, action=action, lines=lines, stop=stop if pos else None)
 
 
+def _turtle_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
+    """터틀 '지금' 신호: 백테스트와 같은 시뮬레이터를 마지막 완결 봉까지 돌려 보유·대기 상태와 다음 봉 기준가를 보인다 (선물, 롱·숏)."""
+    df = frame if frame is not None else _masters_frame(base1m, tf)
+    t = _m_trades_full(method, df, 0, len(df))
+    pos, entry, stop, pend, pend_d, xpend, t_in = t['state']
+    last, c_last = df.index[-1], float(df['close'].values[-1])
+    nxt = last + pd.Timedelta(minutes=MASTERS_TF_MIN[tf])
+    name = f'{tf} {P10_KO[method]}'
+    side_ko = {1: '롱', -1: '숏'}
+    min_not = FALLBACK_RULES['min_notional']
+
+    def size(d):
+        notional = seed * risk / max(d, 1e-9)
+        if notional < min_not:
+            return (f'선물 · 위험 {risk:.0%} 이면 명목 ${notional:,.0f} < 최소 주문 ${min_not:,.0f} → 최소 주문으로 걸면 위험이 시드의 '
+                    f'{min_not * d / seed:.1%}')
+        return f'선물 · 위험 {risk:.0%}: 명목 약 ${notional:,.0f} (손절 거리 {d:.1%})'
+    lines = [f'■ {name} · 마지막 완결 봉 {last} UTC · 종가 {c_last:,.1f}']
+    if xpend:
+        action = f'다음 봉 시가({nxt} UTC)에 {side_ko[int(pos)]} 청산 ({t["M"]}봉 반대쪽 돌파)'
+        state = 'exit'
+    elif pend:
+        d = pend_d
+        action = f'다음 봉 시가({nxt} UTC)에 {side_ko[int(pend)]} 진입 · 손절 = 진입가 {"-" if pend > 0 else "+"} {d:.1%} (2×ATR)'
+        lines.append(f'   {size(d)}')
+        state = 'entry'
+    elif pos:
+        ex = t['next_lo_m'] if pos > 0 else t['next_hi_m']
+        action = (f'{side_ko[int(pos)]} 유지 · 손절 {stop:,.1f} (진입 {df.index[int(t_in)]} UTC @ {entry:,.1f}) · '
+                  f'{tf} 종가가 {ex:,.1f} {"아래" if pos > 0 else "위"}로 마감하면 다음 봉 시가에 청산')
+        state = 'position'
+    else:
+        d = 2.0 * t['atr']
+        action = (f'대기 · {tf} 종가가 {t["next_hi_n"]:,.1f} 위로 마감하면 롱, {t["next_lo_n"]:,.1f} 아래로 마감하면 숏 '
+                  f'(다음 봉 시가 진입, 손절 2×ATR 약 {d:.1%})')
+        lines.append(f'   (돌파하면) {size(d)}')
+        state = 'armed'
+    lines.insert(1, f'   ▶ {action}')
+    return dict(pair=f'{tf}:{method}', state=state, action=action, lines=lines, stop=stop if pos else None)
+
+
 def lab_masters_forward(base1m, method, tf, since, frame=None):
     """앞으로의 채점: 같은 규칙을 전체 이력에 돌리고, since 이후 진입한 거래만 센다."""
     df = frame if frame is not None else _masters_frame(base1m, tf)
@@ -8380,7 +8473,8 @@ def lab_masters_forward(base1m, method, tf, since, frame=None):
 
 
 TRACK_VERDICT = {('btc', '5m:volbreak'): P7_KEY, ('btc', '1h:volbreak'): P7_KEY, ('btc', '15m:volbreak'): P7_KEY_15M,
-                 ('btc', '4h:darvas'): 'masters|4h:darvas', ('btc', '1d:darvas'): 'masters|1d:darvas'}
+                 ('btc', '4h:darvas'): 'masters|4h:darvas', ('btc', '1d:darvas'): 'masters|1d:darvas',
+                 ('btc', '4h:turtle1'): 'masters2|btc:4h:turtle1', ('btc', '4h:turtle2'): 'masters2|btc:4h:turtle2'}
 
 
 def track_state(journal, t):
@@ -8563,6 +8657,102 @@ def lab_masters2(base1m=None, eth4h=None, frames=None, tests=P11_TESTS, regimes=
           '▶ 확인 0개 — 다바스 BTC 4h 에 함께 얹을 엣지는 이번에 늘지 않았다',
           '※ 확인된 것은 다바스 BTC 4h 와 함께 돌려 거래 기회를 늘린다 (같은 위험으로 더 빨리).']
     return dict(report='\n'.join(L), rows=rows, confirmed=conf)
+
+
+PORTFOLIO_FUT_COST = P10_COST                  # 선물 왕복 0.12% (+ 보유 중 펀딩비는 실제 기록으로)
+
+
+def _portfolio_sim(trades, risk, lev_cap=3.0):
+    """
+    여러 전략 거래를 한 계좌로: 시간 순으로 진입·청산을 처리(같은 시각은 청산 먼저). 진입 명목 = 자산 × min(위험 ÷ 손절 거리, lev_cap),
+    열린 포지션 합이 자산의 lev_cap 배를 넘으면 새 진입을 줄인다. 손익은 청산 때 반영. 반환 (자산 배수, 최대 낙폭, 거래 수).
+    trades: [(진입 시각, 청산 시각, 비용·펀딩 후 가격 수익률(방향 반영), 손절 거리)]
+    """
+    ev = []
+    for k, (ti, to, r, d) in enumerate(trades):
+        ev.append((ti, 1, k))
+        ev.append((to, 2 if to <= ti else 0, k))          # 진입한 봉에서 바로 끝난 거래는 자기 진입 뒤에 청산 (다른 청산은 진입보다 먼저)
+    ev.sort(key=lambda x: (x[0], x[1]))
+    E, peak, mdd, open_ = 1.0, 1.0, 0.0, {}
+    for _, typ, k in ev:
+        ti, to, r, d = trades[k]
+        if typ == 1:
+            if E <= 0:
+                continue
+            want = E * min(risk / max(d, 1e-9), lev_cap)
+            room = lev_cap * E - sum(open_.values())
+            if room > 0:
+                open_[k] = min(want, room)
+        elif k in open_:
+            E += open_.pop(k) * r
+            if E <= 0:
+                E = 0.0
+                open_.clear()
+            peak = max(peak, E)
+            mdd = max(mdd, 1 - E / peak if peak > 0 else 1.0)
+    assert not open_ or E == 0.0, '청산되지 않은 포지션이 남았다'
+    return E, mdd
+
+
+def lab_portfolio_backtest(base1m=None, funding=None, strategies=(('darvas', '4h'), ('turtle1', '4h'), ('turtle2', '4h')),
+                           seed=70.0, start='2018-01-01', risks=(0.01, 0.02, 0.03, 0.05), lev_cap=3.0, frame=None):
+    """확인된 BTC 4h 전략들을 한 선물 계좌에서 함께 — 같은 위험으로 혼자보다 얼마나 빨라지나, 서로 얼마나 겹치나."""
+    df = frame if frame is not None else _masters_frame(base1m, '4h')
+    idx = df.index
+    i0 = int(idx.searchsorted(pd.Timestamp(start)))
+    years = max((idx[-1] - idx[i0]).days / 365.25, 1e-9)
+    fs = None
+    if funding is not None and len(funding):
+        fs = pd.Series(np.asarray(funding.values, dtype=np.float64), index=pd.DatetimeIndex(funding.index)).sort_index()
+        fcum = np.r_[0.0, np.cumsum(fs.values)]
+        ft = fs.index.values
+
+    def fund_between(a, b):
+        if fs is None:
+            return 0.0
+        return float(fcum[np.searchsorted(ft, b, side='right')] - fcum[np.searchsorted(ft, a, side='right')])
+    per, alltr, held = {}, [], np.zeros((len(strategies), len(idx)), dtype=np.int8)
+    for si, (m, tf) in enumerate(strategies):
+        t = _m_trades_full(m, df, i0, len(df))
+        rows = []
+        for e, x, R, sd_, d in zip(t['ent'], t['xit'], t['rr'], t['side'], t['d']):
+            ti, to = idx.values[e], idx.values[x]
+            r = R * d - sd_ * fund_between(ti, to)          # 롱은 펀딩비를 내고, 숏은 받는다 (양수일 때)
+            rows.append((ti, to, r, d, int(sd_)))
+            held[si, e:x + 1] = sd_
+        per[(m, tf)] = rows
+        alltr += [(a, b, r, d) for a, b, r, d, _ in rows]
+    L = [f'━━━ 포트폴리오 백테스트 · 확인된 BTC 4h 전략 {len(strategies)}개를 한 선물 계좌에서 · {idx[i0]:%Y-%m-%d} ~ {idx[-1]:%Y-%m-%d} ━━━',
+         f'비용: 선물 왕복 {PORTFOLIO_FUT_COST:.2%} + 보유 중 실제 펀딩비{"" if fs is not None else "(데이터 없음 → 0)"} · 거래당 위험은 전략마다 같게 · '
+         f'열린 포지션 합은 자산의 {lev_cap:g}배까지 · 손익은 청산 때 반영(낙폭은 청산 기준이라 실제보다 조금 작다).']
+    for (m, tf), rows in per.items():
+        r = np.array([x[2] for x in rows])
+        sides = np.array([x[4] for x in rows])
+        lg, sh = r[sides > 0], r[sides < 0]
+        L.append(f'  · {P10_KO[m]} {tf}: {len(r)}건 · 승률 {np.mean(r > 0) if len(r) else 0:.0%} · 거래당 {np.nan_to_num(r.mean()):+.2%}'
+                 + (f' · 롱 {len(lg)}건 {np.nan_to_num(lg.mean()):+.2%} · 숏 {len(sh)}건 {np.nan_to_num(sh.mean()):+.2%}' if len(sh) else ''))
+    both = (np.abs(held).sum(0) >= 2)
+    same = np.zeros(len(idx), dtype=bool)
+    for a in range(len(strategies)):
+        for b in range(a + 1, len(strategies)):
+            same |= (held[a] != 0) & (held[a] == held[b])
+    inmkt = (np.abs(held).sum(0) > 0)
+    L.append(f'  · 겹침: 하나라도 들고 있는 시간 {inmkt[i0:].mean():.0%} · 둘 이상 같은 방향으로 들고 있는 시간 {same[i0:].mean():.0%} '
+             f'(둘 이상 동시 {both[i0:].mean():.0%}) — 겹칠수록 "여러 엣지"가 아니라 "같은 베팅을 크게"에 가깝다')
+    L.append('─' * 100)
+    first = strategies[0]
+    solo = [(a, b, r, d) for a, b, r, d, _ in per[first]]
+    for rk in risks:
+        Ep, mp = _portfolio_sim(alltr, rk, lev_cap)
+        Es, ms = _portfolio_sim(solo, rk, lev_cap)
+        L.append(f'위험 {rk:.0%}: 함께 ${seed * Ep:,.0f} (연 {Ep ** (1 / years) - 1 if Ep > 0 else -1:+.1%}, 낙폭 {mp:.0%}) · '
+                 f'{P10_KO[first[0]]} 혼자 ${seed * Es:,.0f} (연 {Es ** (1 / years) - 1 if Es > 0 else -1:+.1%}, 낙폭 {ms:.0%})')
+    min_not = FALLBACK_RULES['min_notional']
+    L += ['─' * 100,
+          f'※ 70달러 선물: 최소 주문 {min_not:,.0f} USDT → 실제 위험 = 손절 거리 × {min_not:,.0f} ÷ 시드. 터틀(손절 2×ATR, 4h 약 2~4%)은 '
+          f'거래당 약 {min_not * 0.03 / seed:.0%}, 다바스(평균 6.8%)는 약 {min_not * 0.068 / seed:.0%} — 그래서 다바스는 현물(롱)로 나눠 담는다.',
+          '※ 지나간 데이터의 성적표다(규칙은 고르지 않았다). 앞으로도 같다는 보장은 없다.']
+    return dict(report='\n'.join(L), per=per)
 
 
 def lab_prior_reveals(engine):
@@ -8947,8 +9137,14 @@ def main(argv=None):
                 tf_e = lopt('--tfs', '4h')
                 if journal.state(f'masters|{tf_e}:darvas') != 'confirmed':
                     print(f'⚠ 다바스 박스 {tf_e} 는 일지상 확인 상태가 아닙니다 ({RESEARCH_STATE_KO.get(journal.state(f"masters|{tf_e}:darvas"), "-")}).')
-                res = lab_seed_backtest(base, seed=float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70'))), tf=tf_e)
+                seed_e = float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70')))
+                res = lab_seed_backtest(base, seed=seed_e, tf=tf_e)
                 print(res['report'])
+                strat = [(m_, '4h') for m_, key_ in (('darvas', 'masters|4h:darvas'), ('turtle1', 'masters2|btc:4h:turtle1'),
+                                                     ('turtle2', 'masters2|btc:4h:turtle2')) if journal.state(key_) == 'confirmed']
+                if len(strat) > 1 and tf_e == '4h':
+                    print()
+                    print(lab_portfolio_backtest(base, funding=funding, strategies=tuple(strat), seed=seed_e)['report'])
                 note('equity', f'시드 백테스트 — 다바스 박스 {tf_e}', top=[f'위험 {r["risk"]}: ${r["value"]:,.0f} 낙폭 {r["mdd"]:.0%}'
                                                                      for r in res['rows']])
                 return 0
