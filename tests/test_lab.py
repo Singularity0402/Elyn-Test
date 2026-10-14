@@ -416,7 +416,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P10_KEY) == 'confirmed'      # 사용자 PC 판정(2026-10-15)이 기록됨
     assert j.state('masters|4h:darvas') == 'confirmed' and j.state(pe.P7_KEY) == 'refuted'
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
@@ -1331,7 +1331,7 @@ def test_short_regime_judges_only_the_later_window(pe):
 
 def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     j0 = pe.ResearchJournal.load()
-    for k in (pe.TH_KEY, pe.P7_KEY, pe.P8_KEY, pe.P9_KEY, pe.P10_KEY):
+    for k in (pe.TH_KEY, pe.P7_KEY, pe.P8_KEY, pe.P9_KEY, pe.P10_KEY, pe.P11_KEY):
         j0.set_status(k, 'preregistered', '테스트: 판정 전 상태로')
     j0.save()
 
@@ -1351,6 +1351,9 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     monkeypatch.setattr(pe, 'lab_trend_hold', lambda *a, **k: dict(
         report='P5 보고서', verdict='반증 — 테스트', target_now=0.5, hold=hold,
         spot=dict(sharpe=0.5, sharpe_lo=-0.1, cagr=0.1, mdd=0.6)))
+    monkeypatch.setattr(pe, 'lab_masters2', lambda *a, **k: dict(
+        report='P11 보고서', rows=[dict(method='turtle2', tf='1d', sym='BTC', n=40, mean_r=0.2, lo=-0.3, win=0.4,
+                                       per=[(20, 0.3), (20, 0.1)], verdict='반증 안 됨')], confirmed=[]))
     monkeypatch.setattr(pe, 'lab_masters', lambda *a, **k: dict(
         report='P10 보고서', rows=[dict(method='darvas', tf='4h', n=80, mean_r=-0.1, lo=-0.4, win=0.4, per=[(40, -0.1), (40, -0.1)],
                                       verdict='반증')], confirmed=[]))
@@ -1367,6 +1370,7 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     assert j.state(pe.P8_KEY) in ('confirmed', 'not_refuted') and set(pe.P8_PROCEDURES) <= set(j.d['procedures'])
     assert j.state(pe.P9_KEY) == 'no_evidence' and 'blank|5m:r0' in j.d['procedures']        # 규칙 수천 개도 모두 센다
     assert j.state(pe.P10_KEY) == 'no_evidence' and j.state('masters|4h:darvas') == 'refuted' and 'P10 보고서' in out
+    assert j.state(pe.P11_KEY) == 'no_evidence' and j.state('masters2|btc:1d:turtle2') == 'not_refuted' and 'P11 보고서' in out
     assert pe.main(['--lab', '--proof']) == 0                                              # 다시 돌리면 판정 없이 요약만
     out2 = capsys.readouterr().out
     assert 'P7 보고서' not in out2 and '과거 차트 증명 요약' in out2
@@ -1566,3 +1570,35 @@ def test_seed_backtest_reports_growth_from_a_start_date(pe):
 def test_cli_equity_guards(pe):
     assert pe.main(['--lab', '--equity', '--tfs', '1h']) == 2
     assert pe.main(['--lab', '--equity', '--oracle']) == 2
+
+
+def test_seed_path_leverage_cap_and_ruin_floor(pe):
+    ret = np.array([0.05, -0.40, 0.05])
+    dist = np.array([0.05, 0.05, 0.05])
+    eq, _, _ = pe.lab_seed_path(ret, dist, 0.20, lev=3.0)                                   # 0.20/0.05 = 4배 → 3배로 묶임
+    assert abs(eq[0] - 1.15) < 1e-12 and eq[1] == 0.0 and eq[2] == 0.0                     # 한 번 0 이 되면 끝
+    res = pe.lab_seed_backtest(None, seed=70, tf='4h', start='2019-06-01', frame=_trend_frame(240, 1430, 0.002, 2))
+    assert '위험을 더 키우면' in res['report'] and '가장 빨리 불어난 위험' in res['report']
+
+
+# ── 사전등록 P11: 대가의 방법 2 (다바스 ETH 재현 · 터틀 규칙 1·2) ─────────────────────
+def test_masters2_turtle_and_eth_replication(pe):
+    reg = (('2019-03-01', '2021-01-01'), ('2021-01-01', '2022-12-01'))
+    tests = (('darvas', '4h', 'ETH'), ('turtle1', '4h', 'BTC'), ('turtle2', '4h', 'BTC'), ('darvas', '1d', 'ETH'))
+    trend = {('BTC', '4h'): _trend_frame(240, 1430, 0.002, 2), ('ETH', '4h'): _trend_frame(240, 1430, 0.002, 5)}
+    res = pe.lab_masters2(frames=trend, tests=tests, regimes=reg)
+    got = {(r['sym'], r['method'], r['tf']): r['verdict'] for r in res['rows']}
+    assert got[('BTC', 'turtle1', '4h')] == '확인' and got[('ETH', 'darvas', '4h')] == '확인'
+    assert got[('ETH', 'darvas', '1d')].startswith('판정 불가')                                 # 데이터가 없으면 판정하지 않는다
+    noise = {('BTC', '4h'): _trend_frame(240, 1430, 0.0, 2), ('ETH', '4h'): _trend_frame(240, 1430, 0.0, 5)}
+    assert not pe.lab_masters2(frames=noise, tests=tests[:3], regimes=reg)['confirmed']
+    assert '터틀 규칙 1 (20/10)' in res['report']
+
+
+def test_cli_masters2_guards_and_runs_once(pe):
+    assert pe.main(['--lab', '--masters2', '--oracle']) == 2
+    j = pe.ResearchJournal.load()
+    assert j.state(pe.P11_KEY) == 'preregistered'
+    j.set_status(pe.P11_KEY, 'no_evidence', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--masters2']) == 2
