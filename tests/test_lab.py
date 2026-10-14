@@ -424,7 +424,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger'), ('btc', '5m:volbreak'),
                                                                  ('btc', '15m:volbreak'), ('btc', '1h:volbreak')]
     assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
-    assert len(pe.RESEARCH_LESSONS) == 22 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert len(pe.RESEARCH_LESSONS) == 23 and any(e['kind'] == 'universe' for e in j.d['entries'])
     assert j.n_trials(['btc|4h:flow|taker']) == 252 and j.n_trials(['btc|4h:keltner|maker']) == 253
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
