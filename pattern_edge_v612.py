@@ -7113,12 +7113,12 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-15a · 다바스 박스 4h 실전 신호'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-15b · 다바스 박스 4h 실전 신호 · 시드 백테스트'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
                            '--no-funding', '--trend-hold', '--cost-curve', '--short-presample', '--watch', '--proof',
-                           '--blank', '--masters'})
+                           '--blank', '--masters', '--equity'})
 LAB_ORACLE_Q = (0.05, 0.10, 0.20)     # train 예측 확률 상위 몇 %에서만 진입할지 (train 이 고른다)
 LAB_ORACLE_FEATURES = ['1봉 수익', '4봉 수익', '24봉 수익', '168봉 수익', '변동성(ATR%)', '변동성 비율(지금/1주)',
                        'EMA20 거리', 'EMA100 거리', 'SMA200 거리', 'Bollinger z(20)', 'Donchian 위치(55)',
@@ -8125,7 +8125,9 @@ def _m_darvas(o, h, l, c, conf, min_box, cost, i0, i1):
     """
     n = i1
     ent = np.empty(n, dtype=np.int64)
+    xit = np.empty(n, dtype=np.int64)
     rr = np.empty(n, dtype=np.float64)
+    dd = np.empty(n, dtype=np.float64)
     m = 0
     phase, ct, cti, cb, cbi, top, bot = 0, h[i0], i0, 0.0, i0, 0.0, 0.0
     pos, pend, entry, d, stop, t_in, pend_stop = 0, 0, 0.0, 0.0, 0.0, 0, 0.0
@@ -8138,7 +8140,7 @@ def _m_darvas(o, h, l, c, conf, min_box, cost, i0, i1):
             skipped = 0 if pos else 1
         if pos and l[i] <= stop:
             px = o[i] if o[i] < stop else stop
-            ent[m], rr[m] = t_in, ((px / entry - 1.0) - cost) / d
+            ent[m], xit[m], rr[m], dd[m] = t_in, i, ((px / entry - 1.0) - cost) / d, d
             m += 1
             pos = 0
         if phase == 0:
@@ -8167,7 +8169,7 @@ def _m_darvas(o, h, l, c, conf, min_box, cost, i0, i1):
             elif c[i] < bot:
                 phase, ct, cti = 0, h[i], i
     state = np.array([phase, top, bot, pos, entry, stop, pend, pend_stop, ct, cb, t_in, skipped], dtype=np.float64)
-    return ent[:m], rr[:m], state
+    return ent[:m], rr[:m], state, xit[:m], dd[:m]
 
 
 def _m_frames(base1m):
@@ -8298,7 +8300,7 @@ def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
     df = frame if frame is not None else _masters_frame(base1m, tf)
     ind = _lab_indicators(df)
     o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
-    _, _, st = _m_darvas(o, h, l, c, 3, 3 * P10_COST, P10_COST, 0, len(c))
+    st = _m_darvas(o, h, l, c, 3, 3 * P10_COST, P10_COST, 0, len(c))[2]
     phase, top, bot, pos, entry, stop, pend, pend_stop, ct, cb, t_in, skipped = st
     last = df.index[-1]
     nxt = last + pd.Timedelta(minutes=MASTERS_TF_MIN[tf])
@@ -8377,6 +8379,88 @@ def lab_signal_all(base1m, live, seed=70.0, cost_mode='taker', status=None, stat
     return dict(rows=rows, report='\n'.join(L))
 
 
+SEED_SPOT_COST = 0.0010 * 2 + 0.0001 * 2       # 현물 시장가 0.1% × 2 + 슬리피지 → 왕복 0.22% (실전은 현물)
+SEED_RISKS = (0.01, 0.02, 0.03)
+
+
+def lab_seed_path(ret, dist, risk):
+    """
+    거래별 가격 수익률(비용 후)·손절 거리 → 시드 배수 경로. 위험 r 이면 산 금액 = 자산 × min(r ÷ 손절 거리, 1) (레버리지 없음),
+    risk=None 이면 매번 자산 전부를 산다. 반환 (거래 뒤 자산 배수 배열, 최대 낙폭, 최장 연속 손실).
+    """
+    frac = np.ones(len(ret)) if risk is None else np.minimum(risk / np.maximum(dist, 1e-9), 1.0)
+    eq = np.cumprod(1.0 + frac * ret)
+    peak = np.maximum.accumulate(np.r_[1.0, eq])[1:]
+    mdd = float((1 - eq / peak).max()) if len(eq) else 0.0
+    streak = best = 0
+    for x in ret:
+        streak = streak + 1 if x <= 0 else 0
+        best = max(best, streak)
+    return eq, mdd, best
+
+
+def lab_seed_backtest(base1m=None, seed=70.0, tf='4h', start='2018-01-01', live_since='2026-10-15', frame=None,
+                      cost=SEED_SPOT_COST, risks=SEED_RISKS):
+    """
+    시드 백테스트: 다바스 박스(P10 확인 규칙 그대로)를 start 부터 지금까지 한 봉씩 진행하며 현물로 샀다고 계산한다.
+    봉 마감까지의 데이터만 쓰고(미래 없음), 진입 = 돌파 확인 다음 봉 시가, 손절 = 박스 아래(같은 봉이면 손절 먼저, 갭이면 시가).
+    """
+    df = frame if frame is not None else _masters_frame(base1m, tf)
+    ind = _lab_indicators(df)
+    o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
+    i0 = int(df.index.searchsorted(pd.Timestamp(start)))
+    e, R, _, x, d = _m_darvas(o, h, l, c, 3, 3 * P10_COST, P10_COST, i0, len(c))
+    gross = R * d + P10_COST                    # 시뮬레이터 R 에서 비용을 되돌린 가격 수익률
+    ret = gross - cost
+    idx = df.index
+    T_in, T_out = idx.values[e], idx.values[x]
+    n = len(ret)
+    years = max((idx[-1] - idx[i0]).days / 365.25, 1e-9)
+    L = [f'━━━ 시드 백테스트 · 다바스 박스 {tf} (P10 확인 규칙 그대로) · BTC 현물 · {idx[i0]:%Y-%m-%d} ~ {idx[-1]:%Y-%m-%d} ━━━',
+         f'방법: 과거 {tf} 봉을 처음부터 한 봉씩 진행하며 그 봉 마감까지의 데이터만 보고 규칙대로 사고팔았다고 계산했다(미래 데이터 없음). '
+         '진입 = 박스 위 종가 돌파가 확인된 다음 봉 시가 · 손절 = 박스 아래, 새 박스마다 올림 · 같은 봉에서 손절과 다른 일이 겹치면 '
+         f'손절 먼저 · 갭이면 시가 체결 · 비용 = 현물 왕복 {cost:.2%} · 한 번에 한 포지션 · 레버리지 없음.']
+    if n == 0:
+        L.append('거래 0건 — 이 기간에 확정된 박스 돌파가 없었다.')
+        return dict(report='\n'.join(L), n=0, final={}, rows=[])
+    hold_days = float(np.mean((T_out - T_in).astype('timedelta64[h]').astype(np.float64))) / 24
+    L.append(f'거래 {n}건 (연 {n / years:.0f}건) · 승률 {np.mean(ret > 0):.0%} · 거래당 평균 가격 수익 {ret.mean():+.2%} · '
+             f'평균 보유 {hold_days:.1f}일 · 평균 손절 거리 {d.mean():.1%}')
+    L.append('─' * 100)
+    final, rows = {}, []
+    for rk in tuple(risks) + (None,):
+        eq, mdd, streak = lab_seed_path(ret, d, rk)
+        val = seed * eq[-1]
+        cagr = eq[-1] ** (1 / years) - 1 if eq[-1] > 0 else -1.0
+        name = f'거래당 위험 {rk:.0%}' + (' (프로그램 천장)' if rk == RISK_CAP else '') if rk is not None else '매번 시드 전부 매수'
+        final[rk] = val
+        rows.append(dict(risk=rk, value=val, cagr=cagr, mdd=mdd, streak=streak))
+        L.append(f'시드 ${seed:,.0f} → ${val:,.0f}  ({name}) · 연복리 {cagr:+.1%} · 하루복리 {(eq[-1] ** (1 / (years * 365.25)) - 1):+.3%} · '
+                 f'최대 낙폭 {mdd:.0%} · 최장 연속 손절 {streak}번')
+    eq1, _, _ = lab_seed_path(ret, d, risks[0])
+    yr = pd.Series(np.r_[1.0, eq1], index=pd.DatetimeIndex(np.r_[idx.values[i0:i0 + 1], T_out]))
+    ye = yr.groupby(yr.index.year).last()
+    prev, parts = 1.0, []
+    for y_, v in ye.items():
+        parts.append(f'{y_} {v / prev - 1:+.0%}')
+        prev = v
+    L.append(f'연도별 (위험 {risks[0]:.0%}): ' + ' · '.join(parts))
+    starts = []
+    for y_ in range(idx[i0].year, idx[-1].year + 1):
+        mk = T_in >= np.datetime64(f'{y_}-01-01')
+        if mk.any():
+            starts.append(f'{y_}년 시작 ${seed:,.0f} → ${seed * lab_seed_path(ret[mk], d[mk], risks[0])[0][-1]:,.0f}')
+    L.append(f'시작한 해에 따라 (위험 {risks[0]:.0%}, 지금까지): ' + ' · '.join(starts))
+    live = T_in >= np.datetime64(pd.Timestamp(live_since))
+    L.append(f'실전 시작({live_since}) 이후: 거래 {int(live.sum())}건' + (
+        f' · 위험 {risks[0]:.0%} 기준 ${seed:,.0f} → ${seed * lab_seed_path(ret[live], d[live], risks[0])[0][-1]:,.0f}' if live.any() else
+        ' — 아직 진입 없음'))
+    L += ['─' * 100,
+          '※ 이 기간은 P10 판정에 쓴 바로 그 데이터다. 규칙을 고르지 않았으므로 맞춰 만든 성적은 아니지만, 앞으로도 같다는 보장은 아니다.',
+          '※ 하루 1% 복리 = 연 약 3,700%. 위 숫자와 비교해 보라 (L15).']
+    return dict(report='\n'.join(L), n=n, final=final, rows=rows)
+
+
 def lab_prior_reveals(engine):
     return [ev for ev in engine.state.ledger.read()
             if ev.get('kind') == 'SYSTEM' and ev.get('what') == 'lab_holdout_revealed']
@@ -8449,6 +8533,7 @@ def main(argv=None):
         proof = '--proof' in argv
         blank = '--blank' in argv
         masters = '--masters' in argv
+        equity = '--equity' in argv
         stop_pct = None
         fees = None
         ora = dict(tf='1h', sl=0.01, tp_list=(2.0,), hold=24)
@@ -8478,6 +8563,10 @@ def main(argv=None):
                         raise ValueError('--tfs 는 15m,1h,4h 중에서 고릅니다 (예: --tfs 1h,4h)')
             if presample and (universe or symbols or '--reveal-holdout' in argv):
                 raise ValueError('--presample 은 BTC 단독 검증입니다 (--universe·--symbols·--reveal-holdout 과 함께 쓰지 않음)')
+            if equity and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--equity', '--seed', '--tfs'}):
+                raise ValueError('--equity 는 단독으로 씁니다 (--seed 70 · --tfs 4h|1d 만 함께)')
+            if equity and lopt('--tfs', '4h') not in ('4h', '1d'):
+                raise ValueError('--equity 의 --tfs 는 4h 또는 1d (P10 에서 확인된 다바스 박스)')
             if masters and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--masters', '--retest'}):
                 raise ValueError('--masters(P10 대가의 방법)는 단독으로 씁니다 (규칙은 사전등록대로 고정)')
             if blank and any(a in argv for a in LAB_CLI_FLAGS - {'--lab', '--blank', '--no-funding', '--retest'}):
@@ -8647,7 +8736,9 @@ def main(argv=None):
                       '이번 결과는 이미 본 데이터 위의 결과입니다.')
         cost_key = f'{cost}{lab_fee_tag()}'
         pend = {k: journal.state(k) in (None, 'preregistered') for k in (TH_KEY, P7_KEY, P8_KEY, P9_KEY, P10_KEY)}
-        if proof:
+        if equity:
+            keys = []                                       # 확인된 규칙을 그대로 돌린 성적표 → 새 시험이 아니다
+        elif proof:
             keys = (list(TH_PROCEDURES) if pend[TH_KEY] else []) + (list(P7_PROCEDURES) if pend[P7_KEY] else []) + \
                 (list(P8_PROCEDURES) if pend[P8_KEY] and funding is not None else []) + \
                 (p9_procedure_keys(funding is not None) if pend[P9_KEY] else []) + \
@@ -8713,6 +8804,15 @@ def main(argv=None):
             except Exception as e_:
                 print(f'⚠ 연구 일지 기록 실패: {e_}')
         try:
+            if equity:
+                tf_e = lopt('--tfs', '4h')
+                if journal.state(f'masters|{tf_e}:darvas') != 'confirmed':
+                    print(f'⚠ 다바스 박스 {tf_e} 는 일지상 확인 상태가 아닙니다 ({RESEARCH_STATE_KO.get(journal.state(f"masters|{tf_e}:darvas"), "-")}).')
+                res = lab_seed_backtest(base, seed=float(lopt('--seed', os.environ.get('PATTERNEDGE_SEED', '70'))), tf=tf_e)
+                print(res['report'])
+                note('equity', f'시드 백테스트 — 다바스 박스 {tf_e}', top=[f'위험 {r["risk"]}: ${r["value"]:,.0f} 낙폭 {r["mdd"]:.0%}'
+                                                                     for r in res['rows']])
+                return 0
             if masters:
                 r10 = lab_masters(base, status=status)
                 print(r10['report'])

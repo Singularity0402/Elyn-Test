@@ -1507,7 +1507,8 @@ def test_darvas_live_state_matches_the_backtest(pe):
     f = _trend_frame(240, 1430, 0.002, 2)
     ind = pe._lab_indicators(f)
     o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
-    e, R, st = pe._m_darvas(o, h, l, c, 3, 3 * pe.P10_COST, pe.P10_COST, 0, len(c))
+    e, R, st, x, d = pe._m_darvas(o, h, l, c, 3, 3 * pe.P10_COST, pe.P10_COST, 0, len(c))
+    assert (x >= e).all() and (d >= 3 * pe.P10_COST).all() and len(x) == len(R)
     live = pe.lab_masters_live(None, 'darvas', '4h', seed=70, frame=f)
     assert live['pair'] == '4h:darvas' and live['state'] in ('entry', 'position', 'armed', 'forming')
     if st[3]:                                                                                  # 보유 중이면 손절가가 같다
@@ -1538,3 +1539,30 @@ def test_signal_view_puts_confirmed_strategy_first_and_hides_refuted(pe):
     res = pe.lab_signal_all(base, [t for t in live if t['pair'] in ('4h:darvas', '1d:darvas')], seed=70, states=states)
     assert res['report'].index('【실전') < len(res['report']) and '다바스 박스 돌파' in res['report']
     assert '【연구 추적' not in res['report']
+
+
+# ── 시드 백테스트: 확인된 다바스 박스를 그대로 돌려 70달러가 얼마가 됐나 ─────────────────────
+def test_seed_path_sizing_rules(pe):
+    ret = np.array([0.10, -0.05, 0.10])
+    dist = np.array([0.05, 0.05, 0.005])
+    eq, mdd, streak = pe.lab_seed_path(ret, dist, 0.01)
+    # 위험 1%: 손절 5% 면 자산의 20% 를 산다, 손절 0.5% 면 200% 가 아니라 100%(레버리지 없음)
+    assert np.allclose(eq, np.cumprod([1 + 0.2 * 0.10, 1 - 0.2 * 0.05, 1 + 1.0 * 0.10]))
+    assert abs(mdd - 0.01) < 1e-12 and streak == 1
+    allin, _, _ = pe.lab_seed_path(ret, dist, None)
+    assert np.allclose(allin, np.cumprod(1 + ret))
+
+
+def test_seed_backtest_reports_growth_from_a_start_date(pe):
+    f = _trend_frame(240, 1430, 0.002, 2)
+    res = pe.lab_seed_backtest(None, seed=70, tf='4h', start='2019-06-01', frame=f)
+    assert res['n'] > 0 and set(res['final']) == {0.01, 0.02, 0.03, None}
+    assert res['final'][0.03] > res['final'][0.02] > res['final'][0.01] > 70                    # 추세 차트에서는 키울수록 커진다
+    assert '시드 $70 →' in res['report'] and '시작한 해에 따라' in res['report'] and '미래 데이터 없음' in res['report']
+    noise = pe.lab_seed_backtest(None, seed=70, tf='4h', start='2019-06-01', frame=_trend_frame(240, 1430, 0.0, 2))
+    assert noise['final'][0.01] < res['final'][0.01] / 2                                      # 무작위 차트는 추세 차트보다 훨씬 덜 불어난다
+
+
+def test_cli_equity_guards(pe):
+    assert pe.main(['--lab', '--equity', '--tfs', '1h']) == 2
+    assert pe.main(['--lab', '--equity', '--oracle']) == 2
