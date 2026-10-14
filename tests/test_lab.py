@@ -416,7 +416,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.TH_KEY) == 'preregistered'                              # P5 는 실행 전 등록 상태로 시작
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
@@ -1342,6 +1342,9 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     monkeypatch.setattr(pe, 'lab_trend_hold', lambda *a, **k: dict(
         report='P5 보고서', verdict='반증 — 테스트', target_now=0.5, hold=hold,
         spot=dict(sharpe=0.5, sharpe_lo=-0.1, cagr=0.1, mdd=0.6)))
+    monkeypatch.setattr(pe, 'lab_masters', lambda *a, **k: dict(
+        report='P10 보고서', rows=[dict(method='darvas', tf='4h', n=80, mean_r=-0.1, lo=-0.4, win=0.4, per=[(40, -0.1), (40, -0.1)],
+                                      verdict='반증')], confirmed=[]))
     monkeypatch.setattr(pe, 'lab_blank_search', lambda *a, **k: dict(
         report='P9 보고서', rows=[], confirmed=[], total=8436, exp_t=4.3))
     monkeypatch.setattr(pe, 'lab_short_regime', lambda *a, **k: dict(
@@ -1354,6 +1357,7 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P7_KEY) == 'refuted' and j.state(pe.P7_KEY_15M) == 'not_refuted'
     assert j.state(pe.P8_KEY) in ('confirmed', 'not_refuted') and set(pe.P8_PROCEDURES) <= set(j.d['procedures'])
     assert j.state(pe.P9_KEY) == 'no_evidence' and 'blank|5m:r0' in j.d['procedures']        # 규칙 수천 개도 모두 센다
+    assert j.state(pe.P10_KEY) == 'no_evidence' and j.state('masters|4h:darvas') == 'refuted' and 'P10 보고서' in out
     assert pe.main(['--lab', '--proof']) == 0                                              # 다시 돌리면 판정 없이 요약만
     out2 = capsys.readouterr().out
     assert 'P7 보고서' not in out2 and '과거 차트 증명 요약' in out2
@@ -1424,3 +1428,72 @@ def test_cli_blank_guards_and_runs_once(pe):
     j.set_status(pe.P9_KEY, 'no_evidence', '테스트')
     j.save()
     assert pe.main(['--lab', '--blank']) == 2                                                 # 판정된 뒤에는 네트워크 전에 거절
+
+
+# ── 사전등록 P10: 대가의 방법 (다바스 · BNF · cis) ─────────────────────────────
+def _trend_frame(minutes, days, drift, seed):
+    g = np.random.default_rng(seed)
+    idx = pd.date_range('2019-01-01', periods=days * 1440 // minutes, freq=f'{minutes}min')
+    n = len(idx)
+    e = g.normal(0, 1, n)
+    st = np.empty(n)
+    acc = 0.0
+    for i in range(n):
+        acc = 0.995 * acc + e[i] * 0.1
+        st[i] = acc
+    sc = np.sqrt(minutes / 60)
+    c = 10000 * np.exp(np.cumsum(g.normal(0, 0.004 * sc, n) + drift * np.tanh(st) * sc))
+    o = np.r_[c[0], c[:-1]]
+    v = np.exp(g.normal(3, 0.3, n))
+    return pd.DataFrame(dict(open=o, high=np.maximum(o, c) * (1 + np.abs(g.normal(0, 0.001, n))),
+                             low=np.minimum(o, c) * (1 - np.abs(g.normal(0, 0.001, n))), close=c, volume=v,
+                             taker_buy_base=v * 0.5, trades=1.0, era=1.0), index=idx)
+
+
+P10_TEST_REG = (('2019-03-01', '2021-01-01'), ('2021-01-01', '2022-12-01'))
+P10_TEST_SET = (('darvas', '1h'), ('darvas', '4h'), ('bnf', '1h'), ('bnf', '4h'), ('cis', '15m'))
+
+
+def test_masters_sim_rules(pe):
+    o = np.array([100, 100, 100, 101, 100, 100, 100], dtype=float)
+    h = o + 0.5
+    l = o - 0.5
+    l[4] = 97.5                                                                          # 진입 다음 봉에 손절(−2%)이 닿는다
+    c = o.copy()
+    z = np.zeros(7, dtype=np.bool_)
+    el = z.copy()
+    el[2] = True                                                                         # 봉 2 마감 신호 → 봉 3 시가 101 진입
+    sd = np.full(7, 0.02)
+    e, R = pe._m_sim(o, h, l, c, el, z, z, z, sd, 0, 0.0012, 0, 7)
+    assert list(e) == [3] and abs(R[0] - ((101 * 0.98 / 101 - 1) - 0.0012) / 0.02) < 1e-12     # −1R − 비용
+    xl = z.copy()
+    xl[3] = True                                                                         # 청산 신호면 다음 봉 시가에 나온다
+    l2 = o - 0.5
+    e2, R2 = pe._m_sim(o, h, l2, c, el, z, xl, z, sd, 0, 0.0, 0, 7)
+    assert abs(R2[0] - (100 / 101 - 1) / 0.02) < 1e-12
+
+
+def test_masters_reject_random_walk_and_find_trends(pe):
+    fr = {'1h': _trend_frame(60, 1430, 0.0, 1), '4h': _trend_frame(240, 1430, 0.0, 2), '15m': _trend_frame(15, 1430, 0.0, 3)}
+    noise = pe.lab_masters(frames=fr, tests=P10_TEST_SET, regimes=P10_TEST_REG)
+    assert not noise['confirmed'] and len(noise['rows']) == 5
+    fr2 = {'1h': _trend_frame(60, 1430, 0.002, 1), '4h': _trend_frame(240, 1430, 0.002, 2), '15m': _trend_frame(15, 1430, 0.002, 3)}
+    trend = pe.lab_masters(frames=fr2, tests=P10_TEST_SET, regimes=P10_TEST_REG)
+    got = {(r['method'], r['tf']): r['verdict'] for r in trend['rows']}
+    assert got[('darvas', '1h')] == '확인' and got[('cis', '15m')] == '확인' and got[('bnf', '1h')] == '반증'
+    assert '다바스 박스 돌파' in trend['report'] and 'P6' in trend['report']
+
+
+def test_masters_verdict_rule(pe):
+    v = pe.lab_masters_verdict
+    assert v(20, 0.5, 0.2, [0.5, 0.5]) == '판정 불가' and v(100, -0.1, -0.3, [0.1, -0.3]) == '반증'
+    assert v(100, 0.3, 0.1, [0.4, 0.2]) == '확인' and v(100, 0.3, 0.1, [0.6, -0.1]) == '반증 안 됨'      # 한 국면이라도 지면 확인 아님
+
+
+def test_cli_masters_guards_and_runs_once(pe):
+    assert pe.main(['--lab', '--masters', '--oracle']) == 2
+    j = pe.ResearchJournal.load()
+    assert j.state(pe.P10_KEY) == 'preregistered'
+    j.set_status(pe.P10_KEY, 'no_evidence', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--masters']) == 2
