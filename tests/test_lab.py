@@ -412,30 +412,32 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 252 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 10024 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
     assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10'] and j.state('alt_presample|4h:consensus') == 'confirmed'
-    assert j.state(pe.TH_KEY) == 'preregistered'                              # P5 는 실행 전 등록 상태로 시작
+    assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P10_KEY) == 'confirmed'      # 사용자 PC 판정(2026-10-15)이 기록됨
+    assert j.state('masters|4h:darvas') == 'confirmed' and j.state(pe.P7_KEY) == 'refuted'
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
     assert j.state('btc|1m:wick') == 'no_evidence' and len(j.d['holdout_history']) == 2
     assert j.state('btc_stop1|short:all') == 'no_evidence'
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger'), ('btc', '5m:volbreak'),
-                                                                 ('btc', '15m:volbreak'), ('btc', '1h:volbreak')]
+                                                                 ('btc', '15m:volbreak'), ('btc', '1h:volbreak'),
+                                                                 ('btc', '4h:darvas'), ('btc', '1d:darvas')]
     assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
-    assert len(pe.RESEARCH_LESSONS) == 23 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 252 and j.n_trials(['btc|4h:keltner|maker']) == 253
+    assert len(pe.RESEARCH_LESSONS) == 24 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 10024 and j.n_trials(['btc|4h:keltner|maker']) == 10025
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 253 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 10025 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 252 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 10024 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -1162,7 +1164,9 @@ def test_cli_trend_hold_judges_once_then_only_updates(pe, monkeypatch, capsys):
     monkeypatch.setattr(pe, 'DataStore', FakeStore)
     monkeypatch.setattr(pe, 'load_funding_history', lambda *a, **k: None)
     monkeypatch.setattr(pe, 'lab_eth_frames', lambda *a, **k: {})
-    assert pe.ResearchJournal.load().state(pe.TH_KEY) == 'preregistered'
+    j0 = pe.ResearchJournal.load()
+    j0.set_status(pe.TH_KEY, 'preregistered', '테스트: 판정 전 상태로')
+    j0.save()
     assert pe.main(['--lab', '--trend-hold', '--seed', '70']) == 0
     out = capsys.readouterr().out
     assert '사전등록 P5' in out and '판정(사전 규칙)' in out and '지금 신호' in out and 'ETH(2순위): 데이터 없음' in out
@@ -1326,6 +1330,11 @@ def test_short_regime_judges_only_the_later_window(pe):
 
 
 def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
+    j0 = pe.ResearchJournal.load()
+    for k in (pe.TH_KEY, pe.P7_KEY, pe.P8_KEY, pe.P9_KEY, pe.P10_KEY):
+        j0.set_status(k, 'preregistered', '테스트: 판정 전 상태로')
+    j0.save()
+
     class FakeStore:
         def __init__(self):
             self.base = _trend_1m(30, 0.0)
@@ -1423,10 +1432,7 @@ def test_blank_search_does_not_use_bars_whose_answer_reaches_past_the_window(pe)
 def test_cli_blank_guards_and_runs_once(pe):
     assert pe.main(['--lab', '--blank', '--oracle']) == 2
     assert pe.main(['--lab', '--blank', '--tfs', '1h']) == 2
-    j = pe.ResearchJournal.load()
-    assert j.state(pe.P9_KEY) == 'preregistered'
-    j.set_status(pe.P9_KEY, 'no_evidence', '테스트')
-    j.save()
+    assert pe.ResearchJournal.load().state(pe.P9_KEY) == 'no_evidence'                      # 사용자 PC 판정이 기록됨
     assert pe.main(['--lab', '--blank']) == 2                                                 # 판정된 뒤에는 네트워크 전에 거절
 
 
@@ -1492,8 +1498,43 @@ def test_masters_verdict_rule(pe):
 
 def test_cli_masters_guards_and_runs_once(pe):
     assert pe.main(['--lab', '--masters', '--oracle']) == 2
-    j = pe.ResearchJournal.load()
-    assert j.state(pe.P10_KEY) == 'preregistered'
-    j.set_status(pe.P10_KEY, 'no_evidence', '테스트')
-    j.save()
+    assert pe.ResearchJournal.load().state(pe.P10_KEY) == 'confirmed'
     assert pe.main(['--lab', '--masters']) == 2
+
+
+# ── 다바스 박스 4h: 과거 차트로 수립된 첫 전략 → 지금 신호·앞으로의 채점 ─────────────────
+def test_darvas_live_state_matches_the_backtest(pe):
+    f = _trend_frame(240, 1430, 0.002, 2)
+    ind = pe._lab_indicators(f)
+    o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
+    e, R, st = pe._m_darvas(o, h, l, c, 3, 3 * pe.P10_COST, pe.P10_COST, 0, len(c))
+    live = pe.lab_masters_live(None, 'darvas', '4h', seed=70, frame=f)
+    assert live['pair'] == '4h:darvas' and live['state'] in ('entry', 'position', 'armed', 'forming')
+    if st[3]:                                                                                  # 보유 중이면 손절가가 같다
+        assert live['state'] == 'position' and abs(live['stop'] - st[5]) < 1e-9
+    if live['state'] == 'entry':
+        assert '현물 매수' in live['action'] and 'BTC 현물 약' in '\n'.join(live['lines'])
+    for cut in (37, 101, 233):                                                                 # 어느 시점에서 끊어도 같은 규칙
+        g = f.iloc[:len(f) - cut]
+        r2 = pe.lab_masters_live(None, 'darvas', '4h', frame=g)
+        assert r2['action'].startswith(('대기', '보유', '다음 봉', '박스 위'))
+
+
+def test_darvas_forward_counts_only_trades_after_since(pe):
+    f = _trend_frame(240, 1430, 0.002, 2)
+    allR = pe.lab_masters_forward(None, 'darvas', '4h', '2000-01-01', frame=f)
+    later = pe.lab_masters_forward(None, 'darvas', '4h', '2022-01-01', frame=f)
+    assert len(allR) > len(later) > 0
+
+
+def test_signal_view_puts_confirmed_strategy_first_and_hides_refuted(pe):
+    j = pe.ResearchJournal.load()
+    live = [t for t in j.d['tracking'] if pe.track_state(j, t) != 'refuted']
+    pairs = [t['pair'] for t in live]
+    assert '4h:darvas' in pairs and '15m:volbreak' in pairs and '5m:volbreak' not in pairs and '1h:volbreak' not in pairs
+    states = {t['pair']: pe.track_state(j, t) for t in live}
+    assert states['4h:darvas'] == 'confirmed' and states['15m:volbreak'] == 'not_refuted'
+    base = _trend_1m(400, 0.0000004, seed=6)
+    res = pe.lab_signal_all(base, [t for t in live if t['pair'] in ('4h:darvas', '1d:darvas')], seed=70, states=states)
+    assert res['report'].index('【실전') < len(res['report']) and '다바스 박스 돌파' in res['report']
+    assert '【연구 추적' not in res['report']
