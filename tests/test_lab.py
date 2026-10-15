@@ -416,7 +416,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11', 'P12'] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P10_KEY) == 'confirmed'      # 사용자 PC 판정(2026-10-15)이 기록됨
     assert j.state('masters|4h:darvas') == 'confirmed' and j.state(pe.P7_KEY) == 'refuted'
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
@@ -425,7 +425,7 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger'), ('btc', '5m:volbreak'),
                                                                  ('btc', '15m:volbreak'), ('btc', '1h:volbreak'),
                                                                  ('btc', '4h:darvas'), ('btc', '1d:darvas'),
-                                                                 ('btc', '4h:turtle1'), ('btc', '4h:turtle2')]
+                                                                 ('btc', '4h:turtle1'), ('btc', '4h:turtle2'), ('btc', '4h:fusion')]
     assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
     assert len(pe.RESEARCH_LESSONS) == 24 and any(e['kind'] == 'universe' for e in j.d['entries'])
     assert j.n_trials(['btc|4h:flow|taker']) == 10030 and j.n_trials(['btc|4h:keltner|maker']) == 10031
@@ -1332,7 +1332,7 @@ def test_short_regime_judges_only_the_later_window(pe):
 
 def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     j0 = pe.ResearchJournal.load()
-    for k in (pe.TH_KEY, pe.P7_KEY, pe.P8_KEY, pe.P9_KEY, pe.P10_KEY, pe.P11_KEY):
+    for k in (pe.TH_KEY, pe.P7_KEY, pe.P8_KEY, pe.P9_KEY, pe.P10_KEY, pe.P11_KEY, pe.P12_KEY):
         j0.set_status(k, 'preregistered', '테스트: 판정 전 상태로')
     j0.save()
 
@@ -1352,6 +1352,9 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     monkeypatch.setattr(pe, 'lab_trend_hold', lambda *a, **k: dict(
         report='P5 보고서', verdict='반증 — 테스트', target_now=0.5, hold=hold,
         spot=dict(sharpe=0.5, sharpe_lo=-0.1, cagr=0.1, mdd=0.6)))
+    monkeypatch.setattr(pe, 'lab_fusion', lambda *a, **k: dict(
+        report='P12 보고서', verdict='반증 안 됨', n=120, mean_r=0.3, lo=-0.1, per=[(60, 0.3, 1.2, 80, 1.1), (60, 0.2, 1.1, 80, 1.2)],
+        curve=[]))
     monkeypatch.setattr(pe, 'lab_masters2', lambda *a, **k: dict(
         report='P11 보고서', rows=[dict(method='turtle2', tf='1d', sym='BTC', n=40, mean_r=0.2, lo=-0.3, win=0.4,
                                        per=[(20, 0.3), (20, 0.1)], verdict='반증 안 됨')], confirmed=[]))
@@ -1372,6 +1375,7 @@ def test_cli_proof_runs_pending_judgments_once(pe, monkeypatch, capsys):
     assert j.state(pe.P9_KEY) == 'no_evidence' and 'blank|5m:r0' in j.d['procedures']        # 규칙 수천 개도 모두 센다
     assert j.state(pe.P10_KEY) == 'no_evidence' and j.state('masters|4h:darvas') == 'refuted' and 'P10 보고서' in out
     assert j.state(pe.P11_KEY) == 'no_evidence' and j.state('masters2|btc:1d:turtle2') == 'not_refuted' and 'P11 보고서' in out
+    assert j.state(pe.P12_KEY) == 'not_refuted' and 'P12 보고서' in out and '포트폴리오 백테스트' in out     # 확인된 4h 둘 이상 → 성적표까지
     assert pe.main(['--lab', '--proof']) == 0                                              # 다시 돌리면 판정 없이 요약만
     out2 = capsys.readouterr().out
     assert 'P7 보고서' not in out2 and '과거 차트 증명 요약' in out2
@@ -1629,3 +1633,56 @@ def test_turtle_live_signal_matches_the_backtest_state(pe):
         assert live['pair'] == f'4h:{m}' and (live['state'] in ('position', 'exit')) == (pos != 0)
         if live['state'] == 'position':
             assert abs(live['stop'] - t['state'][2]) < 1e-9 and '청산' in live['action']
+
+
+# ── 사전등록 P12: 성공 요소 융합 (돌파 + 큰 추세 + 2N 손절 + 피라미딩) ─────────────────────
+def test_fusion_pyramids_and_moves_the_stop(pe):
+    n = 8
+    o = np.array([100, 100, 101, 101, 101, 100, 100, 100], dtype=float)
+    h = np.array([100, 101, 101.2, 102.1, 101, 100, 100, 100], dtype=float)
+    l = np.array([99.5, 100, 100.8, 101, 99.5, 99, 99, 99], dtype=float)
+    c = np.array([100, 101, 101, 101.8, 100, 100, 100, 100], dtype=float)
+    atr = np.full(n, 0.01)
+    h20 = np.full(n, 100.5)
+    h55 = np.full(n, 99.0)                                                                 # 처음부터 큰 추세 상승
+    low = np.full(n, 0.0)
+    high = np.full(n, 1e9)
+    e, x, R, U, S, D0, st = pe._fusion_sim(o, h, l, c, atr, h20, low, h55, low, high, low, 0.0012, 4, 0.5, 2.0, 0, n)
+    assert list(e) == [2] and list(x) == [4] and list(U) == [3] and list(S) == [1]       # 봉 3 에서 두 번 추가 → 3단위, 봉 4 손절
+    N = 0.01 * 101
+    eps = [101, 101 + 0.5 * N, 101 + N]
+    stop = eps[-1] - 2 * N                                                                 # 손절은 마지막 진입가 − 2N 으로 올라갔다
+    want = sum(stop / ep - 1 - 0.0012 for ep in eps) / (2 * N / 101)
+    assert abs(R[0] - want) < 1e-9 and abs(D0[0] - 0.02) < 1e-12
+
+
+def test_fusion_verdict_and_synthetic_behaviour(pe):
+    v = pe.lab_fusion_verdict
+    assert v(20, 1, 1, [1, 1], [True, True]) == '판정 불가' and v(100, -0.1, -0.3, [0.1, -0.2], [True, True]) == '반증'
+    assert v(100, 0.5, 0.1, [0.4, 0.6], [True, True]) == '확인'
+    assert v(100, 0.5, 0.1, [0.4, 0.6], [True, False]) == '반증 안 됨'                     # 터틀 1 을 못 이기면 확인 아님
+    reg = (('2019-03-01', '2021-01-01'), ('2021-01-01', '2022-12-01'))
+    trend = pe.lab_fusion(frame=_trend_frame(240, 1430, 0.0006, 2), regimes=reg)
+    noise = pe.lab_fusion(frame=_trend_frame(240, 1430, 0.0, 2), regimes=reg)
+    assert trend['verdict'] == '확인' and noise['verdict'] != '확인'
+    assert '피라미딩' in trend['report'] or '더 싣기' in trend['report']
+
+
+def test_fusion_live_signal_matches_the_backtest_state(pe):
+    f = _trend_frame(240, 1430, 0.0006, 2)
+    for cut in (0, 31, 77):
+        g = f.iloc[:len(f) - cut]
+        t = pe._m_trades_full('fusion', g, 0, len(g))
+        live = pe.lab_masters_live(None, 'fusion', '4h', seed=70, frame=g)
+        if int(t['state'][0]) != 0 and live['state'] == 'position':
+            assert abs(live['stop'] - t['state'][2]) < 1e-9 and '단위' in live['action']
+        assert live['pair'] == '4h:fusion' and '큰 추세' in live['lines'][0]
+
+
+def test_cli_fusion_guards_and_runs_once(pe):
+    assert pe.main(['--lab', '--fusion', '--oracle']) == 2
+    j = pe.ResearchJournal.load()
+    assert j.state(pe.P12_KEY) == 'preregistered'
+    j.set_status(pe.P12_KEY, 'not_refuted', '테스트')
+    j.save()
+    assert pe.main(['--lab', '--fusion']) == 2

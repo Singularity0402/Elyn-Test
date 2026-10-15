@@ -49,11 +49,12 @@ python pattern_edge_v612.py --lab --oracle --tp 2,3,5         # 끝머리 지도
 python pattern_edge_v612.py --lab --trend-hold --seed 70     # 사전등록 P5: 롱 전용 일봉 추세 보유 vs 보유만 (판정 1회) · 이후엔 매일 '지금 목표 비중'과 앞으로의 성적
 python pattern_edge_v612.py --lab --cost-curve               # 비용 곡선: 단타 전략(5m/15m/1h, 1% 손절)을 왕복 0/0.04/0.08/0.14% 로 다시 돌려 전략마다 '본전 비용'
 python pattern_edge_v612.py --lab --short-presample          # 사전등록 P6: 단타 변동성 돌파(5m/15m/1h)를 처음 보는 구간(2019-08~2021-11)·왕복 0.12% 로 판정 (한 번만)
-python pattern_edge_v612.py --lab --proof --seed 70          # 과거 차트 증명 일괄: 남은 사전등록 판정(P5 장기 추세 보유 · P7 단타 다른 국면 · P8 펀딩비 캐리 · P9 백지 탐색 · P10·P11 대가의 방법)을 한 번에 + 요약
+python pattern_edge_v612.py --lab --proof --seed 70          # 과거 차트 증명 일괄: 남은 사전등록 판정(P5 장기 추세 보유 · P7 단타 다른 국면 · P8 펀딩비 캐리 · P9 백지 탐색 · P10·P11 대가의 방법 · P12 융합)을 한 번에 + 요약 + 확인된 전략 포트폴리오 성적표
 python pattern_edge_v612.py --lab --blank                    # 사전등록 P9 단독: 정답에서 공통점을 찾는 단타 규칙 약 1만 개 → 처음 보는 두 구간으로 판정 (한 번만)
 python pattern_edge_v612.py --lab --masters                  # 사전등록 P10 단독: 대가의 방법(다바스 박스 · BNF 이격도 · cis 거래량 모멘텀)을 고정 규칙으로 BTC 전체 역사에서 판정 (한 번만)
 python pattern_edge_v612.py --lab --equity --seed 70         # 시드 백테스트: 확인된 다바스 박스 4h(--tfs 1d)를 2018-01 부터 현물로 했다면 시드가 얼마가 됐나 (위험 1·2·3%·전부 매수, 연도·시작 해별, 위험 곡선 + 확인된 다바스·터틀을 한 계좌에서 돌린 포트폴리오)
 python pattern_edge_v612.py --lab --masters2                 # 사전등록 P11 단독: 다바스 ETH 재현 · 터틀 규칙 1·2(BTC) — 다바스 BTC 와 함께 돌릴 엣지 찾기 (한 번만, --proof 에도 포함)
+python pattern_edge_v612.py --lab --fusion --seed 70         # 사전등록 P12 단독: 성공 요소 융합(돌파 + 큰 추세 + 2N 손절 + 피라미딩 최대 4단위) — 확인된 터틀 1 보다 나은가까지 판정 (한 번만, --proof 에도 포함)
 python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 【실전】다바스 박스 4h·터틀 1·2 4h(과거 차트 두 국면 확인) + 【연구 추적】을 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
 #   Lab 출력 첫 줄의 '[LAB] V612 · 빌드 …' 로 어느 파일이 돌았는지 확인. 모르는 옵션은 실행 없이 거절합니다.
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
