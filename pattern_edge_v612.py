@@ -5985,6 +5985,18 @@ R3_RESULTS = (
     ('r3|p23:B:eth4h', 'not_refuted', 'P23-B P16 규칙 ETH 4h 35건 +0.785R'),
 )
 R3_PROCEDURES = tuple(k for k, _, _ in R3_RESULTS)
+# 4차 사전등록 P24 ~ P26 (2026-10-15 10:51 UTC 커밋): 큰손 대 군중 · 현물 주도 돌파 · 호가 깊이 — research/round4_2026-10-15.py
+R4_RESULTS = (
+    ('r4|p24:A:btc', 'not_refuted', 'P24-A 큰손 롱·군중 숏 엇갈림 BTC 1h 360건 +0.027R'),
+    ('r4|p24:A:eth', 'refuted', 'P24-A ETH 267건 −0.060R'),
+    ('r4|p24:B:btc', 'not_refuted', 'P24-B P16 + 큰손 확인 BTC 36건 +0.590R (거래 1/3)'),
+    ('r4|p24:B:eth', 'not_refuted', 'P24-B ETH 45건 +0.489R'),
+    ('r4|p25:btc', 'inconclusive', 'P25 현물 주도 돌파 BTC 5건 — 판정 불가 (돌파는 대부분 선물이 이끈다)'),
+    ('r4|p25:eth', 'inconclusive', 'P25 ETH 22건 — 판정 불가'),
+    ('r4|p26:btc', 'inconclusive', 'P26 호가 불균형 돌파 BTC 10건 — 판정 불가'),
+    ('r4|p26:eth', 'inconclusive', 'P26 ETH 11건 — 판정 불가'),
+)
+R4_PROCEDURES = tuple(k for k, _, _ in R4_RESULTS)
 PLAN_RISK = dict(fusion=0.0075, crowd=0.01)
 PLAN_PAIRS = ('4h:fusion', '4h:fusion_eth', '1h:crowd', '1h:crowd_eth')
 VENUE_MIN_NOTIONAL = {'BTCUSDT': 100.0, 'ETHUSDT': 20.0}   # 선물 최소 주문 (기본값 — 실제 값은 거래소 화면에서 확인)
@@ -6201,7 +6213,14 @@ RESEARCH_PREREG = [dict(
          rule='추정 청산 지도(미결제약정 증가분을 군중 비율로 롱·숏, 레버리지 10·25·50·100 비중 0.4·0.3·0.2·0.1, 반감기 7일): 위 숏 청산 물량 > '
               '아래 2배면 롱, 반대면 숏, 손절 1.5 ATR, 24봉.', why='큰 손은 청산 물량이 몰린 쪽으로 가격을 민다(청산 지도의 자석).'),
     dict(id='P23', registered='2026-10-15', scope='r3', pairs=['p23:A:btc', 'p23:A:eth', 'p23:B:eth15m', 'p23:B:eth4h'],
-         rule='A P16 거울(군중 롱 쏠림 + 하방 돌파 → 숏) BTC·ETH 1h · B P16 규칙 그대로 ETH 15m·4h.', why='P16 메커니즘이 맞다면 거울과 다른 시간봉에서도 보여야 한다.')]
+         rule='A P16 거울(군중 롱 쏠림 + 하방 돌파 → 숏) BTC·ETH 1h · B P16 규칙 그대로 ETH 15m·4h.', why='P16 메커니즘이 맞다면 거울과 다른 시간봉에서도 보여야 한다.'),
+    dict(id='P24', registered='2026-10-15', scope='r4', pairs=['p24:A:btc', 'p24:A:eth', 'p24:B:btc', 'p24:B:eth'],
+         rule='1h, 1.5 ATR, 48봉. A z(상위 트레이더 포지션) > +1 · z(군중 계정) < −1 → 롱 (거울 숏) · B P16 신호 + z(상위 포지션) > 0 → 롱.',
+         why='큰손과 군중이 엇갈리면 큰손 쪽으로 간다.'),
+    dict(id='P25', registered='2026-10-15', scope='r4', pairs=['p25:btc', 'p25:eth'],
+         rule='돌파 세기 z > +2 이고 z(현물 거래량 비중) > +1 → 롱, 1.5 ATR, 48봉.', why='빌린 돈이 아니라 현물이 민 돌파는 오래 간다.'),
+    dict(id='P26', registered='2026-10-15', scope='r4', pairs=['p26:btc', 'p26:eth'],
+         rule='돌파 세기 z > +2 이고 z(±1% 호가 불균형) > +1 → 롱, 1.5 ATR, 48봉 (bookDepth 2023-01 ~).', why='위쪽 매도벽이 얇은 돌파는 더 간다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -6469,6 +6488,12 @@ RESEARCH_HISTORY = [
                  '오히려 느려진다(신호 겹침·노출 한도·낙폭). 권장안은 그대로 P12 0.75% + P16 1%, 단 P16 매수 금액이 현금보다 크면 선물로 제 크기 → '
                  '국면 2 실제 연 +59%(낙폭 37%), 2년 중앙 167달러(엣지 절반이면 연 +31%, 115달러). 2년 안 1,000달러 확률은 모든 크기에서 1% 이하.',
          lessons=['L18', 'L25', 'L26']),
+    dict(date='2026-10-15', kind='review', title='4차 묶음 P24 ~ P26 (큰손 대 군중·현물 주도·호가 깊이) — 확인 0 · 바벨',
+         summary='큰손과 군중의 엇갈림만으로는 방향 없음(BTC +0.027R, ETH −0.060R), P16 + 큰손 확인은 거래가 1/3 로 줄어 이득 없음. 현물 주도 '
+                 '돌파·호가 불균형 돌파는 조건이 거의 안 겹쳐 5 ~ 22건(판정 불가) — 돌파는 대부분 선물이 이끈다. 바벨(복권 몫 = P12 단위당 '
+                 '2 ~ 4%, 노출 10배): 2년 안 1,000달러를 10% 넘게 보려면 전 재산을 걸어야 하고, 그러면 반토막 아래로 끝날 확률 35 ~ 41%, '
+                 '중앙값은 시드 아래 — 엣지가 아니라 분산을 산 것. 지속 가능한 최속안은 권장안(P12 0.75% + P16 1%).',
+         lessons=['L18', 'L23', 'L25']),
 ]
 
 
@@ -6505,6 +6530,7 @@ def _research_seed_keys():
     keys += list(P12_PROCEDURES) + list(P13_PROCEDURES) + p14_procedure_keys() + list(P15_PROCEDURES) + \
         list(P16_PROCEDURES) + list(P17_PROCEDURES)                                         # 클라우드 실데이터 2026-10-15 (누적 45,966)
     keys += list(R3_PROCEDURES)                                                               # 3차 P18 ~ P23 (누적 45,988)
+    keys += list(R4_PROCEDURES)                                                               # 4차 P24 ~ P26 (누적 45,996)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6580,7 +6606,7 @@ def _research_seed_status():
                               '(ETH 이익의 대부분은 BTC 와 같은 날의 시장 전체 스퀴즈)', '2026-10-15')
     put(P16_BTC_KEY, 'confirmed', 'P14-B 발견 110건 +1.043R (발견 표본이라 부풀려졌을 수 있다) → 규칙은 P16 ETH 재현으로 확인',
         '2026-10-15')
-    for k_, st_, why_ in R3_RESULTS:
+    for k_, st_, why_ in R3_RESULTS + R4_RESULTS:
         put(k_, st_, why_, '2026-10-15')
     put(P17_KEY, 'confirmed', 'P17 P12 융합 ETH 4h 401건 +1.356R 하한 +0.650 · 국면별 위험 1% ×20.44 / ×3.24 (터틀 1 ×2.91 / ×1.79) '
                               '→ 확인 · 알트 7개 보조 6/7 양수', '2026-10-15')
@@ -7221,7 +7247,11 @@ def lab_prospective(base1m, tracking, funding=None, cost_mode='taker', status=No
     out = []
     for t in tracking:
         if t.get('method'):
-            R = lab_masters_forward(base1m, t['method'], t['pair'].split(':')[0], t['since'])
+            try:
+                R = lab_masters_forward(base1m, t['method'], t['pair'].split(':')[0], t['since'])
+            except Exception as e:
+                L.append(f'{t["scope"] + "|" + t["pair"]:<24}{t["since"]:>12}  ⚠ 자료를 받지 못해 채점하지 못함: {e}')
+                continue
             mean = float(R.mean()) if len(R) else float('nan')
             eq = float(np.prod(1 + 0.01 * np.clip(R, -50, 50))) if len(R) else 1.0
             state = '중단 — 앞으로의 데이터에서 무너짐' if len(R) >= kill_n and not mean > 0 else \
@@ -9007,8 +9037,25 @@ def _fusion_live(base1m, tf, seed=70.0, risk=RISK_CAP, frame=None, sym=SYMBOL, m
                 stop=stop if pos else None)
 
 
-def lab_masters_forward(base1m, method, tf, since, frame=None):
-    """앞으로의 채점: 같은 규칙을 전체 이력에 돌리고, since 이후 진입한 거래만 센다."""
+def lab_masters_forward(base1m, method, tf, since, frame=None, metrics=None, http=None):
+    """앞으로의 채점: 같은 규칙을 전체 이력에 돌리고, since 이후 진입한 거래만 센다. ETH·P16 은 자기 자료를 받는다."""
+    if method in ('crowd', 'crowd_eth'):
+        sym = SYMBOL if method == 'crowd' else 'ETHUSDT'
+        http = http or PublicHttp()
+        df = frame if frame is not None else _live_frame(http, sym, '1h', base1m=base1m, months=24)
+        metrics = metrics if metrics is not None else live_metrics(http, sym)
+        df = normalize_frame(df)
+        sig, atrp = crowd_squeeze_signal(df, metrics)
+        o, h, l, c = (df[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+        st = _crowd_state(sig, o, h, l, c, np.nan_to_num(atrp))
+        i1 = len(df) if st['state'] != 'position' else st['entry_bar']          # 아직 보유 중인 거래는 세지 않는다
+        e, R = _fixed_stop_hold_sim(o, h, l, c, sig, np.nan_to_num(atrp), P16_STOP_ATR, P16_HOLD, 1, P16_COST, 0, i1)
+        T = df.index.values[e] if len(e) else np.zeros(0, dtype='datetime64[ns]')
+        return R[T >= np.datetime64(pd.Timestamp(since))]
+    if method == 'fusion_eth':
+        http = http or PublicHttp()
+        frame = frame if frame is not None else normalize_frame(lab_eth_frames(http, ('4h',)).get('4h'))
+        method = 'fusion'
     df = frame if frame is not None else _masters_frame(base1m, tf)
     e, R = _m_trades(method, df, 0, len(df))
     T = df.index.values[e] if len(e) else np.zeros(0, dtype='datetime64[ns]')
@@ -10790,8 +10837,8 @@ def main(argv=None):
                 if not tracking:
                     print('[LAB] 추적 중인 가설이 없습니다.')
                     return 0
-                eth_tfs = tuple(sorted({lab_pairs(t['pair'])[0][0] for t in tracking if t.get('scope') == 'eth'},
-                                       key=INTERVALS.get))
+                eth_tfs = tuple(sorted({lab_pairs(t['pair'])[0][0] for t in tracking if t.get('scope') == 'eth' and not t.get('method')},
+                                       key=INTERVALS.get))                     # 방법 전략(ETH 융합·P16)은 자기 자료를 직접 받는다
                 eth_fr = lab_eth_frames(store.http, eth_tfs, log=log) if eth_tfs else None
                 res = lab_prospective(base, tracking, funding=funding, cost_mode=cost, status=status, eth_frames=eth_fr)
                 print(res['report'])

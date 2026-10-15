@@ -217,3 +217,15 @@ def test_journal_sync_adds_new_procedures_to_old_journal(pe):
     old['procedures'] = old['procedures'][:100]
     seed = pe.research_seed()
     assert pe._research_sync(old, seed) and len(set(old['procedures'])) == len(set(seed['procedures']))
+
+
+def test_forward_scoring_handles_new_method_tracks(pe, monkeypatch):
+    df = _walk(1500, seed=21)
+    t = pd.date_range(df.index[0], df.index[-1] + pd.Timedelta(hours=1), freq='5min')
+    m = pd.DataFrame({'ls_acct': 1.5 + 0.2 * np.sin(np.arange(len(t)) / 40.0)}, index=t)
+    monkeypatch.setattr(pe, '_live_frame', lambda http, sym, tf, base1m=None, months=8: df)
+    monkeypatch.setattr(pe, 'live_metrics', lambda http, sym: m)
+    R = pe.lab_masters_forward(None, 'crowd_eth', '1h', str(df.index[700].date()), http=object())
+    assert isinstance(R, np.ndarray)
+    rep = pe.lab_prospective(None, [dict(pair='1h:crowd_eth', scope='eth', since=str(df.index[700].date()), method='crowd_eth')])
+    assert 'eth|1h:crowd_eth' in rep['report'] and rep['rows'][0]['n'] == len(R)

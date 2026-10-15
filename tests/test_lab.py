@@ -412,11 +412,11 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 45988 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 45996 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == [f'P{i}' for i in range(1, 24)] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == [f'P{i}' for i in range(1, 27)] and j.state('alt_presample|4h:consensus') == 'confirmed'
     assert j.state(pe.P12_KEY) == 'confirmed' and j.state(pe.P17_KEY) == 'confirmed' and j.state(pe.P16_KEY) == 'confirmed'
     assert j.state(pe.P15_KEY) == 'refuted' and j.state(pe.P14_A2_KEY) == 'refuted' and j.state(pe.P13_KEY) == 'not_refuted'
     assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P10_KEY) == 'confirmed'      # 사용자 PC 판정(2026-10-15)이 기록됨
@@ -431,17 +431,17 @@ def test_journal_seed_holds_full_history_and_persists(pe):
                                                                  ('eth', '4h:fusion_eth'), ('btc', '1h:crowd'), ('eth', '1h:crowd_eth')]
     assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
     assert len(pe.RESEARCH_LESSONS) == 28 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 45988 and j.n_trials(['btc|4h:keltner|maker']) == 45989
+    assert j.n_trials(['btc|4h:flow|taker']) == 45996 and j.n_trials(['btc|4h:keltner|maker']) == 45997
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 45989 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 45997 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 45988 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 45996 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
