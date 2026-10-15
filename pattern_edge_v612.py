@@ -5997,6 +5997,12 @@ R4_RESULTS = (
     ('r4|p26:eth', 'inconclusive', 'P26 ETH 11건 — 판정 불가'),
 )
 R4_PROCEDURES = tuple(k for k, _, _ in R4_RESULTS)
+# 5차 사전등록 P27 · P29 (2026-10-15 11:10 UTC 커밋) — research/round5_2026-10-15.py
+R5_RESULTS = (
+    ('r5|p27:eth', 'not_refuted', 'P27 군중 극단 역행 ETH 1h 260건 +0.149R t +0.94 (반쪽 +0.244 / +0.040)'),
+    ('r5|p29:alts', 'not_refuted', 'P29 P16 거울 알트 7개 합산 879건 +0.130R t +0.91 (6/7 양수)'),
+)
+R5_PROCEDURES = tuple(k for k, _, _ in R5_RESULTS)
 PLAN_RISK = dict(fusion=0.0075, crowd=0.01)
 PLAN_PAIRS = ('4h:fusion', '4h:fusion_eth', '1h:crowd', '1h:crowd_eth')
 VENUE_MIN_NOTIONAL = {'BTCUSDT': 100.0, 'ETHUSDT': 20.0}   # 선물 최소 주문 (기본값 — 실제 값은 거래소 화면에서 확인)
@@ -6220,7 +6226,11 @@ RESEARCH_PREREG = [dict(
     dict(id='P25', registered='2026-10-15', scope='r4', pairs=['p25:btc', 'p25:eth'],
          rule='돌파 세기 z > +2 이고 z(현물 거래량 비중) > +1 → 롱, 1.5 ATR, 48봉.', why='빌린 돈이 아니라 현물이 민 돌파는 오래 간다.'),
     dict(id='P26', registered='2026-10-15', scope='r4', pairs=['p26:btc', 'p26:eth'],
-         rule='돌파 세기 z > +2 이고 z(±1% 호가 불균형) > +1 → 롱, 1.5 ATR, 48봉 (bookDepth 2023-01 ~).', why='위쪽 매도벽이 얇은 돌파는 더 간다.')]
+         rule='돌파 세기 z > +2 이고 z(±1% 호가 불균형) > +1 → 롱, 1.5 ATR, 48봉 (bookDepth 2023-01 ~).', why='위쪽 매도벽이 얇은 돌파는 더 간다.'),
+    dict(id='P27', registered='2026-10-15', scope='r5', pairs=['p27:eth'],
+         rule='ETH 1h: z(군중 롱숏) < −2 → 롱, > +2 → 숏, 1.5 ATR, 48봉.', why='군중의 극단은 되돌아간다 (BTC 는 P14-B 에서 봐서 제외).'),
+    dict(id='P29', registered='2026-10-15', scope='r5', pairs=['p29:alts'],
+         rule='알트 7개 1h 합산: z(군중) > +1 · z(하방 돌파) > +2 → 숏, 1.5 ATR, 48봉.', why='P16 거울(ETH +0.478R)이 다른 시장에서도 보이나.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -6531,6 +6541,7 @@ def _research_seed_keys():
         list(P16_PROCEDURES) + list(P17_PROCEDURES)                                         # 클라우드 실데이터 2026-10-15 (누적 45,966)
     keys += list(R3_PROCEDURES)                                                               # 3차 P18 ~ P23 (누적 45,988)
     keys += list(R4_PROCEDURES)                                                               # 4차 P24 ~ P26 (누적 45,996)
+    keys += list(R5_PROCEDURES)                                                               # 5차 P27 · P29 (누적 45,998)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6606,7 +6617,7 @@ def _research_seed_status():
                               '(ETH 이익의 대부분은 BTC 와 같은 날의 시장 전체 스퀴즈)', '2026-10-15')
     put(P16_BTC_KEY, 'confirmed', 'P14-B 발견 110건 +1.043R (발견 표본이라 부풀려졌을 수 있다) → 규칙은 P16 ETH 재현으로 확인',
         '2026-10-15')
-    for k_, st_, why_ in R3_RESULTS + R4_RESULTS:
+    for k_, st_, why_ in R3_RESULTS + R4_RESULTS + R5_RESULTS:
         put(k_, st_, why_, '2026-10-15')
     put(P17_KEY, 'confirmed', 'P17 P12 융합 ETH 4h 401건 +1.356R 하한 +0.650 · 국면별 위험 1% ×20.44 / ×3.24 (터틀 1 ×2.91 / ×1.79) '
                               '→ 확인 · 알트 7개 보조 6/7 양수', '2026-10-15')
