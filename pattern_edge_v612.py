@@ -5959,6 +5959,32 @@ P17_PROCEDURES = (P17_KEY,)
 P15_KEY = 'carry_alt|all'
 P15_PROCEDURES = (P15_KEY,)
 # 권장 운용안 (1차 검증 2026-10-15, research/portfolio_2026-10-15.py): 국면 2 월 수익을 다시 뽑은 3년 중앙값이 가장 컸던 크기
+# 3차 사전등록 P18 ~ P23 (2026-10-15 10:39 UTC 커밋): 사람 심리·시장 구조·청산 지도 — research/round3_2026-10-15.py 로 한 번씩
+R3_RESULTS = (
+    ('r3|p18:A:btc', 'refuted', 'P18-A 둥근 가격 돌파 가속 BTC 1h 4,309건 −0.082R t −4.09'),
+    ('r3|p18:B:btc', 'refuted', 'P18-B 둥근 가격 닿고 밀림 BTC 4,942건 −0.159R t −7.18'),
+    ('r3|p18:A:eth', 'refuted', 'P18-A ETH 3,724건 −0.037R'),
+    ('r3|p18:B:eth', 'refuted', 'P18-B ETH 4,259건 −0.131R'),
+    ('r3|p19:btc:1h', 'refuted', 'P19 터틀 수프 BTC 1h 3,640건 −0.318R (짧은 손절이라 비용이 R 로 큼)'),
+    ('r3|p19:btc:4h', 'refuted', 'P19 BTC 4h 880건 −0.211R'),
+    ('r3|p19:btc:1d', 'refuted', 'P19 BTC 1d 144건 −0.244R'),
+    ('r3|p19:eth:1h', 'refuted', 'P19 ETH 1h 3,554건 −0.302R'),
+    ('r3|p19:eth:4h', 'refuted', 'P19 ETH 4h 829건 −0.118R'),
+    ('r3|p19:eth:1d', 'not_refuted', 'P19 ETH 1d 137건 +0.033R'),
+    ('r3|p20:A:btc', 'refuted', 'P20-A 펀딩 정산 전 BTC 643건 −0.077R'),
+    ('r3|p20:B:btc', 'refuted', 'P20-B 정산 후 BTC 643건 −0.052R'),
+    ('r3|p20:A:eth', 'refuted', 'P20-A ETH 777건 −0.076R'),
+    ('r3|p20:B:eth', 'not_refuted', 'P20-B ETH 777건 +0.028R'),
+    ('r3|p21:btc', 'refuted', 'P21 CME 공백 메우기 BTC 181건 −0.178R'),
+    ('r3|p21:eth', 'refuted', 'P21 ETH 184건 −0.138R'),
+    ('r3|p22:btc', 'refuted', 'P22 추정 청산 지도 BTC 1,941건 −0.003R'),
+    ('r3|p22:eth', 'refuted', 'P22 ETH 1,900건 −0.029R'),
+    ('r3|p23:A:btc', 'not_refuted', 'P23-A P16 거울 BTC 1h 146건 +0.042R'),
+    ('r3|p23:A:eth', 'not_refuted', 'P23-A P16 거울 ETH 1h 145건 +0.478R · 반쪽 +0.470 / +0.488 · 하한 −0.062 (단측 1.25%)'),
+    ('r3|p23:B:eth15m', 'not_refuted', 'P23-B P16 규칙 ETH 15m 371건 +0.253R · 반쪽 +0.334 / +0.181 · 하한 −0.074'),
+    ('r3|p23:B:eth4h', 'not_refuted', 'P23-B P16 규칙 ETH 4h 35건 +0.785R'),
+)
+R3_PROCEDURES = tuple(k for k, _, _ in R3_RESULTS)
 PLAN_RISK = dict(fusion=0.0075, crowd=0.01)
 PLAN_PAIRS = ('4h:fusion', '4h:fusion_eth', '1h:crowd', '1h:crowd_eth')
 VENUE_MIN_NOTIONAL = {'BTCUSDT': 100.0, 'ETHUSDT': 20.0}   # 선물 최소 주문 (기본값 — 실제 값은 거래소 화면에서 확인)
@@ -6159,7 +6185,23 @@ RESEARCH_PREREG = [dict(
     dict(id='P17', registered='2026-10-15', scope='fusion', pairs=['eth:4h'],
          rule='P12 융합 규칙 그대로 ETH 4h(현물 2017-08 ~ + 선물), 2018-01 ~ 2026-10-04 두 국면: 평균R > 0 · 단측 5% 하한 > 0 → 확인. '
               '알트 7개는 보조.',
-         why='터틀의 성공 요소 "여러 시장에 분산". P12 가 일반 법칙이면 다른 시장에서도 통해야 하고, 통하면 함께 돌려 엣지 정보를 늘린다.')]
+         why='터틀의 성공 요소 "여러 시장에 분산". P12 가 일반 법칙이면 다른 시장에서도 통해야 하고, 통하면 함께 돌려 엣지 정보를 늘린다.'),
+    dict(id='P18', registered='2026-10-15', scope='r3', pairs=['p18:A:btc', 'p18:B:btc', 'p18:A:eth', 'p18:B:eth'],
+         rule='둥근 가격(간격 10^(⌊log10 가격⌋−1)) 1h: A 위로 건너면 롱(손절 L − 1 ATR, 12봉) · B 닿고 밀리면 숏(손절 고가 + 0.5 ATR, 12봉), 거울 포함.',
+         why='Osler(2003·2005): 손절은 둥근 가격 너머, 익절은 둥근 가격에 몰린다.'),
+    dict(id='P19', registered='2026-10-15', scope='r3', pairs=['p19:btc:1h', 'p19:btc:4h', 'p19:btc:1d', 'p19:eth:1h', 'p19:eth:4h', 'p19:eth:1d'],
+         rule='터틀 수프: 새 20봉 신저가(직전 최저가는 4봉 이상 전) → 다음 봉에 직전 최저가를 되찾으면 매수, 손절 신저가 − 0.05 ATR, 5봉. 거울 포함.',
+         why='라쉬키·코너스 『Street Smarts』(1995): 실패한 돌파(손절 사냥)를 되받아치는 단타.'),
+    dict(id='P20', registered='2026-10-15', scope='r3', pairs=['p20:A:btc', 'p20:B:btc', 'p20:A:eth', 'p20:B:eth'],
+         rule='직전 펀딩 |f| ≥ 0.03%: A 정산 전 1h 는 내는 쪽 반대로 · B 정산 후 1h 는 되돌림 쪽으로, 1봉, R = 손익 ÷ ATR%.',
+         why='펀딩을 내야 하는 쪽이 정산 직전에 닫고 직후에 다시 연다.'),
+    dict(id='P21', registered='2026-10-15', scope='r3', pairs=['p21:btc', 'p21:eth'],
+         rule='CME 주말 공백 |공백| ≥ 1% → 재개 봉 시가에 메우는 쪽, 목표 금요일 종가, 손절 1:1, 72봉.', why='"공백은 메워진다" 속설.'),
+    dict(id='P22', registered='2026-10-15', scope='r3', pairs=['p22:btc', 'p22:eth'],
+         rule='추정 청산 지도(미결제약정 증가분을 군중 비율로 롱·숏, 레버리지 10·25·50·100 비중 0.4·0.3·0.2·0.1, 반감기 7일): 위 숏 청산 물량 > '
+              '아래 2배면 롱, 반대면 숏, 손절 1.5 ATR, 24봉.', why='큰 손은 청산 물량이 몰린 쪽으로 가격을 민다(청산 지도의 자석).'),
+    dict(id='P23', registered='2026-10-15', scope='r3', pairs=['p23:A:btc', 'p23:A:eth', 'p23:B:eth15m', 'p23:B:eth4h'],
+         rule='A P16 거울(군중 롱 쏠림 + 하방 돌파 → 숏) BTC·ETH 1h · B P16 규칙 그대로 ETH 15m·4h.', why='P16 메커니즘이 맞다면 거울과 다른 시간봉에서도 보여야 한다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -6419,6 +6461,14 @@ RESEARCH_HISTORY = [
                  '2018~2026 해마다 플러스, 국면 2 월 수익 다시 뽑기 3년 중앙 159달러 · 하위 10% 73달러 · 반토막 경험 6%. 하루 1% 는 여전히 아니다 '
                  '(약 0.08%/일).',
          lessons=['L25', 'L26', 'L27', 'L28']),
+    dict(date='2026-10-15', kind='review', title='3차 묶음 P18 ~ P23 (사람 심리·시장 구조·청산 지도) — 확인 0 · 크기 경계',
+         summary='사용자: "인간 심리가 그리는 차트에는 반복되는 공통점이 있을 수밖에 없다, 더 짧은 시간에 70불의 기적을, 연구를 멈추지 마라." '
+                 '22개 가설을 계산 전에 등록하고 한 번씩 돌렸다. 둥근 가격(Osler) 4개, 터틀 수프(라쉬키) 5/6, 펀딩 정산 전후 3/4, CME 공백 2개, '
+                 '추정 청산 지도 2개가 반증 — 사람 심리로 흔히 말하는 가격대·시각 속설은 BTC·ETH 에서 비용을 넘지 못했다. 양수는 P16 메커니즘의 '
+                 '확장뿐(ETH 거울 +0.478R · ETH 15m +0.253R, 두 반쪽 양수, 엄격한 기준엔 미달 → 연구 추적). 크기 경계: P16 을 2% 넘게 키우면 '
+                 '오히려 느려진다(신호 겹침·노출 한도·낙폭). 권장안은 그대로 P12 0.75% + P16 1%, 단 P16 매수 금액이 현금보다 크면 선물로 제 크기 → '
+                 '국면 2 실제 연 +59%(낙폭 37%), 2년 중앙 167달러(엣지 절반이면 연 +31%, 115달러). 2년 안 1,000달러 확률은 모든 크기에서 1% 이하.',
+         lessons=['L18', 'L25', 'L26']),
 ]
 
 
@@ -6454,6 +6504,7 @@ def _research_seed_keys():
     keys += list(P11_PROCEDURES)                                                              # P11 2026-10-16 (누적 10,030)
     keys += list(P12_PROCEDURES) + list(P13_PROCEDURES) + p14_procedure_keys() + list(P15_PROCEDURES) + \
         list(P16_PROCEDURES) + list(P17_PROCEDURES)                                         # 클라우드 실데이터 2026-10-15 (누적 45,966)
+    keys += list(R3_PROCEDURES)                                                               # 3차 P18 ~ P23 (누적 45,988)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6529,6 +6580,8 @@ def _research_seed_status():
                               '(ETH 이익의 대부분은 BTC 와 같은 날의 시장 전체 스퀴즈)', '2026-10-15')
     put(P16_BTC_KEY, 'confirmed', 'P14-B 발견 110건 +1.043R (발견 표본이라 부풀려졌을 수 있다) → 규칙은 P16 ETH 재현으로 확인',
         '2026-10-15')
+    for k_, st_, why_ in R3_RESULTS:
+        put(k_, st_, why_, '2026-10-15')
     put(P17_KEY, 'confirmed', 'P17 P12 융합 ETH 4h 401건 +1.356R 하한 +0.650 · 국면별 위험 1% ×20.44 / ×3.24 (터틀 1 ×2.91 / ×1.79) '
                               '→ 확인 · 알트 7개 보조 6/7 양수', '2026-10-15')
     put(P13_KEY, 'not_refuted', 'P13 2단계 다바스: 1h 203건 +0.212R 하한 −0.058 · 4h 58건 +0.122R(국면 2 −0.176) → 반증 안 됨, '
@@ -10024,8 +10077,13 @@ def _crowd_live(symbol, df1h, metrics, seed=70.0, risk=None):
     st = _crowd_state(sig, o, h, l, c, np.nan_to_num(atrp))
 
     def buy_text(d):
-        amt = min(seed, seed * risk / max(d, 1e-9))
-        txt = f'현물 매수 금액 약 ${amt:,.2f} (시드 ${seed:,.0f} × 위험 {risk:.0%} ÷ 손절 거리 {d:.2%})'
+        amt = seed * risk / max(d, 1e-9)
+        min_f = VENUE_MIN_NOTIONAL.get(symbol, FALLBACK_RULES['min_notional'])
+        if amt > seed and amt >= min_f:
+            return (f'선물 롱 명목 약 ${amt:,.0f} (시드 ${seed:,.0f} × 위험 {risk:.0%} ÷ 손절 거리 {d:.2%}) — 현금보다 커서 선물로 '
+                    f'(레버리지 약 {amt / seed:.1f}배, 최소 주문 ${min_f:,.0f})')
+        amt = min(amt, seed)
+        txt = f'현물 매수 금액 약 ${amt:,.2f} (시드 ${seed:,.0f} × 위험 {risk:.0%} ÷ 손절 거리 {d:.2%}, 현금 한도 안)'
         if amt < SPOT_MIN_NOTIONAL:
             txt += f' — 현물 최소 주문 ${SPOT_MIN_NOTIONAL:.0f} 보다 작음'
         return txt

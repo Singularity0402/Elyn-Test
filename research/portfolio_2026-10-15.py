@@ -51,7 +51,7 @@ def campaigns(df4, res, sym, funding):
     return out
 
 
-def p16_campaigns(sym, k1h, metrics, start=START, end=END):
+def p16_campaigns(sym, k1h, metrics, start=START, end=END, funding=None, haircut=0.0):
     """P16 군중 숏 쏠림 돌파(1h 롱) 거래 → 단위 1개짜리 캠페인 (현물로 한다: 롱 전용, 펀딩·청산 없음)."""
     df = pe.normalize_frame(k1h)
     idx = df.index
@@ -80,13 +80,23 @@ def p16_campaigns(sym, k1h, metrics, start=START, end=END):
                 break
         # 청산 시각 = 청산 봉의 끝(종가 청산) 또는 손절 봉 시작 — 4h 장부에서는 다음 4h 시각에 반영된다
         t_out = idx.values[xi] + (np.timedelta64(1, 'h') if px == c[xi] and xi == last else np.timedelta64(0, 'h'))
-        out.append(dict(sym=sym, side=1, d0=dist / entry, units=[(idx.values[e], float(entry), 0.0)], t_out=t_out, px_out=float(px),
+        paid = 0.0
+        if funding is not None:
+            ft = funding.index.values.astype('datetime64[ns]')
+            a_, b_ = np.searchsorted(ft, idx.values[e], side='right'), np.searchsorted(ft, t_out, side='right')
+            paid = float(funding.values[a_:b_].sum())
+        out.append(dict(sym=sym, side=1, d0=dist / entry, units=[(idx.values[e], float(entry), paid)], t_out=t_out, px_out=float(px),
                         t_in=idx.values[e], kind='p16', venue='spot'))
         i = xi + 1
+    if haircut and out:
+        R = np.array([((c_['px_out'] / c_['units'][0][1] - 1.0) - 0.0025) / c_['d0'] for c_ in out])
+        delta = haircut * float(R.mean())                       # 거래마다 평균 엣지의 haircut 만큼 R 을 깎는다(분산은 그대로)
+        for c_ in out:
+            c_['px_out'] -= delta * c_['d0'] * c_['units'][0][1]
     return out
 
 
-def simulate(camps, closes, r, seed=70.0, real70=False, lev_cap=3.0, start=START, end=END, mins=None, r16=None):
+def simulate(camps, closes, r, seed=70.0, real70=False, lev_cap=3.0, start=START, end=END, mins=None, r16=None, p16_auto=False):
     """한 계좌 시가평가 시뮬레이션. closes = {sym: 4h 종가 Series}. 반환 (자본 Series, 기록)."""
     mins = mins or {'BTCUSDT': 100.0, 'ETHUSDT': 20.0}
     ev = []
@@ -135,7 +145,9 @@ def simulate(camps, closes, r, seed=70.0, real70=False, lev_cap=3.0, start=START
                         continue
                     nt = E * ((r16 if r16 is not None else r) if cp.get('kind') == 'p16' else r) / cp['d0']
                     venue = cp.get('venue', 'fut')
-                    if venue == 'spot':
+                    if venue == 'spot' and p16_auto and cp.get('kind') == 'p16' and nt > E and nt >= mins.get(cp['sym'], 5.0):
+                        venue = 'fut'                                   # 현금보다 큰 크기는 선물(레버리지, 펀딩 냄)
+                    elif venue == 'spot':
                         nt = min(nt, E)
                     elif real70:
                         if cp['sym'] == 'BTCUSDT' and nt < mins['BTCUSDT']:
