@@ -56,6 +56,7 @@ python pattern_edge_v612.py --lab --equity --seed 70         # 시드 백테스�
 python pattern_edge_v612.py --lab --masters2                 # 사전등록 P11 단독: 다바스 ETH 재현 · 터틀 규칙 1·2(BTC) — 다바스 BTC 와 함께 돌릴 엣지 찾기 (한 번만, --proof 에도 포함)
 python pattern_edge_v612.py --lab --fusion --seed 70         # 사전등록 P12 단독: 성공 요소 융합(돌파 + 큰 추세 + 2N 손절 + 피라미딩 최대 4단위) — 확인된 터틀 1 보다 나은가까지 판정 (한 번만, --proof 에도 포함)
 python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 【실전】다바스 박스 4h·터틀 1·2 4h(과거 차트 두 국면 확인) + 【연구 추적】을 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
+python research/mc_plan_2026-10-17.py 4000 plan               # 1차 검증(몬테카를로, 데이터 불필요): 기록된 통계로 70달러 단계 계획 비교 · kelly(속도 천장) · grid · calib 도 있음 (결과: research/mc_plan_2026-10-17_output.txt)
 #   Lab 출력 첫 줄의 '[LAB] V612 · 빌드 …' 로 어느 파일이 돌았는지 확인. 모르는 옵션은 실행 없이 거절합니다.
 #   코인 묶음·재현의 기본값은 BTC+ETH 입니다 (L16). 알트 8개는 --universe alts / --symbols alts 로 명시할 때만.
 #   모든 보고서 끝에 '하루 1% 복리에 필요한 연환산 샤프 ≈ 2.7(켈리)/3.1(반켈리)' 와 이번 최고 샤프를 함께 보인다.
