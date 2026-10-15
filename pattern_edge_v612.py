@@ -506,10 +506,12 @@ class PublicHttp:
                     return body
                 if code in (404, 400, 403):
                     raise FileNotFoundError(f'HTTP {code} {url}')       # 재시도 무의미
+                if code == 451:                                           # 거래소의 지역 차단 — 재시도 무의미
+                    raise PermissionError(f'HTTP 451 지역 차단 {url}')
                 last = IOError(f'HTTP {code} {url}')
                 wait = min(60.0, float(retry_after)) if (retry_after and code in (418, 429)) \
                     else min(8.0, 0.5 * 2 ** attempt)
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 raise
             except Exception as e:
                 last = e
@@ -722,6 +724,13 @@ class DataStore:
             except Exception as e:
                 if (y, m) == (now.year, now.month) and market != 'spot':
                     parts.extend(self._daily_fill(y, m))
+                elif market != 'spot' and isinstance(e, FileNotFoundError):
+                    sp = self._spot_month(y, m)              # 선물 아카이브에 없는 달(2019-09~12) → 현물로 메운다
+                    if sp is not None:
+                        parts.append(sp)
+                        self.log(f'선물 {y}-{m:02d} 아카이브 없음 → 현물 1분봉으로 채움', 'blue')
+                    else:
+                        skipped.append(f'{market} {y}-{m:02d}: {e}')
                 else:
                     skipped.append(f'{market} {y}-{m:02d}: {e}')
             if progress:
@@ -738,6 +747,60 @@ class DataStore:
         self.persist(force=True)
         self.log(f'[구축 완료] 1분봉 {len(df):,}개 {df.index[0]} ~ {df.index[-1]} (월파일 {ok}/{len(jobs)})', 'green')
         return df
+
+    def _spot_month(self, y, m):
+        """현물 월 1분봉 (선물 공백 메우기용, era=현물). 없으면 None."""
+        url = f'{VISION_BASE}/spot/monthly/klines/{SYMBOL}/1m/{SYMBOL}-1m-{y:04d}-{m:02d}.zip'
+        cache = os.path.join(Paths.raw(), f'spot-1m-{y:04d}-{m:02d}.zip')
+        try:
+            if os.path.exists(cache) and os.path.getsize(cache) > 1000:
+                with open(cache, 'rb') as f:
+                    raw = f.read()
+            else:
+                raw = self.http.get(url, timeout=180)
+                tmp = cache + '.tmp'
+                with open(tmp, 'wb') as f:
+                    f.write(raw)
+                os.replace(tmp, cache)
+            return parse_vision_zip(raw, ERA_SPOT)
+        except Exception:
+            return None
+
+    def repair_gaps(self, min_gap_days=7):
+        """
+        저장된 1분봉 안에 7일 넘게 빈 달이 있으면(예: 선물 아카이브에 없는 2019-09~12) 현물 월 파일로 메운다.
+        이전 버전으로 만든 캐시도 한 번 고쳐진다. 고친 달 목록을 돌려준다.
+        """
+        with self._lock:
+            b = self._base
+        if b is None or len(b) < 2:
+            return []
+        t = b.index.values
+        gaps = np.where(np.diff(t) > np.timedelta64(min_gap_days, 'D'))[0]
+        months = []
+        for g in gaps:
+            a, z = pd.Timestamp(t[g]), pd.Timestamp(t[g + 1])
+            for y, m in month_iter(a.year, a.month, z.year, z.month):
+                ms = pd.Timestamp(year=y, month=m, day=1)
+                if ms + pd.offsets.MonthEnd(1) >= a and ms <= z:
+                    months.append((y, m))
+        parts = []
+        fixed = []
+        for y, m in dict.fromkeys(months):
+            sp = self._spot_month(y, m)
+            if sp is not None and len(sp):
+                parts.append(sp)
+                fixed.append(f'{y}-{m:02d}')
+        if not parts:
+            return []
+        with self._lock:
+            new = pd.concat([self._base] + [p_[~p_.index.isin(self._base.index)] for p_ in parts])
+            self._base = normalize_frame(new)
+            self._dirty = True
+            self._update_meta()
+        self.persist(force=True)
+        self.log(f'1분봉 공백 {len(fixed)}개월을 현물로 메움: {", ".join(fixed)}', 'blue')
+        return fixed
 
     def _daily_fill(self, y, m):
         out, d = [], datetime(y, m, 1)
@@ -761,6 +824,12 @@ class DataStore:
             if self._base is None or self._base.empty:
                 self.log('원본 없음 → 바이낸스 아카이브에서 전체 구축', 'red')
                 self.build_full_history(progress=progress)
+            elif not getattr(self, '_gaps_checked', False):
+                self._gaps_checked = True
+                try:
+                    self.repair_gaps()
+                except Exception as e:
+                    HEALTH.set('gap_repair', 'WARN', f'1분봉 공백 메우기 실패: {e}')
             base = self._base
             target = floor_time(utcnow(), 1) - timedelta(minutes=1)
             last = base.index[-1]
@@ -4428,6 +4497,29 @@ def _funding_from_rows(rows):
     return pd.Series(v, index=pd.DatetimeIndex(pd.to_datetime(t, unit='ms')), name='rate')
 
 
+def _funding_from_archive(http, symbol, start_ms):
+    """data.binance.vision 월별 펀딩비 zip (공개 아카이브, 2020-01~, 지난달까지). REST 가 막힌 곳(지역 차단 451 등)의 대체."""
+    t0 = pd.Timestamp(int(start_ms), unit='ms')
+    now = utcnow()
+    rows = []
+    for y, m in month_iter(t0.year, t0.month, now.year, now.month):
+        url = f'{VISION_BASE}/futures/um/monthly/fundingRate/{symbol}/{symbol}-fundingRate-{y:04d}-{m:02d}.zip'
+        try:
+            raw = http.get(url, timeout=60)
+        except FileNotFoundError:
+            continue                                  # 상장 전 · 아직 게시 안 된 달
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            with z.open(z.namelist()[0]) as f:
+                df = pd.read_csv(f)
+        if 'calc_time' not in df.columns:             # 머리글 없는 파일
+            df.columns = ['calc_time', 'funding_interval_hours', 'last_funding_rate'][:len(df.columns)]
+        for t, r in zip(df['calc_time'].values, df['last_funding_rate'].values):
+            t = int(t) // 1000 * 1000                 # 정산 시각의 ms 끝자리 정리
+            if t >= int(start_ms):
+                rows.append(dict(fundingTime=t, fundingRate=float(r)))
+    return rows
+
+
 def load_funding_history(http=None, path=None, refresh=True, log=None, symbol=SYMBOL):
     """
     symbol(기본 BTCUSDT) 8시간 정산 펀딩비 (공개 REST /fapi/v1/fundingRate — 키·서명 없음) → pd.Series(rate, index=정산시각 UTC).
@@ -4465,6 +4557,13 @@ def load_funding_history(http=None, path=None, refresh=True, log=None, symbol=SY
         except Exception as e:
             HEALTH.set('funding', 'WARN', f'펀딩비 갱신 실패 ({type(e).__name__}: {e}) — '
                                           f'캐시 {0 if s is None else len(s)}건으로 진행')
+            if not got:                                # REST 가 막혔으면 공개 아카이브(월별)로 대신 받는다
+                try:
+                    got = _funding_from_archive(http, symbol, cursor)
+                    if got:
+                        HEALTH.set('funding', 'WARN', f'펀딩비 REST 실패 → 공개 아카이브(월별, 지난달까지)로 {len(got)}건 대체')
+                except Exception as e2:
+                    HEALTH.set('funding', 'WARN', f'펀딩비 REST·아카이브 모두 실패: {e2}')
         if got:
             new = _funding_from_rows(got)
             s = new if s is None else pd.concat([s, new])
@@ -4481,6 +4580,91 @@ def load_funding_history(http=None, path=None, refresh=True, log=None, symbol=SY
     if s is None or len(s) == 0:
         return None
     return s
+
+
+METRICS_FIRST_DAY = '2020-09-01'
+METRICS_COLS = {'sum_open_interest': 'oi', 'sum_open_interest_value': 'oi_value',
+                'count_toptrader_long_short_ratio': 'top_ls_acct', 'sum_toptrader_long_short_ratio': 'top_ls_pos',
+                'count_long_short_ratio': 'ls_acct', 'sum_taker_long_short_vol_ratio': 'taker_ls'}
+
+
+def _metrics_day(http, symbol, day):
+    """하루치 선물 metrics(5분: 미결제약정·롱숏 비율·테이커 비율) zip → DataFrame. 없으면 None. raw/metrics 에 캐시."""
+    d = pd.Timestamp(day)
+    folder = os.path.join(Paths.raw(), 'metrics', symbol)
+    os.makedirs(folder, exist_ok=True)
+    cache = os.path.join(folder, f'{symbol}-metrics-{d:%Y-%m-%d}.zip')
+    try:
+        if os.path.exists(cache) and os.path.getsize(cache) > 100:
+            with open(cache, 'rb') as f:
+                raw = f.read()
+        else:
+            raw = http.get(f'{VISION_BASE}/futures/um/daily/metrics/{symbol}/{symbol}-metrics-{d:%Y-%m-%d}.zip', timeout=60)
+            tmp = cache + '.tmp'
+            with open(tmp, 'wb') as f:
+                f.write(raw)
+            os.replace(tmp, cache)
+    except FileNotFoundError:
+        return None
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+        with z.open(z.namelist()[0]) as f:
+            df = pd.read_csv(f)
+    if 'create_time' not in df.columns or df.empty:
+        return None
+    t = pd.to_datetime(df['create_time'], errors='coerce')
+    out = pd.DataFrame({v: pd.to_numeric(df[k], errors='coerce') for k, v in METRICS_COLS.items() if k in df.columns})
+    out = out.where(out > 0)                       # 0·음수는 기록 오류(예: 2021-05-22 미결제약정 0) → 빈 값
+    out.index = pd.DatetimeIndex(t)
+    return out[~out.index.isna()]
+
+
+def load_metrics_history(http=None, symbol=SYMBOL, start=METRICS_FIRST_DAY, end=None, log=None, workers=8):
+    """
+    바이낸스 공개 아카이브의 선물 metrics(5분, 2020-09~) → DataFrame(oi, oi_value, top_ls_acct, top_ls_pos, ls_acct, taker_ls).
+    키·서명 없음. 일별 파일을 병렬로 받아 캐시하고, 합친 결과를 {symbol}_metrics_5m.parquet(또는 pkl)로 저장한다.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    log = log or (lambda msg, color='black': LOG.info(msg))
+    http = http or PublicHttp()
+    end = pd.Timestamp(end) if end is not None else pd.Timestamp(utcnow().date()) - pd.Timedelta(days=1)
+    days = pd.date_range(pd.Timestamp(start), end, freq='D')
+    path = Paths.p(f'{symbol}_metrics_5m.parquet' if PARQUET_OK else f'{symbol}_metrics_5m.pkl')
+    old = None
+    if os.path.exists(path):
+        try:
+            old = pd.read_parquet(path) if PARQUET_OK else pd.read_pickle(path)
+            have = set(old.index.normalize().unique())
+            days = [d for d in days if d not in have or d >= old.index[-1].normalize()]
+        except Exception as e:
+            HEALTH.set('metrics', 'WARN', f'metrics 캐시 손상 — 다시 받습니다: {e}')
+            old = None
+    parts, miss = [], 0
+    if len(days):
+        log(f'{symbol} metrics(5분) {len(days)}일 받는 중...', 'blue')
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            for df in ex.map(lambda d_: _metrics_day(http, symbol, d_), days):
+                if df is None:
+                    miss += 1
+                else:
+                    parts.append(df)
+    frames = ([old] if old is not None else []) + parts
+    if not frames:
+        return None
+    m = pd.concat(frames)
+    m = m[~m.index.duplicated(keep='last')].sort_index()
+    m = m.where(m > 0)                             # 이전 캐시의 0 값도 빈 값으로
+    try:
+        tmp = path + '.tmp'
+        if PARQUET_OK:
+            m.to_parquet(tmp)
+        else:
+            m.to_pickle(tmp)
+        os.replace(tmp, path)
+    except Exception as e:
+        HEALTH.set('metrics', 'WARN', f'metrics 캐시 저장 실패: {e}')
+    if parts:
+        log(f'{symbol} metrics {len(m):,}행 ({m.index[0]:%Y-%m-%d} ~ {m.index[-1]:%Y-%m-%d}) · 없는 날 {miss}', 'blue')
+    return m
 
 
 def _lab_funding_pct(idx, bar_minutes, funding, window=LAB_FUNDING_WINDOW):
@@ -5736,6 +5920,49 @@ P12_PROCEDURES = ('fusion|btc:4h',)
 P12_UNITS, P12_ADD_N, P12_STOP_N = 4, 0.5, 2.0
 P12_RISK = 0.01
 P12_REGISTERED = '2026-10-17'
+# 사전등록 P13 (2단계 다바스, RESEARCH_LOG 초안 2026-10-15 07:29 UTC 커밋 = 실행 전): 미너비니 추세 템플릿(1d, 가격만으로 되는 7개)이
+# 참인 날에만 P10 다바스 박스(1h·4h, 롱)에 진입한다. 보유 중에는 다바스 손절 규칙만. 판정 왕복 0.12%, 현물 0.22% 도 보인다.
+P13_KEY = 'stage2|btc'
+P13_TESTS = ('1h', '4h')
+P13_PROCEDURES = tuple(f'stage2|btc:{tf}:darvas' for tf in P13_TESTS)
+P13_ALPHA = 0.05 / 2
+P13_SPOT_COST = 0.0022
+P13_REGISTERED = '2026-10-15'
+# 사전등록 P14 (선구자 트랙 1 — 새 정보: 청산 연료). 초안 2026-10-15 08:38 UTC 커밋, 구현 세부는 자료를 열기 전 09:08 UTC 커밋.
+P14_KEY = 'fuel|btc'
+P14_A1_KEY, P14_A2_KEY = 'fuel|btc:4h:a1', 'fuel|btc:1h:a2'
+P14_COST = 0.0012
+P14_Z_WIN = 500
+P14_END = '2026-10-04'
+P14_A1_START, P14_A1_SPLIT = '2021-09-01', '2024-03-18'
+P14_A2_START, P14_A2_SPLIT = '2020-10-01', '2023-10-02'
+P14_B_START, P14_B_SPLIT = '2021-01-01', '2023-11-17'
+P14_ALPHA_A = 0.05 / 2
+P14_B_TFS = ('15m', '1h', '4h')
+P14_B_HOLD = {'15m': 96, '1h': 48, '4h': 30}
+P14_B_FEATURES = ('d_oi', 'fund', 'ls_crowd', 'taker', 'size', 'basis', 'brk', 'vol', 'trend')
+P14_B_FEATURES_KO = dict(d_oi='미결제약정 변화', fund='펀딩', ls_crowd='군중 롱숏 비율', taker='테이커 매수 비율', size='평균 체결 크기',
+                         basis='베이시스', brk='돌파 세기', vol='ATR%', trend='100봉 수익')
+P14_B_THRESH = ((1, 1.0), (1, 2.0), (-1, -1.0), (-1, -2.0))      # (방향, 문턱): z > 1 · > 2 · < −1 · < −2
+# 사전등록 P16 (2026-10-15 09:14 UTC 커밋, ETH 자료를 받기 전): P14-B 에서 나온 주제를 규칙 하나로 고정 — 군중 숏 쏠림 + 상방 돌파.
+P16_KEY = 'crowd|eth:1h'
+P16_START, P16_END, P16_SPLIT = '2021-01-01', '2026-10-04', '2023-11-17'
+P16_HOLD, P16_STOP_ATR, P16_COST = 48, 1.5, 0.0012
+P16_ALT_SYMBOLS = ('BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'LINKUSDT', 'LTCUSDT')
+P16_BTC_KEY = 'crowd|btc:1h'                       # 발견 시장(P14-B). 규칙의 확인은 ETH 재현(P16)으로
+P16_PROCEDURES = (P16_KEY,)
+# 사전등록 P17 (2026-10-15 09:18 UTC 커밋): P12 융합 규칙 그대로 ETH 4h (판정) · 알트 7개 (보조)
+P17_KEY = 'fusion|eth:4h'
+P17_PROCEDURES = (P17_KEY,)
+# 사전등록 P15 (구현 세부 2026-10-15 09:15 UTC 커밋): 현물이 있는 알트의 극단 펀딩 캐리 — 큰 자료(알트 901개)가 필요해
+# 연구 스크립트(research/p15_carry_2026-10-15.py)로만 돈다.
+P15_KEY = 'carry_alt|all'
+P15_PROCEDURES = (P15_KEY,)
+# 권장 운용안 (1차 검증 2026-10-15, research/portfolio_2026-10-15.py): 국면 2 월 수익을 다시 뽑은 3년 중앙값이 가장 컸던 크기
+PLAN_RISK = dict(fusion=0.0075, crowd=0.01)
+PLAN_PAIRS = ('4h:fusion', '4h:fusion_eth', '1h:crowd', '1h:crowd_eth')
+VENUE_MIN_NOTIONAL = {'BTCUSDT': 100.0, 'ETHUSDT': 20.0}   # 선물 최소 주문 (기본값 — 실제 값은 거래소 화면에서 확인)
+SPOT_MIN_NOTIONAL = 5.0
 P10_PROCEDURES = tuple(f'masters|{tf}:{m}' for m, tf in P10_TESTS)       # P6 판정(사용자 PC 2026-10-06 01:44 KST) 다음부터의 데이터가 앞으로의 검증
 
 
@@ -5802,6 +6029,14 @@ RESEARCH_LESSONS = [
             '시끄럽다고 빠른 것은 아니다(캐리는 t 가 크지만 레버리지를 못 써 느리다). — P9 는 그 규칙 공간에 하루 1% 급이 있었다면 약 91% '
             '확률로 찾았을 설계였는데 1등이 t 2.90 이었다 → 그 공간에는 없다고 본다. 확인된 다바스·터틀의 8.8년 t 는 약 2.7~2.9 로, 진짜지만 '
             '작은 엣지다. 남은 곳은 새 정보(미결제약정·펀딩·롱숏 비율·체결 크기)와 큰 돈이 못 오는 곳이다'),
+    ('L27', '자료와 장부를 먼저 의심한다. 공개 아카이브에도 구멍이 있고(선물 2019-09 ~ 12 없음, 미결제약정 0 기록 473행, 상장폐지 무렵 '
+            '현물·선물 괴리), 시뮬레이터는 "같은 시각의 진입과 청산 순서"에서 두 번이나 유령 포지션을 만들었다. 새 결과는 ① 공백·0 값 점검 '
+            '② 따로 짠 느린 계산으로 1건이라도 맞춰 보기 ③ 끝에 열린 포지션이 남지 않았는지 검사 ④ 더 세밀한 봉(1분봉)으로 재생 — 를 거친 뒤에 '
+            '믿는다. — P12 는 1분봉 재생으로 같은 봉 순서 문제가 거의 없음을 확인(+1.627R → +1.616R), 포트폴리오 장부는 진입 봉 손절 순서 '
+            '버그로 최근 2.5년 낙폭이 100% 로 잘못 나왔다가 고친 뒤 22~45%'),
+    ('L28', '다른 시장 재현은 같은 시기의 같은 사건을 다시 센 것일 수 있다. 재현이 통과해도 겹침(같은 날 신호 비율)과 겹치지 않은 쪽의 '
+            '성적을 함께 본다. — P16: ETH 재현 116건 +0.680R 중, BTC 신호와 24시간 안에 겹친 44건이 +1.745R, 안 겹친 72건은 +0.029R. '
+            '"시장 전체 숏 스퀴즈"라는 한 종류의 사건을 두 시장에서 잡은 것이다'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -5902,7 +6137,29 @@ RESEARCH_PREREG = [dict(
          why='사용자: "실패 사례는 무엇을 절대 하지 않을지만 보고, 오직 성공 사례를 벤치마킹해 좋은 것만 융합하라." 확인된 대가들(다바스·터틀) '
              '과 사용자가 고른 표본(리버모어 계열·립슈츠)의 공통 요소 — 돌파 진입, 큰 추세 방향, 빠른 손절, 이기는 쪽에 더 싣기, 단위 위험 고정 '
              '— 를 원문 설정 그대로 합친다. P11 에서 빠졌던 피라미딩이 핵심 추가 요소. 이미 확인된 돌파 위에 얹었으므로 확인 기준에 "확인된 '
-             '터틀 1 보다 나은가"를 넣었다.')]
+             '터틀 1 보다 나은가"를 넣었다.'),
+    dict(id='P13', registered=P13_REGISTERED, scope='stage2', pairs=['btc:1h:darvas', 'btc:4h:darvas'],
+         rule='미너비니 추세 템플릿(1d, 가격만으로 되는 7개)이 참인 날에만 P10 다바스 박스(1h·4h, 롱) 진입. 두 국면, 거래 ≥ 30, 두 국면 '
+              '평균R > 0 · 합산 단측 2.5% 하한 > 0 → 확인. 실전 채택 = 확인 + 현물 비용에서도 두 국면 > 0 + 엣지 정보가 필터 없는 다바스보다 큼.',
+         why='엣지 정보를 늘릴 후보 1순위였던 다바스 1h(연 약 100건)의 가짜 돌파를 큰 추세 필터로 거른다 (다바스·터틀·미너비니 공통: 큰 추세 '
+             '안의 작은 돌파).'),
+    dict(id='P14', registered='2026-10-15', scope='fuel', pairs=['btc:4h:a1', 'btc:1h:a2', 'btc:B'],
+         rule='새 정보(미결제약정·펀딩·롱숏 비율·테이커·체결 크기·베이시스). A1 확인된 세 4h 전략 진입 중 미결제약정 1년 백분위 ≥ 2/3 이고 '
+              '펀딩이 반대로 쏠린 것만 · A2 1h ΔOI z < −2 이고 수익 z < −2 → 롱 24봉 · B 규칙 35,928개 본페로니 단측 5% (t > 4.69) + 두 '
+              '반쪽 > 0. 세부는 자료를 열기 전 커밋(2026-10-15 09:08 UTC).',
+         why='같은 가격 공간에는 하루 1% 급이 없다(L26). 선구자의 길 = 새 정보 + 메커니즘 먼저.'),
+    dict(id='P15', registered='2026-10-15', scope='carry_alt', pairs=['all'],
+         rule='현물이 있는 USDT 무기한 전부, 펀딩(8h 환산) ≥ +0.10% → 현물 매수 + 무기한 숏, < +0.03% 또는 7일 청산, 왕복 0.35%, 동시 3자리. '
+              '두 반쪽 > 0 · 월 수익 하한 > 0 · 연복리 ≥ 21% → 확인.',
+         why='작은 돈의 구조적 이점 = 용량. 큰 돈이 못 들어오는 작은 시장의 캐리 (기관 연구: 코인 캐리 연 10% 이상, 때로 40%).'),
+    dict(id='P16', registered='2026-10-15', scope='crowd', pairs=['eth:1h'],
+         rule='1h 봉 마감 z(전체 계정 롱숏 비율) < −1 이고 z(돌파 세기) > +2 (z = 직전 500봉) → 다음 봉 시가 롱, 손절 1.5 ATR, 48봉째 종가, '
+              '왕복 0.12%. 판정 시장 ETH 2021-01 ~ 2026-10-04: 두 반쪽 > 0 · 달 묶음 단측 5% 하한 > 0 → 확인. 알트 7개는 보조.',
+         why='P14-B 상위 20개의 공통 주제(군중이 숏일 때 위로 강한 돌파 = 숏 스퀴즈)를 규칙 하나로 고정해, 발견하지 않은 시장에서 한 번 재현.'),
+    dict(id='P17', registered='2026-10-15', scope='fusion', pairs=['eth:4h'],
+         rule='P12 융합 규칙 그대로 ETH 4h(현물 2017-08 ~ + 선물), 2018-01 ~ 2026-10-04 두 국면: 평균R > 0 · 단측 5% 하한 > 0 → 확인. '
+              '알트 7개는 보조.',
+         why='터틀의 성공 요소 "여러 시장에 분산". P12 가 일반 법칙이면 다른 시장에서도 통해야 하고, 통하면 함께 돌려 엣지 정보를 늘린다.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -5916,7 +6173,13 @@ RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CU
           why='P11 확인(터틀 4h, 두 국면 모두 양수) → 실전(선물, 롱·숏)과 함께 같은 규칙으로 앞으로의 데이터 채점')
      for m in ('turtle1', 'turtle2')] + \
     [dict(pair='4h:fusion', scope='btc', since='2026-10-17', method='fusion', verdict_key=P12_KEY,
-          why='P12 성공 요소 융합(피라미딩) — 확인되면 실전, 그 전에는 연구 추적')]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
+          why='P12 성공 요소 융합(피라미딩) — 확인되면 실전, 그 전에는 연구 추적'),
+     dict(pair='4h:fusion_eth', scope='eth', since='2026-10-15', method='fusion_eth', verdict_key=P17_KEY,
+          why='P17 확인(P12 규칙 ETH 4h) → 권장 운용안: 선물, 롱·숏, 단위당 0.75%'),
+     dict(pair='1h:crowd', scope='btc', since='2026-10-15', method='crowd', verdict_key=P16_BTC_KEY,
+          why='P16 확인(ETH 재현) → 권장 운용안: BTC 현물 롱, 위험 1%. BTC 는 발견 시장이라 앞으로의 데이터로 다시 본다'),
+     dict(pair='1h:crowd_eth', scope='eth', since='2026-10-15', method='crowd_eth', verdict_key=P16_KEY,
+          why='P16 확인(ETH 재현) → 권장 운용안: ETH 현물 롱, 위험 1%')]                     # 4h 추세 합의(BTC·ETH)는 P4 에서 반증되어 추적 목록에서 뺐다 (기존 일지에서는 건너뛴다)
 RESEARCH_HISTORY = [
     dict(date='2026-10-01', kind='audit', title='V611 객관 감사 → V612',
          summary='알려진 결함 전부 재현·수정, 새 결함 20개(N-01~N-20), null 이 약 1.4배 관대함을 측정, 미검증 신호 위험 25% 로 축소 '
@@ -6145,6 +6408,17 @@ RESEARCH_HISTORY = [
                  '기준 하루 약 0.3%(비용 전)가 천장 → 하루 1% 의 길은 아니고 두 번째 엔진 후보. 가장 큰 가속: 이 클라우드에 '
                  'data.binance.vision · fapi.binance.com 을 허용하면 실데이터 반복을 여기서 직접 할 수 있다.',
          lessons=['L21', 'L24', 'L25', 'L26']),
+    dict(date='2026-10-15', kind='review', title='클라우드 실데이터 연결 · P12 확인 · P13 반증 안 됨 · P14 못 찾음 · P16 확인(새 정보) · P17 확인 · P15 반증',
+         summary='이 클라우드에 data.binance.vision 이 열려(바이낸스 REST 는 지역 차단 451 → 펀딩·봉은 공개 아카이브로 대체) 사용자 PC 와 '
+                 '같은 숫자를 재현(다바스 4h 220건 +0.415R 등). 선물 아카이브의 2019-09 ~ 12 공백을 현물로 메워도 확인은 모두 유지. '
+                 'P12 융합: 379건 +1.627R 하한 +0.642, 국면별 위험 1% ×23.89 / ×3.14 → 확인 (1분봉 재생·펀딩·미끄러짐·왕복 0.2% 에도 '
+                 '+1.325R). P13 2단계 다바스: 반증 안 됨(거래 80% 감소로 엣지 정보 감소). P14 청산 연료: A1 반증 안 됨, A2 반증, B 35,928개 확인 '
+                 '0 — 상위 주제 "군중 숏 쏠림 + 상방 돌파" → P16 사전등록 → ETH 116건 +0.680R 하한 +0.311 확인(단, 이익 대부분이 BTC 와 같은 날, '
+                 'L28). P17: P12 를 ETH 4h 에 그대로 → 401건 +1.356R 확인, 알트 6/7 양수. P15 알트 극단 펀딩 캐리: −0.81%/건 반증. 권장 운용안 '
+                 '(한 계좌 시가평가 장부, 70달러 제약): P12 단위당 0.75% (BTC·ETH) + P16 1% (BTC·ETH 현물) → 국면 2 연 +33.7%(낙폭 41%), '
+                 '2018~2026 해마다 플러스, 국면 2 월 수익 다시 뽑기 3년 중앙 159달러 · 하위 10% 73달러 · 반토막 경험 6%. 하루 1% 는 여전히 아니다 '
+                 '(약 0.08%/일).',
+         lessons=['L25', 'L26', 'L27', 'L28']),
 ]
 
 
@@ -6178,6 +6452,8 @@ def _research_seed_keys():
     keys += list(TH_PROCEDURES) + list(P7_PROCEDURES) + list(P8_PROCEDURES) + p9_procedure_keys(True) + \
         list(P10_PROCEDURES)                                                                  # --proof 2026-10-15 (누적 10,024)
     keys += list(P11_PROCEDURES)                                                              # P11 2026-10-16 (누적 10,030)
+    keys += list(P12_PROCEDURES) + list(P13_PROCEDURES) + p14_procedure_keys() + list(P15_PROCEDURES) + \
+        list(P16_PROCEDURES) + list(P17_PROCEDURES)                                         # 클라우드 실데이터 2026-10-15 (누적 45,966)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6237,7 +6513,30 @@ def _research_seed_status():
     put(P9_KEY, 'no_evidence', 'P9 규칙 9,756개 → 상위 20개 중 두 검증 구간 통과 0개 (최고 t 2.90 < 운의 한도 4.3)', '2026-10-15')
     put(P10_KEY, 'confirmed', 'P10 확인: 다바스 박스 4h, 다바스 박스 1d', '2026-10-15')
     put(P11_KEY, 'confirmed', 'P11 확인: BTC 터틀 규칙 1 (20/10) 4h, BTC 터틀 규칙 2 (55/20) 4h', '2026-10-16')
-    put(P12_KEY, 'preregistered', 'P12: 실행 전 등록', P12_REGISTERED)
+    put(P12_KEY, 'confirmed', 'P12 캠페인 379건 평균 +1.627R 하한 +0.642 · 국면별 터틀 1 대비 ×23.89 vs ×3.09 / ×3.14 vs ×1.97 → 확인 '
+                          '(클라우드 실데이터 2026-10-15) · 1분봉 재생 380건 +1.616R, 펀딩·미끄러짐 0.1N·왕복 0.2% 넣어도 +1.325R '
+                          '(하한 +0.378, 달 묶음 +0.408)', '2026-10-15')
+    put(P14_A1_KEY, 'not_refuted', 'P14-A1 연료 돌파: 남김 156건 +0.236R(나머지 435건 +0.343R 보다 나쁨) · 달 묶음 하한 −0.102 · 반쪽 '
+                                   '+0.465 / +0.068 → 반증 안 됨, 실전 채택 아니오', '2026-10-15')
+    put(P14_A2_KEY, 'refuted', 'P14-A2 강제 청산 반등: 294건 −0.019R 하한 −0.244 · 반쪽 −0.168 / +0.134 → 반증', '2026-10-15')
+    put('fuel|btc:B', 'no_evidence', 'P14-B 새 정보 대규모 탐색 35,928개: 확인 0 (1등 t 3.51 < 운의 한도 4.69). 상위 주제 = 군중 숏 쏠림 + '
+                                     '상방 돌파 → P16', '2026-10-15')
+    put(P14_KEY, 'no_evidence', 'P14 청산 연료: A1 반증 안 됨 · A2 반증 · B 확인 0 — 미결제약정·펀딩으로 잰 연료는 돈이 되지 않았다',
+        '2026-10-15')
+    put(P15_KEY, 'refuted', 'P15 알트 극단 펀딩 캐리 1,234건: 명목 대비 −0.81%(펀딩 +0.31% · 베이시스 −0.74% · 비용 −0.35%) · 70 → 11.4 '
+                            '달러 → 반증', '2026-10-15')
+    put(P16_KEY, 'confirmed', 'P16 군중 숏 쏠림 + 상방 돌파 ETH 재현 116건 +0.680R · 달 묶음 하한 +0.311 · 반쪽 +1.050 / +0.428 → 확인 '
+                              '(ETH 이익의 대부분은 BTC 와 같은 날의 시장 전체 스퀴즈)', '2026-10-15')
+    put(P16_BTC_KEY, 'confirmed', 'P14-B 발견 110건 +1.043R (발견 표본이라 부풀려졌을 수 있다) → 규칙은 P16 ETH 재현으로 확인',
+        '2026-10-15')
+    put(P17_KEY, 'confirmed', 'P17 P12 융합 ETH 4h 401건 +1.356R 하한 +0.650 · 국면별 위험 1% ×20.44 / ×3.24 (터틀 1 ×2.91 / ×1.79) '
+                              '→ 확인 · 알트 7개 보조 6/7 양수', '2026-10-15')
+    put(P13_KEY, 'not_refuted', 'P13 2단계 다바스: 1h 203건 +0.212R 하한 −0.058 · 4h 58건 +0.122R(국면 2 −0.176) → 반증 안 됨, '
+                                '실전 채택 아니오 (거래당은 좋아졌지만 거래가 80% 줄어 엣지 정보가 오히려 감소)', '2026-10-15')
+    put('stage2|btc:1h:darvas', 'not_refuted', 'P13 1h 203건 +0.212R 하한 −0.058 · 국면별 +0.238 / +0.184 · 엣지 정보 0.27 < 필터 없음 0.44',
+        '2026-10-15')
+    put('stage2|btc:4h:darvas', 'not_refuted', 'P13 4h 58건 +0.122R 하한 −0.252 · 국면별 +0.465 / −0.176 · 엣지 정보 0.05 < 필터 없음 0.76',
+        '2026-10-15')
     for k_, st_, why_ in (('eth:4h:darvas', 'not_refuted', 'ETH 다바스 4h 225건 +0.084R · 국면별 +0.427 / −0.124 → 재현 안 됨'),
                           ('eth:1d:darvas', 'not_refuted', 'ETH 다바스 1d 31건 +0.639R 하한 −0.183'),
                           ('btc:4h:turtle1', 'confirmed', '터틀 1 4h 481건 +0.420R 하한 +0.078 · 국면별 +0.635 / +0.274'),
@@ -6303,6 +6602,11 @@ def _research_sync(d, seed):
         if key not in d['status']:
             d['status'][key] = dict(v, synced_from_code=True)
             changed = True
+    have_p = set(d.get('procedures', []))
+    add_p = [k for k in seed.get('procedures', []) if k not in have_p]     # 코드에 새로 기록된 시험 절차(DSR 누적 수)도 덧붙인다
+    if add_p:
+        d.setdefault('procedures', []).extend(add_p)
+        changed = True
     seen = {(e.get('date', '')[:10], e.get('title')) for e in d.get('entries', [])}
     for e in seed['entries']:
         if (e['date'][:10], e['title']) not in seen:
@@ -6637,6 +6941,51 @@ def fetch_spot_klines_vision(http, symbol, tf, start='2017-08', end='2021-12', p
     return df[STORE_COLS]
 
 
+def fetch_futures_klines_vision(http, symbol, tf, start='2020-01', end=None, log=None, daily_tail=True):
+    """
+    data.binance.vision 의 USDⓈ-M 선물 월별 봉 zip (+ 이번 달 일별) → DataFrame(STORE_COLS, era=선물). 키 없음.
+    REST 가 지역 차단(451)인 곳에서도 쓸 수 있다. 상장 전 달은 404 로 건너뛴다. raw/futures_{tf} 에 캐시.
+    """
+    log = log or (lambda msg, color='black': LOG.info(msg))
+    now = utcnow()
+    end = end or f'{now.year:04d}-{now.month:02d}'
+    folder = os.path.join(Paths.raw(), f'futures_{tf}', symbol)
+    os.makedirs(folder, exist_ok=True)
+    parts, missing = [], 0
+    cur = pd.Period(f'{now.year:04d}-{now.month:02d}', freq='M')
+    for mon in pd.period_range(start, end, freq='M'):
+        cache = os.path.join(folder, f'{symbol}-{tf}-{mon.year:04d}-{mon.month:02d}.zip')
+        url = f'{VISION_BASE}/futures/um/monthly/klines/{symbol}/{tf}/{symbol}-{tf}-{mon.year:04d}-{mon.month:02d}.zip'
+        try:
+            if os.path.exists(cache) and os.path.getsize(cache) > 200 and mon != cur:
+                with open(cache, 'rb') as f:
+                    raw = f.read()
+            else:
+                raw = http.get(url, timeout=90)
+                with open(cache + '.tmp', 'wb') as f:
+                    f.write(raw)
+                os.replace(cache + '.tmp', cache)
+            parts.append(parse_vision_zip(raw, ERA_FUT))
+        except FileNotFoundError:
+            if mon == cur and daily_tail:
+                d = pd.Timestamp(year=mon.year, month=mon.month, day=1)
+                while d < pd.Timestamp(now.date()):
+                    u2 = f'{VISION_BASE}/futures/um/daily/klines/{symbol}/{tf}/{symbol}-{tf}-{d:%Y-%m-%d}.zip'
+                    try:
+                        parts.append(parse_vision_zip(http.get(u2, timeout=60), ERA_FUT))
+                    except FileNotFoundError:
+                        pass
+                    d += pd.Timedelta(days=1)
+            else:
+                missing += 1
+    if not parts:
+        return None
+    df = pd.concat(parts)
+    df = df[~df.index.duplicated(keep='last')].sort_index()
+    log(f'{symbol} 선물 {tf} {len(df):,}개 ({df.index[0]:%Y-%m-%d} ~ {df.index[-1]:%Y-%m-%d}, 상장 전 {missing}개월 없음)', 'blue')
+    return df[STORE_COLS]
+
+
 def lab_alt_presample_verdict(n, mean_r, lo, pos, tot):
     if n < 30:
         return '판정 불가 (합산 거래 < 30)'
@@ -6728,8 +7077,13 @@ def lab_eth_frames(http, tfs=('4h',), log=None):
     """ETH (L16 의 2순위): 스팟 아카이브(2017-08~) + 선물 REST 봉을 이은 tf 봉."""
     out = {}
     for tf in tfs:
-        df = merge_spot_perp(fetch_spot_klines_vision(http, 'ETHUSDT', tf, log=log),
-                             fetch_klines_tf(http, 'ETHUSDT', tf, log=log))
+        try:
+            perp = fetch_klines_tf(http, 'ETHUSDT', tf, log=log)
+        except Exception:
+            perp = None
+        if perp is None or not len(perp):                     # REST 가 막혔으면(지역 차단 451 등) 공개 아카이브로
+            perp = fetch_futures_klines_vision(http, 'ETHUSDT', tf, start='2019-11', log=log)
+        df = merge_spot_perp(fetch_spot_klines_vision(http, 'ETHUSDT', tf, log=log), perp)
         if df is not None and len(df):
             out[tf] = df
     return out
@@ -7180,7 +7534,7 @@ def lab_live_signal(base1m, pairs, seed=70.0, futures_only=True, cost_mode='take
 
 
 def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5, sleep=time.sleep, now=time.time,
-              max_cycles=None, emit=print, record=None, live=None, states=None):
+              max_cycles=None, emit=print, record=None, live=None, states=None, http=None):
     """
     지켜보기: 봉이 닫힐 때마다(step_min 분 경계 + 20초) 데이터를 이어 받고 같은 규칙으로 다시 계산해, 할 일이 바뀐 후보가 있으면
     알린다 (소리 + 화면). 주문은 하지 않는다 — 사람이 보고 직접 누른다. 신호 시각은 계산한 그 시각 그대로 남긴다 (소급 금지).
@@ -7192,7 +7546,8 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
         cycles += 1
         try:
             store.refresh()
-            res = lab_signal_all(store.base, live, seed=seed, cost_mode=cost_mode, states=states) if live is not None else \
+            res = lab_signal_all(store.base, live, seed=seed, cost_mode=cost_mode, states=states,
+                                 http=http or getattr(store, 'http', None)) if live is not None else \
                 lab_live_signal(store.base, pairs, seed=seed, cost_mode=cost_mode, fixed=fixed)
         except Exception as e:
             emit(f'⚠ {utcnow():%H:%M} UTC 데이터 갱신·계산 실패 — 다음 봉에 다시: {e}')
@@ -7220,7 +7575,7 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-17c · P12 성공 요소 융합(피라미딩) · --proof 한 번에 포트폴리오까지 · 1차 검증 기록(L25·L26)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-17d · 클라우드 실데이터: P12·P16·P17 확인 · 권장 운용안 신호(BTC·ETH)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
@@ -8446,7 +8801,7 @@ def _masters_frame(base1m, tf):
     return d[d['complete'].values > 0.5]
 
 
-def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
+def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None, metrics=None):
     """
     대가의 방법 '지금' 신호 (다바스 박스). 백테스트와 같은 함수로 마지막 완결 봉까지 재생해 박스·보유 상태와 다음 할 일을 보인다.
     롱 전용이라 현물로 할 수 있다: 살 금액 = 시드 × 위험 ÷ 손절 거리 (시드 넘지 않음, 레버리지 없음). 주문은 사람이 직접.
@@ -8454,7 +8809,12 @@ def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
     if method in ('turtle1', 'turtle2'):
         return _turtle_live(base1m, method, tf, seed=seed, risk=risk, frame=frame)
     if method == 'fusion':
-        return _fusion_live(base1m, tf, seed=seed, risk=risk, frame=frame)
+        return _fusion_live(base1m, tf, seed=seed, risk=PLAN_RISK['fusion'], frame=frame)
+    if method == 'fusion_eth':
+        return _fusion_live(None, tf, seed=seed, risk=PLAN_RISK['fusion'], frame=frame, sym='ETHUSDT')
+    if method in ('crowd', 'crowd_eth'):
+        sym = SYMBOL if method == 'crowd' else 'ETHUSDT'
+        return _crowd_live(sym, frame, metrics, seed=seed)
     if method != 'darvas':
         raise ValueError('지금 신호는 다바스 박스·터틀만 지원합니다')
     df = frame if frame is not None else _masters_frame(base1m, tf)
@@ -8476,7 +8836,7 @@ def lab_masters_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
             action = f'박스 위 돌파했지만 박스가 너무 얇음(손절 거리 {d:.2%}) → 건너뜀 (규칙)'
         else:
             action = f'다음 봉 시가({nxt} UTC)에 현물 매수 · 손절 {pend_stop:,.1f} (박스 아래, 지금가 기준 약 {d:.1%})'
-            lines.append(f'   {size(d)}')
+            lines.append(f'   {size(d, int(pend))}')
         state = 'entry'
     elif pos:
         action = f'보유 유지 · 손절 {stop:,.1f} (진입 {df.index[int(t_in)]} UTC @ {entry:,.1f}) — 새 박스가 확정되면 손절을 올린다'
@@ -8537,8 +8897,8 @@ def _turtle_live(base1m, method, tf, seed=70.0, risk=RISK_CAP, frame=None):
     return dict(pair=f'{tf}:{method}', state=state, action=action, lines=lines, stop=stop if pos else None)
 
 
-def _fusion_live(base1m, tf, seed=70.0, risk=RISK_CAP, frame=None):
-    """성공 요소 융합 '지금' 신호: 같은 시뮬레이터로 마지막 완결 봉까지 — 큰 추세, 단위 수, 손절, 다음 추가·청산 기준가 (선물)."""
+def _fusion_live(base1m, tf, seed=70.0, risk=RISK_CAP, frame=None, sym=SYMBOL, min_not=None):
+    """성공 요소 융합 '지금' 신호: 같은 시뮬레이터로 마지막 완결 봉까지 — 큰 추세, 단위 수, 손절, 다음 추가·청산 기준가."""
     df = frame if frame is not None else _masters_frame(base1m, tf)
     t = _m_trades_full('fusion', df, 0, len(df))
     pos, k, stop, pend, pend_n, xpend, t_in, trend, last_add, Nabs = t['state']
@@ -8546,15 +8906,23 @@ def _fusion_live(base1m, tf, seed=70.0, risk=RISK_CAP, frame=None):
     nxt = last + pd.Timedelta(minutes=MASTERS_TF_MIN[tf])
     side_ko = {1: '롱', -1: '숏'}
     trend_ko = {1: '상승(55봉 신고가 이후)', -1: '하락(55봉 신저가 이후)', 0: '아직 없음'}[int(trend)]
-    min_not = FALLBACK_RULES['min_notional']
+    min_not = min_not or VENUE_MIN_NOTIONAL.get(sym, FALLBACK_RULES['min_notional'])
 
-    def size(d):
+    def size(d, side):
         notional = seed * risk / max(d, 1e-9)
-        msg = f'선물 · 단위당 위험 {risk:.0%}: 1단위 명목 약 ${notional:,.0f} (손절 거리 {d:.1%}), 4단위면 그 4배'
-        if notional < min_not:
-            msg += f' — 최소 주문 ${min_not:,.0f} 보다 작아 최소 주문으로 걸면 단위당 위험이 시드의 {min_not * d / seed:.1%}'
-        return msg
-    lines = [f'■ {tf} {P10_KO["fusion"]} · 마지막 완결 봉 {last} UTC · 종가 {c_last:,.1f} · 큰 추세 {trend_ko}']
+        msg = f'단위당 위험 {risk:.2%}: 1단위 명목 약 ${notional:,.0f} (손절 거리 {d:.1%}), 같은 크기로 최대 {P12_UNITS}단위'
+        if notional >= min_not:
+            return '선물 · ' + msg
+        if sym == SYMBOL and side > 0:
+            return (f'현물 매수 · {msg} — 선물 최소 주문 ${min_not:,.0f} 보다 작아 현물로 (현물 최소 ${SPOT_MIN_NOTIONAL:.0f}). '
+                    '단위 합이 현금을 넘으면 넘는 단위는 건너뛴다')
+        if sym == SYMBOL:
+            return f'건너뜀 · {msg} — 숏은 단위 명목이 선물 최소 주문 ${min_not:,.0f} 이상일 때만 (권장 운용안)'
+        r_min = min_not * d / seed
+        if r_min <= 2 * risk:
+            return f'선물 · {msg} — 최소 주문 ${min_not:,.0f} 로 올려 걸면 단위당 위험 {r_min:.2%}'
+        return f'건너뜀 · {msg} — 최소 주문 ${min_not:,.0f} 로는 단위당 위험이 {r_min:.1%} (권장의 2배 초과)'
+    lines = [f'■ {tf} {P10_KO["fusion"]} · {sym} · 마지막 완결 봉 {last} UTC · 종가 {c_last:,.1f} · 큰 추세 {trend_ko}']
     if xpend:
         action = f'다음 봉 시가({nxt} UTC)에 {side_ko[int(pos)]} {int(k)}단위 전부 청산 (10봉 반대 돌파)'
         state = 'exit'
@@ -8579,10 +8947,11 @@ def _fusion_live(base1m, tf, seed=70.0, risk=RISK_CAP, frame=None):
             action = f'대기 · 큰 추세 하락 → {tf} 종가가 {t["next_lo_n"]:,.1f} 아래로 마감하면 다음 봉 시가에 숏 1단위 (손절 약 {d:.1%})'
         else:
             action = '대기 · 큰 추세가 아직 정해지지 않음 (55봉 신고가·신저가가 나와야 방향이 생긴다)'
-        lines.append(f'   (진입하면) {size(d)}')
+        lines.append(f'   (진입하면) {size(d, 1 if trend >= 0 else -1)}')
         state = 'armed'
     lines.insert(1, f'   ▶ {action}')
-    return dict(pair=f'{tf}:fusion', state=state, action=action, lines=lines, stop=stop if pos else None)
+    return dict(pair=f'{tf}:fusion' + ('' if sym == SYMBOL else '_eth'), state=state, action=action, lines=lines,
+                stop=stop if pos else None)
 
 
 def lab_masters_forward(base1m, method, tf, since, frame=None):
@@ -8596,7 +8965,8 @@ def lab_masters_forward(base1m, method, tf, since, frame=None):
 TRACK_VERDICT = {('btc', '5m:volbreak'): P7_KEY, ('btc', '1h:volbreak'): P7_KEY, ('btc', '15m:volbreak'): P7_KEY_15M,
                  ('btc', '4h:darvas'): 'masters|4h:darvas', ('btc', '1d:darvas'): 'masters|1d:darvas',
                  ('btc', '4h:turtle1'): 'masters2|btc:4h:turtle1', ('btc', '4h:turtle2'): 'masters2|btc:4h:turtle2',
-                 ('btc', '4h:fusion'): P12_KEY}
+                 ('btc', '4h:fusion'): P12_KEY, ('eth', '4h:fusion_eth'): P17_KEY, ('btc', '1h:crowd'): P16_BTC_KEY,
+                 ('eth', '1h:crowd_eth'): P16_KEY}
 
 
 def track_state(journal, t):
@@ -8605,10 +8975,14 @@ def track_state(journal, t):
     return journal.state(key)
 
 
-def lab_signal_all(base1m, live, seed=70.0, cost_mode='taker', status=None, states=None):
-    """추적 후보 전부의 '지금' 신호. 과거 차트로 수립된 것(확인)을 먼저, 나머지는 연구 추적으로 나눠 보인다."""
+def lab_signal_all(base1m, live, seed=70.0, cost_mode='taker', status=None, states=None, http=None):
+    """
+    추적 후보 전부의 '지금' 신호. 권장 운용안(확인 + PLAN_PAIRS)을 먼저, 확인됐지만 권장안 밖인 것(같은 돌파를 겹쳐 사지 않기 위해 뺀
+    다바스·터틀)을 다음, 나머지는 연구 추적으로 나눠 보인다. ETH·롱숏 비율이 필요한 전략은 공개 자료를 직접 받는다(실패하면 ⚠ 만).
+    """
     states = states or {}
-    rows, L_live, L_res = [], [], []
+    http = http or PublicHttp()
+    rows, L_plan, L_conf, L_res = [], [], [], []
     lab = [t for t in live if not t.get('method')]
     if lab:
         fixed = {t['pair']: (float(t['stop']), float(t['cost'])) for t in lab if t.get('stop')}
@@ -8616,17 +8990,49 @@ def lab_signal_all(base1m, live, seed=70.0, cost_mode='taker', status=None, stat
                               fixed=fixed)
         rows += res['rows']
         L_res += [x for x in res['report'].splitlines()[1:] if not x.startswith('※')]
+    cache = {}
+
+    def data(key, fn):
+        if key not in cache:
+            try:
+                cache[key] = fn()
+            except Exception as e:
+                cache[key] = e
+        return cache[key]
     for t in live:
-        if t.get('method'):
-            r = lab_masters_live(base1m, t['method'], t['pair'].split(':')[0], seed=seed)
-            rows.append(r)
-            (L_live if states.get(t['pair']) == 'confirmed' else L_res).extend(r['lines'])
-    L = [f'━━━ 지금 신호 · {SYMBOL} · 실행 {utcnow():%Y-%m-%d %H:%M} UTC (주문은 직접) ━━━']
-    if L_live:
-        L += ['【실전 — 과거 차트 두 국면에서 확인된 전략】'] + L_live
+        m_ = t.get('method')
+        if not m_:
+            continue
+        tf = t['pair'].split(':')[0]
+        try:
+            frame = metrics = None
+            if m_ == 'fusion_eth':
+                frame = data('eth4h', lambda: normalize_frame(lab_eth_frames(http, ('4h',)).get('4h')))
+            elif m_ in ('crowd', 'crowd_eth'):
+                sym = SYMBOL if m_ == 'crowd' else 'ETHUSDT'
+                frame = data(f'{sym}1h', lambda: _live_frame(http, sym, '1h', base1m=base1m))
+                metrics = data(f'{sym}ls', lambda: live_metrics(http, sym))
+            for v_ in (frame, metrics):
+                if isinstance(v_, Exception):
+                    raise v_
+            r = lab_masters_live(base1m, m_, tf, seed=seed, frame=frame, metrics=metrics)
+        except Exception as e:
+            r = dict(pair=t['pair'], state='error', action=f'계산 실패: {e}', lines=[f'■ {t["pair"]} ({t.get("scope")})', f'   ⚠ 계산 실패: {e}'],
+                     stop=None)
+        rows.append(r)
+        if states.get(t['pair']) == 'confirmed':
+            (L_plan if t['pair'] in PLAN_PAIRS else L_conf).extend(r['lines'])
+        else:
+            L_res.extend(r['lines'])
+    L = [f'━━━ 지금 신호 · BTC·ETH · 실행 {utcnow():%Y-%m-%d %H:%M} UTC (주문은 직접) ━━━']
+    if L_plan:
+        L += [f'【실전 — 권장 운용안 (1차 검증 2026-10-15): 융합 단위당 {PLAN_RISK["fusion"]:.2%} · 군중 숏 쏠림 돌파 {PLAN_RISK["crowd"]:.0%}, '
+              'BTC·ETH】'] + L_plan
+    if L_conf:
+        L += ['【확인됐지만 권장안 밖 — 같은 돌파를 다른 규칙으로 겹쳐 사지 않는다 (참고용)】'] + L_conf
     if L_res:
         L += ['【연구 추적 — 아직 수립 안 됨, 실전 아님】'] + L_res
-    L.append('※ 신호 시각은 계산한 시각 그대로다(소급 없음). 손절은 진입 즉시 거래소에 걸어 둔다.')
+    L.append('※ 신호 시각은 계산한 시각 그대로다(소급 없음). 손절은 진입 즉시 거래소에 걸어 둔다. 최소 주문 금액은 거래소 화면에서 확인한다.')
     return dict(rows=rows, report='\n'.join(L))
 
 
@@ -9021,6 +9427,678 @@ def lab_fusion(base1m=None, frame=None, regimes=P10_REGIMES, risk=P12_RISK, seed
           '※ 이미 확인된 돌파 추세추종(다바스·터틀) 위에 피라미딩·추세 필터를 더한 것이다. 그래서 "엣지가 있나"뿐 아니라 "확인된 터틀 1 보다 '
           '나은가"까지 넘어야 확인으로 친다.']
     return dict(report='\n'.join(L), verdict=verdict, n=n, mean_r=mean, lo=lo, per=per, curve=curve)
+
+
+def minervini_template(daily):
+    """
+    미너비니 추세 템플릿(가격만으로 되는 7개)을 일봉마다 계산한다. 그 일봉 마감까지의 자료만 쓴다.
+    ① 종가 > 150·200일 평균 ② 150일 > 200일 ③ 200일 평균 > 30일 전 200일 평균 ④ 50일 > 150일 > 200일 ⑤ 종가 > 50일
+    ⑥ 종가 ≥ 365일 최저가 × 1.30 ⑦ 종가 ≥ 365일 최고가 × 0.75. 이력이 모자라면 거짓.
+    """
+    c = daily['close'].astype(np.float64)
+    s50, s150, s200 = (c.rolling(n, min_periods=n).mean() for n in (50, 150, 200))
+    lo365 = daily['low'].astype(np.float64).rolling(365, min_periods=365).min()
+    hi365 = daily['high'].astype(np.float64).rolling(365, min_periods=365).max()
+    ok = (c > s150) & (c > s200) & (s150 > s200) & (s200 > s200.shift(30)) & (s50 > s150) & (c > s50) & \
+         (c >= 1.30 * lo365) & (c >= 0.75 * hi365)
+    return ok.fillna(False).astype(bool)
+
+
+def _template_on_bars(idx, bar_minutes, daily):
+    """일봉 템플릿을 시간봉에 붙인다: 시간봉 마감 시각까지 마감된 마지막 일봉의 값 (인과적)."""
+    tmpl = minervini_template(daily)
+    dclose = (daily.index + pd.Timedelta(days=1)).values.astype('datetime64[ns]')
+    bclose = (idx + pd.Timedelta(minutes=bar_minutes)).values.astype('datetime64[ns]')
+    j = np.searchsorted(dclose, bclose, side='right') - 1
+    out = np.zeros(len(idx), dtype=np.bool_)
+    okj = j >= 0
+    out[okj] = tmpl.values[j[okj]]
+    return out
+
+
+@njit(cache=False)
+def _m_darvas_g(o, h, l, c, gate, conf, min_box, cost, i0, i1):
+    """_m_darvas 와 같은 규칙. 다만 돌파 진입은 gate[i] 가 참인 봉에서만 예약한다 (박스 상태 변화는 그대로)."""
+    n = i1
+    ent = np.empty(n, dtype=np.int64)
+    xit = np.empty(n, dtype=np.int64)
+    rr = np.empty(n, dtype=np.float64)
+    dd = np.empty(n, dtype=np.float64)
+    m = 0
+    phase, ct, cti, cb, cbi, top, bot = 0, h[i0], i0, 0.0, i0, 0.0, 0.0
+    pos, pend, entry, d, stop, t_in, pend_stop = 0, 0, 0.0, 0.0, 0.0, 0, 0.0
+    for i in range(i0 + 1, i1):
+        if pos == 0 and pend:
+            entry, stop, t_in, pend = o[i], pend_stop, i, 0
+            d = 1.0 - stop / entry
+            pos = 1 if d >= min_box else 0
+        if pos and l[i] <= stop:
+            px = o[i] if o[i] < stop else stop
+            ent[m], xit[m], rr[m], dd[m] = t_in, i, ((px / entry - 1.0) - cost) / d, d
+            m += 1
+            pos = 0
+        if phase == 0:
+            if h[i] > ct:
+                ct, cti = h[i], i
+            elif i - cti >= conf:
+                top, phase = ct, 1
+                cb, cbi = l[i], i
+                for j in range(cti, i + 1):
+                    if l[j] < cb:
+                        cb, cbi = l[j], j
+        elif phase == 1:
+            if h[i] > top:
+                phase, ct, cti = 0, h[i], i
+            elif l[i] < cb:
+                cb, cbi = l[i], i
+            elif i - cbi >= conf:
+                bot, phase = cb, 2
+                if pos and bot > stop:
+                    stop = bot
+        elif phase == 2:
+            if c[i] > top:
+                if pos == 0 and gate[i]:
+                    pend, pend_stop = 1, bot
+                phase, ct, cti = 0, h[i], i
+            elif c[i] < bot:
+                phase, ct, cti = 0, h[i], i
+    return ent[:m], rr[:m], xit[:m], dd[:m]
+
+
+def lab_stage2_verdict(n, mean_r, lo, regime_means):
+    if n < 30:
+        return '판정 불가'
+    if not mean_r > 0:
+        return '반증'
+    if lo > 0 and all(m_ > 0 for m_ in regime_means):
+        return '확인'
+    return '반증 안 됨'
+
+
+def _edge_info(R, years):
+    """연간 엣지 정보 = 연 거래 수 × (평균R ÷ 표준편차)² (L25)."""
+    if len(R) < 2 or years <= 0:
+        return 0.0
+    sd = float(np.std(R, ddof=1))
+    return (len(R) / years) * (float(np.mean(R)) / sd) ** 2 if sd > 0 else 0.0
+
+
+def lab_stage2(base1m=None, frames=None, regimes=P10_REGIMES, status=None):
+    """P13: 미너비니 추세 템플릿이 참인 날에만 다바스 박스(1h·4h, 롱). 가설 2개 → 단측 2.5% 하한. 필터 없는 다바스와 같은 자료로 비교."""
+    status = status or (lambda *a, **k: None)
+    frames = frames if frames is not None else _m_frames(base1m)
+    daily = frames['1d']
+    zq = norm_ppf(1 - P13_ALPHA)
+    rows = []
+    for tf in P13_TESTS:
+        df = normalize_frame(frames[tf])
+        status(f'P13 2단계 다바스 {tf}...', 'blue')
+        idx = df.index
+        i0 = int(idx.searchsorted(pd.Timestamp(regimes[0][0])))
+        i1 = int(idx.searchsorted(pd.Timestamp(regimes[-1][1])))
+        years = max((idx[min(i1, len(idx) - 1)] - idx[i0]).days / 365.25, 1e-9)
+        ind = _lab_indicators(df)
+        o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
+        gate = _template_on_bars(idx, MASTERS_TF_MIN[tf], daily)
+        out = {}
+        for name, g_, cost in (('stage2', gate, P10_COST), ('stage2_spot', gate, P13_SPOT_COST),
+                               ('plain', np.ones(len(c), dtype=np.bool_), P10_COST)):
+            e, R, x, d = _m_darvas_g(o, h, l, c, g_, 3, 3 * P10_COST, cost, i0, i1)
+            T = idx.values[e] if len(e) else np.zeros(0, dtype='datetime64[ns]')
+            per = []
+            for a_, b_ in regimes:
+                mk = (T >= np.datetime64(pd.Timestamp(a_))) & (T < np.datetime64(pd.Timestamp(b_)))
+                per.append((int(mk.sum()), float(R[mk].mean()) if mk.any() else float('nan')))
+            n = len(R)
+            mean = float(R.mean()) if n else float('nan')
+            sd = float(R.std(ddof=1)) if n > 1 else float('nan')
+            lo = mean - zq * sd / math.sqrt(n) if n > 1 else float('nan')
+            out[name] = dict(n=n, mean_r=mean, lo=lo, per=per, info=_edge_info(R, years), win=float(np.mean(R > 0)) if n else 0.0,
+                             days_on=float(gate[i0:i1].mean()) if name != 'plain' else 1.0)
+        v = lab_stage2_verdict(out['stage2']['n'], out['stage2']['mean_r'], out['stage2']['lo'],
+                               [m_ for _, m_ in out['stage2']['per']])
+        adopt = v == '확인' and all(m_ > 0 for _, m_ in out['stage2_spot']['per']) and \
+            out['stage2']['info'] > out['plain']['info']
+        rows.append(dict(tf=tf, verdict=v, adopt=adopt, **{k: out[k] for k in out}))
+    L = ['━━━ 사전등록 P13 · 2단계 다바스 (미너비니 추세 템플릿 + 다바스 박스, BTC 롱, 고정 규칙) ━━━',
+         '템플릿(1d, 마감까지의 자료만): 종가 > 150·200일 평균 · 150 > 200 · 200일 평균 1개월 상승 · 50 > 150 > 200 · 종가 > 50일 · '
+         '365일 최저가 × 1.30 이상 · 365일 최고가 × 0.75 이상. 참인 날에만 다바스 돌파에 진입.',
+         f'판정: 거래 ≥ 30 · 두 국면 모두 평균R > 0 · 합산 단측 {P13_ALPHA:.1%} 하한 > 0 → 확인 (왕복 {P10_COST:.2%}). '
+         f'실전 채택 = 확인 + 현물 비용({P13_SPOT_COST:.2%})에서도 두 국면 > 0 + 연간 엣지 정보가 필터 없는 다바스보다 큼.',
+         '─' * 100,
+         f'{"TF":<5}{"구분":<14}{"거래":>6}{"승률":>6}{"평균R":>8}{"국면1":>14}{"국면2":>14}{"하한":>9}{"엣지정보":>9}']
+    for r in rows:
+        for name, ko in (('stage2', '2단계(0.12%)'), ('stage2_spot', '2단계(현물)'), ('plain', '필터 없음')):
+            q = r[name]
+            (n1, m1), (n2, m2) = q['per']
+            L.append(f'{r["tf"]:<5}{ko:<14}{q["n"]:>6}{q["win"]:>6.0%}{np.nan_to_num(q["mean_r"]):>+8.3f}'
+                     f'{n1:>5} {np.nan_to_num(m1):>+7.3f}{n2:>6} {np.nan_to_num(m2):>+7.3f}{np.nan_to_num(q["lo"]):>+9.3f}{q["info"]:>9.2f}')
+        L.append(f'      → {r["verdict"]} · 템플릿이 참인 시간 {r["stage2"]["days_on"]:.0%} · 실전 채택 {"예" if r["adopt"] else "아니오"}')
+    return dict(report='\n'.join(L), rows=rows)
+
+
+def _asof(t_src, v_src, t_query):
+    """t_src(정렬된 datetime64[ns]) 의 값 중 t_query 이하 마지막 값. 없으면 NaN."""
+    j = np.searchsorted(t_src, t_query, side='right') - 1
+    out = np.full(len(t_query), np.nan)
+    ok = j >= 0
+    out[ok] = v_src[j[ok]]
+    return out
+
+
+def _z_prev(x, win=P14_Z_WIN):
+    """직전 win 봉(현재 제외) 평균·표준편차로 잰 z. 이력이 모자라면 NaN."""
+    s_ = pd.Series(np.asarray(x, dtype=np.float64))
+    mu = s_.rolling(win, min_periods=win).mean().shift(1)
+    sd = s_.rolling(win, min_periods=win).std().shift(1)
+    return ((s_ - mu) / sd.where(sd > 0)).values
+
+
+def _metrics_at(metrics, col, t_close):
+    """봉 마감 시각 t 에 '이미 알려진' metrics 값: 기록 시각 ≤ t − 5분 (기록 시각이 구간 시작이어도 미래를 보지 않게)."""
+    m = metrics[col].dropna()
+    return _asof(m.index.values.astype('datetime64[ns]'), m.values.astype(np.float64),
+                 np.asarray(t_close, dtype='datetime64[ns]') - np.timedelta64(5, 'm'))
+
+
+def _cluster_t(R, T):
+    """달 묶음(같은 달 진입) 표준오차로 잰 평균R 의 t 와 표준오차."""
+    R = np.asarray(R, dtype=np.float64)
+    n = len(R)
+    if n < 2:
+        return float('nan'), float('nan')
+    mon = np.asarray(T, dtype='datetime64[M]')
+    mean = R.mean()
+    keys, inv = np.unique(mon, return_inverse=True)
+    S = np.bincount(inv, weights=R - mean)
+    G = len(keys)
+    var = (S ** 2).sum() / n ** 2 * (G / max(G - 1, 1))
+    se = math.sqrt(var) if var > 0 else float('nan')
+    return (mean / se if se and se > 0 else float('nan')), se
+
+
+def lab_fuel_a1(frames4h, metrics, funding, start=P14_A1_START, end=P14_END, split=P14_A1_SPLIT):
+    """P14-A1 연료 돌파: 확인된 다바스·터틀 1·터틀 2(4h) 진입 중 미결제약정이 쌓이고(1년 백분위 ≥ 2/3) 펀딩이 반대로 쏠린 것만."""
+    df = normalize_frame(frames4h)
+    idx = df.index
+    i0 = int(idx.searchsorted(pd.Timestamp('2018-01-01')))
+    i1 = int(idx.searchsorted(pd.Timestamp(end)))
+    close_t = (idx + pd.Timedelta(hours=4)).values.astype('datetime64[ns]')
+    oi_c = _metrics_at(metrics, 'oi', close_t)
+    oi20 = oi_c / np.r_[np.full(20, np.nan), oi_c[:-20]] - 1.0
+    ft = funding.index.values.astype('datetime64[ns]')
+    fv = funding.values.astype(np.float64)
+    rows = []
+    for method in ('darvas', 'turtle1', 'turtle2'):
+        tr = _m_trades_full(method, df, i0, i1)
+        for e_, r_, sd_ in zip(tr['ent'], tr['rr'], tr['side']):
+            te = idx.values[e_]
+            if te < np.datetime64(pd.Timestamp(start)) or te >= np.datetime64(pd.Timestamp(end)) or e_ < 1:
+                continue
+            k = e_ - 1                                   # 신호 봉
+            t = close_t[k]
+            lo_k = int(np.searchsorted(close_t, t - np.timedelta64(365, 'D'), side='right'))
+            hist = oi20[lo_k:k]
+            hist = hist[~np.isnan(hist)]
+            pct = float(np.mean(hist < oi20[k])) if len(hist) >= 300 and not np.isnan(oi20[k]) else float('nan')
+            jf = int(np.searchsorted(ft, t, side='right'))
+            jf0 = int(np.searchsorted(ft, t - np.timedelta64(365, 'D'), side='right'))
+            avg3 = float(fv[max(jf - 3, 0):jf].mean()) if jf >= 3 else float('nan')
+            med = float(np.median(fv[jf0:jf])) if jf - jf0 >= 100 else float('nan')
+            fuel = pct >= 2.0 / 3.0 if not math.isnan(pct) else False
+            crowd = (avg3 <= med if sd_ > 0 else avg3 >= med) if not (math.isnan(avg3) or math.isnan(med)) else False
+            rows.append(dict(method=method, t=te, r=float(r_), side=int(sd_), pct=pct, avg3=avg3, med=med, keep=bool(fuel and crowd)))
+    years = (pd.Timestamp(end) - pd.Timestamp(start)).days / 365.25
+
+    def stats(sel):
+        R = np.array([x['r'] for x in sel], dtype=np.float64)
+        T = np.array([x['t'] for x in sel], dtype='datetime64[ns]')
+        if len(R) < 2:
+            return dict(n=len(R), mean_r=float('nan'), lo=float('nan'), halves=(float('nan'), float('nan')), info=0.0, t=float('nan'))
+        tt, se = _cluster_t(R, T)
+        h1 = T < np.datetime64(pd.Timestamp(split))
+        return dict(n=len(R), mean_r=float(R.mean()), lo=float(R.mean() - norm_ppf(1 - P14_ALPHA_A) * se), t=tt,
+                    halves=(float(R[h1].mean()) if h1.any() else float('nan'), float(R[~h1].mean()) if (~h1).any() else float('nan')),
+                    info=_edge_info(R, years), win=float(np.mean(R > 0)))
+    kept = [x for x in rows if x['keep']]
+    out = dict(all=stats(rows), kept=stats(kept), rest=stats([x for x in rows if not x['keep']]),
+               by_method={m_: (stats([x for x in kept if x['method'] == m_]), stats([x for x in rows if x['method'] == m_]))
+                          for m_ in ('darvas', 'turtle1', 'turtle2')}, rows=rows)
+    k_ = out['kept']
+    out['verdict'] = lab_stage2_verdict(k_['n'], k_['mean_r'], k_['lo'], list(k_['halves']))
+    out['adopt'] = out['verdict'] == '확인' and k_['info'] > out['all']['info']
+    return out
+
+
+@njit(cache=False)
+def _a2_sim(o, h, l, c, sig, stop_px, hold, cost, i0, i1):
+    """다음 봉 시가 롱, 손절 stop_px[신호 봉], hold 봉째 종가 청산(손절·갭 우선). 한 번에 하나."""
+    ent = np.empty(i1, dtype=np.int64)
+    rr = np.empty(i1, dtype=np.float64)
+    m = 0
+    i = i0
+    while i < i1 - 1:
+        if sig[i]:
+            e = i + 1
+            entry = o[e]
+            st = stop_px[i]
+            d = 1.0 - st / entry
+            if d <= 0.0005:
+                i += 1
+                continue
+            px = c[min(e + hold - 1, i1 - 1)]
+            xi = min(e + hold - 1, i1 - 1)
+            for j in range(e, min(e + hold, i1)):
+                if l[j] <= st:
+                    px = o[j] if o[j] < st else st
+                    xi = j
+                    break
+            ent[m] = e
+            rr[m] = ((px / entry - 1.0) - cost) / d
+            m += 1
+            i = xi + 1
+        else:
+            i += 1
+    return ent[:m], rr[:m]
+
+
+def lab_fuel_a2(frame1h, metrics, start=P14_A2_START, end=P14_END, split=P14_A2_SPLIT):
+    """P14-A2 강제 청산 반등(롱): 1h 에서 미결제약정 변화 z < −2 이고 가격 변화 z < −2 → 다음 봉 롱, 손절 저가 − 0.5 ATR, 24봉."""
+    df = normalize_frame(frame1h)
+    idx = df.index
+    ind = _lab_indicators(df)
+    o, h, l, c = (ind[k].values.astype(np.float64) for k in ('o', 'h', 'l', 'c'))
+    close_t = (idx + pd.Timedelta(hours=1)).values.astype('datetime64[ns]')
+    oi_c = _metrics_at(metrics, 'oi', close_t)
+    d_oi = oi_c / np.r_[np.nan, oi_c[:-1]] - 1.0
+    ret = c / np.r_[np.nan, c[:-1]] - 1.0
+    z_oi, z_r = _z_prev(d_oi), _z_prev(ret)
+    sig = np.nan_to_num(z_oi, nan=0.0) < -2.0
+    sig &= np.nan_to_num(z_r, nan=0.0) < -2.0
+    stop_px = l - 0.5 * ind['atr'].values * c
+    i0 = int(idx.searchsorted(pd.Timestamp(start)))
+    i1 = int(idx.searchsorted(pd.Timestamp(end)))
+    e, R = _a2_sim(o, h, l, c, sig, np.nan_to_num(stop_px), 24, P14_COST, i0, i1)
+    T = idx.values[e]
+    n = len(R)
+    years = (pd.Timestamp(end) - pd.Timestamp(start)).days / 365.25
+    if n < 2:
+        return dict(n=n, verdict='판정 불가', mean_r=float('nan'), lo=float('nan'), halves=(float('nan'),) * 2, info=0.0, signals=int(sig[i0:i1].sum()))
+    h1 = T < np.datetime64(pd.Timestamp(split))
+    sd = float(R.std(ddof=1))
+    lo = float(R.mean() - norm_ppf(1 - P14_ALPHA_A) * sd / math.sqrt(n))
+    halves = (float(R[h1].mean()) if h1.any() else float('nan'), float(R[~h1].mean()) if (~h1).any() else float('nan'))
+    v = lab_stage2_verdict(n, float(R.mean()), lo, list(halves))
+    return dict(n=n, mean_r=float(R.mean()), lo=lo, halves=halves, info=_edge_info(R, years), win=float(np.mean(R > 0)),
+                verdict=v, signals=int(sig[i0:i1].sum()), R=R, T=T)
+
+
+def p14_b_rules():
+    """P14-B 규칙: 서로 다른 특징의 원자 1~3개 (원자 = 특징 f × 문턱 k, 번호 f*4+k). 반환 (규칙 수 × 3) 원자 번호, 빈칸 −1."""
+    nf = len(P14_B_FEATURES)
+    out = [[f * 4 + a, -1, -1] for f in range(nf) for a in range(4)]
+    out += [[f1 * 4 + a, f2 * 4 + b, -1] for f1 in range(nf) for f2 in range(f1 + 1, nf) for a in range(4) for b in range(4)]
+    out += [[f1 * 4 + a, f2 * 4 + b, f3 * 4 + c] for f1 in range(nf) for f2 in range(f1 + 1, nf) for f3 in range(f2 + 1, nf)
+            for a in range(4) for b in range(4) for c in range(4)]
+    return np.array(out, dtype=np.int64)
+
+
+def p14_procedure_count():
+    return len(p14_b_rules()) * 2 * len(P14_B_TFS)
+
+
+def p14_procedure_keys():
+    """P14 의 시험 절차: A1 · A2 + B 규칙 35,928개 (시간봉 × 방향 × 규칙 번호)."""
+    n = len(p14_b_rules())
+    return [P14_A1_KEY, P14_A2_KEY] + [f'fuel|btc:{tf}:{"L" if sd > 0 else "S"}:{r}' for tf in P14_B_TFS for sd in (1, -1)
+                                       for r in range(n)]
+
+
+def _p14_b_features(df, tf_min, metrics, funding, spot15):
+    """P14-B 특징 9개(봉 마감까지 알려진 값만) → (n, 9) z 행렬과 ATR%."""
+    idx = df.index
+    ind = _lab_indicators(df)
+    c, h = ind['c'].values.astype(np.float64), ind['h']
+    close_t = (idx + pd.Timedelta(minutes=tf_min)).values.astype('datetime64[ns]')
+    oi = _metrics_at(metrics, 'oi', close_t)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        d_oi = oi / np.r_[np.nan, oi[:-1]] - 1.0
+        vol_ = df['volume'].values.astype(np.float64)
+        taker = np.where(vol_ > 0, df['taker_buy_base'].values / np.where(vol_ > 0, vol_, 1.0), np.nan)
+        trd = df['trades'].values.astype(np.float64)
+        size = np.where(trd > 0, vol_ / np.where(trd > 0, trd, 1.0), np.nan)
+    fund = _asof(funding.index.values.astype('datetime64[ns]'), funding.values.astype(np.float64), close_t)
+    ls = _metrics_at(metrics, 'ls_acct', close_t)
+    if spot15 is not None and len(spot15):
+        sc = _asof((spot15.index + pd.Timedelta(minutes=15)).values.astype('datetime64[ns]'),
+                   spot15['close'].values.astype(np.float64), close_t)
+        sp_t = _asof((spot15.index + pd.Timedelta(minutes=15)).values.astype('datetime64[ns]'),
+                     (spot15.index + pd.Timedelta(minutes=15)).values.astype('datetime64[ns]').astype(np.int64).astype(np.float64), close_t)
+        stale = (close_t.astype(np.int64).astype(np.float64) - sp_t) > 30 * 60 * 1e9     # 현물 값이 30분 넘게 묵었으면 빈 값
+        basis = np.where(stale, np.nan, c / sc - 1.0)
+    else:
+        basis = np.full(len(c), np.nan)
+    atrp = ind['atr'].values.astype(np.float64)
+    brk = (c - h.rolling(20).max().shift(1).values) / (atrp * c)
+    trend = c / np.r_[np.full(100, np.nan), c[:-100]] - 1.0
+    feats = dict(d_oi=d_oi, fund=fund, ls_crowd=ls, taker=taker, size=size, basis=basis, brk=brk, vol=atrp, trend=trend)
+    Z = np.column_stack([_z_prev(feats[f]) for f in P14_B_FEATURES])
+    return Z, atrp
+
+
+def _p14_b_atoms(Z):
+    n, nf = Z.shape
+    A = np.zeros((n, nf * 4), dtype=np.bool_)
+    for f in range(nf):
+        z = Z[:, f]
+        ok = ~np.isnan(z)
+        for k, (sg, th) in enumerate(P14_B_THRESH):
+            A[:, f * 4 + k] = ok & ((z > th) if sg > 0 else (z < th))
+    return A
+
+
+@njit(cache=False, parallel=True)
+def _p14_b_scan(o, h, l, c, atrp, A, rules, side, hold, cost, i0, i1, mon, half, n_mon):
+    """규칙마다 한 번에 하나: 원자가 모두 참인 봉 마감 → 다음 봉 시가, 손절 1.5 ATR, hold 봉째 종가. 규칙별 합계·달별 합계."""
+    nr = rules.shape[0]
+    cnt = np.zeros(nr)
+    sm = np.zeros(nr)
+    sq = np.zeros(nr)
+    h1n = np.zeros(nr)
+    h1s = np.zeros(nr)
+    h2n = np.zeros(nr)
+    h2s = np.zeros(nr)
+    msum = np.zeros((nr, n_mon))
+    mcnt = np.zeros((nr, n_mon))
+    for r in prange(nr):
+        a1, a2, a3 = rules[r, 0], rules[r, 1], rules[r, 2]
+        sd_ = side[r]
+        i = i0
+        while i < i1 - 1:
+            sig = A[i, a1]
+            if sig and a2 >= 0:
+                sig = A[i, a2]
+            if sig and a3 >= 0:
+                sig = A[i, a3]
+            if not sig:
+                i += 1
+                continue
+            e = i + 1
+            entry = o[e]
+            dist = 1.5 * atrp[i] * c[i]
+            if not (dist > 0.0) or not (entry > 0.0):
+                i += 1
+                continue
+            stop = entry - sd_ * dist
+            last = e + hold - 1
+            if last > i1 - 1:
+                last = i1 - 1
+            px = c[last]
+            xi = last
+            for j in range(e, last + 1):
+                if (sd_ > 0 and l[j] <= stop) or (sd_ < 0 and h[j] >= stop):
+                    px = stop
+                    if (sd_ > 0 and o[j] < stop) or (sd_ < 0 and o[j] > stop):
+                        px = o[j]
+                    xi = j
+                    break
+            R = (sd_ * (px / entry - 1.0) - cost) / (dist / entry)
+            cnt[r] += 1
+            sm[r] += R
+            sq[r] += R * R
+            if half[e]:
+                h1n[r] += 1
+                h1s[r] += R
+            else:
+                h2n[r] += 1
+                h2s[r] += R
+            msum[r, mon[e]] += R
+            mcnt[r, mon[e]] += 1
+            i = xi + 1
+    return cnt, sm, sq, h1n, h1s, h2n, h2s, msum, mcnt
+
+
+def lab_fuel_b(frames, metrics, funding, spot15, start=P14_B_START, end=P14_END, split=P14_B_SPLIT, status=None):
+    """P14-B: 새 정보 원자 대규모 탐색 (규칙 35,928개, 본페로니 단측 5%, 달 묶음 t, 두 반쪽 > 0)."""
+    status = status or (lambda *a, **k: None)
+    rules = p14_b_rules()
+    M = len(rules) * 2 * len(P14_B_TFS)
+    bar = norm_ppf(1 - 0.05 / M)
+    rows = []
+    for tf in P14_B_TFS:
+        status(f'P14-B {tf}: 특징·원자 만드는 중...', 'blue')
+        df = normalize_frame(frames[tf])
+        idx = df.index
+        Z, atrp = _p14_b_features(df, MASTERS_TF_MIN[tf], metrics, funding, spot15)
+        A = _p14_b_atoms(Z)
+        i0 = int(idx.searchsorted(pd.Timestamp(start)))
+        i1 = int(idx.searchsorted(pd.Timestamp(end)))
+        months = idx.year.values.astype(np.int64) * 12 + idx.month.values.astype(np.int64) - 1
+        mon = np.clip(months - months[i0], 0, None).astype(np.int64)
+        n_mon = int(mon[min(i1, len(mon) - 1)]) + 2
+        half = np.asarray(idx < pd.Timestamp(split), dtype=np.bool_)
+        o, h, l, c = (df[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+        for sd_ in (1, -1):
+            status(f'P14-B {tf} {"롱" if sd_ > 0 else "숏"}: 규칙 {len(rules):,}개 시험 중...', 'blue')
+            side = np.full(len(rules), sd_, dtype=np.int64)
+            cnt, sm, sq, h1n, h1s, h2n, h2s, msum, mcnt = _p14_b_scan(o, h, l, c, np.nan_to_num(atrp), A, rules, side, P14_B_HOLD[tf],
+                                                                      P14_COST, i0, i1, mon, half, n_mon)
+            with np.errstate(divide='ignore', invalid='ignore'):
+                mean = sm / cnt
+                S = msum - mcnt * mean[:, None]
+                G = (mcnt > 0).sum(axis=1)
+                var = (S ** 2).sum(axis=1) / cnt ** 2 * (G / np.maximum(G - 1, 1))
+                t = mean / np.sqrt(var)
+            for r in range(len(rules)):
+                if cnt[r] >= 30:
+                    rows.append((tf, sd_, r, int(cnt[r]), float(mean[r]), float(t[r]),
+                                 float(h1s[r] / h1n[r]) if h1n[r] else float('nan'), float(h2s[r] / h2n[r]) if h2n[r] else float('nan')))
+    names = [f'{P14_B_FEATURES[a // 4]} {"> +1" if a % 4 == 0 else "> +2" if a % 4 == 1 else "< −1" if a % 4 == 2 else "< −2"}'
+             for a in range(len(P14_B_FEATURES) * 4)]
+
+    def rule_text(r):
+        return ' & '.join(names[a] for a in rules[r] if a >= 0)
+    tested = len(rows)
+    passed = [x for x in rows if x[5] > bar and x[6] > 0 and x[7] > 0]
+    top = sorted(rows, key=lambda x: -np.nan_to_num(x[5], nan=-9))[:20]
+    L = [f'━━━ 사전등록 P14-B · 새 정보 대규모 탐색 (BTC {"·".join(P14_B_TFS)}, {start} ~ {end}) ━━━',
+         f'규칙 {M:,}개 (거래 ≥ 30 인 것 {tested:,}개) · 운의 한도 t > {bar:.2f} (본페로니 단측 5%) · 달 묶음 t · 두 반쪽(경계 {split}) 모두 > 0 → 확인',
+         '─' * 100, f'{"TF":<5}{"방향":<4}{"거래":>6}{"평균R":>8}{"t":>7}{"반쪽1":>8}{"반쪽2":>8}  규칙']
+    for tf, sd_, r, n, m_, t_, a_, b_ in top:
+        L.append(f'{tf:<5}{"롱" if sd_ > 0 else "숏":<4}{n:>6}{m_:>+8.3f}{t_:>7.2f}{a_:>+8.3f}{b_:>+8.3f}  {rule_text(r)}')
+    L += ['─' * 100, f'▶ 확인 {len(passed)}개' + ('' if passed else f' — 1등 t {np.nan_to_num(top[0][5]) if top else 0:.2f} < 운의 한도 {bar:.2f}')]
+    return dict(report='\n'.join(L), passed=[(x, rule_text(x[2])) for x in passed], top=[(x, rule_text(x[2])) for x in top],
+                bar=bar, M=M, tested=tested)
+
+
+def crowd_squeeze_signal(df1h, metrics, return_z=False):
+    """P16 신호: 1h 봉 마감에서 z(전체 계정 롱숏 비율) < −1 이고 z((종가 − 직전 20봉 최고가) ÷ ATR) > +2 (z = 직전 500봉)."""
+    idx = df1h.index
+    ind = _lab_indicators(df1h)
+    c = ind['c'].values.astype(np.float64)
+    atrp = ind['atr'].values.astype(np.float64)
+    close_t = (idx + pd.Timedelta(hours=1)).values.astype('datetime64[ns]')
+    ls = _metrics_at(metrics, 'ls_acct', close_t)
+    brk = (c - ind['h'].rolling(20).max().shift(1).values) / (atrp * c)
+    zl, zb = _z_prev(ls), _z_prev(brk)
+    sig = (np.nan_to_num(zl, nan=0.0) < -1.0) & (np.nan_to_num(zb, nan=0.0) > 2.0)
+    if return_z:
+        return sig, atrp, zl, zb, ls
+    return sig, atrp
+
+
+def live_metrics(http, symbol, log=None):
+    """롱숏 비율(5분): 공개 아카이브(어제까지, 캐시) + 공개 REST 최근 약 41시간(키 없음). REST 가 막혔으면 아카이브만."""
+    m = load_metrics_history(http, symbol=symbol, log=log)
+    try:
+        rows = http.get_json(f'{FAPI_BASE}/futures/data/globalLongShortAccountRatio?symbol={symbol}&period=5m&limit=500', timeout=20)
+        if rows:
+            t = pd.to_datetime([int(r['timestamp']) for r in rows], unit='ms')
+            rec = pd.DataFrame({'ls_acct': [float(r['longShortRatio']) for r in rows]}, index=pd.DatetimeIndex(t))
+            if m is not None and len(m):
+                rec = rec[rec.index > m.index[-1]]
+            m = rec if m is None else pd.concat([m, rec])
+        HEALTH.clear(f'ls_live:{symbol}')
+    except Exception as e:
+        HEALTH.set(f'ls_live:{symbol}', 'WARN', f'{symbol} 롱숏 비율 최근값 실패 → 아카이브(어제까지)만: {e}')
+    return m
+
+
+def _live_frame(http, symbol, tf, base1m=None, months=8):
+    """'지금' 신호용 tf 봉(완결 봉만): BTC 는 1분봉 저장소에서, 그 외는 공개 REST(캐시) → 막혔으면 공개 아카이브."""
+    if symbol == SYMBOL and base1m is not None and len(base1m):
+        d = Snapshot(base1m, base1m.index[-1].to_pydatetime() + timedelta(minutes=1)).tf(tf)
+        return d[d['complete'].values > 0.5]
+    df = None
+    try:
+        df = fetch_klines_tf(http, symbol, tf)
+    except Exception:
+        df = None
+    stale = df is None or not len(df) or (utcnow() - df.index[-1].to_pydatetime()) > timedelta(minutes=3 * MASTERS_TF_MIN[tf])
+    if stale:
+        now = utcnow()
+        start = (pd.Timestamp(now) - pd.DateOffset(months=months)).strftime('%Y-%m')
+        arc = fetch_futures_klines_vision(http, symbol, tf, start=start)
+        if arc is not None and len(arc):
+            df = arc if df is None or not len(df) else pd.concat([df[df.index < arc.index[0]], arc])
+    if df is None or not len(df):
+        return None
+    df = normalize_frame(df)
+    close_t = df.index + pd.Timedelta(minutes=MASTERS_TF_MIN[tf])
+    return df[close_t <= pd.Timestamp(utcnow())]
+
+
+def _crowd_state(sig, o, h, l, c, atrp, hold=P16_HOLD, k_atr=P16_STOP_ATR):
+    """P16 을 처음부터 한 번에 하나씩 재생해 마지막 완결 봉의 상태: 'position'(보유 중) · 'entry'(다음 봉 진입) · 'armed'(대기)."""
+    n = len(c)
+    i = 0
+    while i < n - 1:
+        if not sig[i]:
+            i += 1
+            continue
+        e = i + 1
+        entry = o[e]
+        dist = k_atr * atrp[i] * c[i]
+        if not (dist > 0) or not np.isfinite(dist):
+            i += 1
+            continue
+        stop = entry - dist
+        last = e + hold - 1
+        xi = None
+        for j in range(e, min(last, n - 1) + 1):
+            if l[j] <= stop:
+                xi = j
+                break
+        if xi is None and last <= n - 1:
+            xi = last
+        if xi is None:
+            return dict(state='position', entry_bar=e, entry=float(entry), stop=float(stop), exit_bar=last, bars_left=last - (n - 1))
+        i = xi + 1
+    if n and sig[n - 1]:
+        return dict(state='entry', stop_dist=float(k_atr * atrp[n - 1]))
+    return dict(state='armed')
+
+
+def _crowd_live(symbol, df1h, metrics, seed=70.0, risk=None):
+    """P16 군중 숏 쏠림 돌파 '지금' 신호 (현물 롱). 롱숏 비율 자료가 늦으면 판단을 보류한다."""
+    risk = PLAN_RISK['crowd'] if risk is None else risk
+    pair = '1h:crowd' if symbol == SYMBOL else '1h:crowd_eth'
+    name = f'1h 군중 숏 쏠림 돌파 · {symbol} (P16, 현물 롱)'
+    if df1h is None or len(df1h) < 600 or metrics is None or not len(metrics):
+        msg = '봉 또는 롱숏 비율 자료가 모자라 계산하지 못했다'
+        return dict(pair=pair, state='nodata', action=msg, lines=[f'■ {name}', f'   ⚠ {msg}'], stop=None)
+    df = normalize_frame(df1h)
+    sig, atrp, zl, zb, ls = crowd_squeeze_signal(df, metrics, return_z=True)
+    o, h, l, c = (df[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+    last = df.index[-1]
+    last_close_t = last + pd.Timedelta(hours=1)
+    m_last = metrics['ls_acct'].dropna().index[-1]
+    lag_h = (last_close_t - m_last) / pd.Timedelta(hours=1)
+    nxt = last_close_t
+    lines = [f'■ {name} · 마지막 완결 봉 {last} UTC · 종가 {c[-1]:,.2f} · z(군중 롱숏) {np.nan_to_num(zl[-1]):+.2f} · '
+             f'z(돌파 세기) {np.nan_to_num(zb[-1]):+.2f}']
+    if lag_h > 1.2:
+        action = f'판단 보류 — 롱숏 비율 자료가 {lag_h:.1f}시간 늦다 (바이낸스 공개 REST 가 막혔거나 지연)'
+        lines.insert(1, f'   ⚠ {action}')
+        return dict(pair=pair, state='stale', action=action, lines=lines, stop=None)
+    st = _crowd_state(sig, o, h, l, c, np.nan_to_num(atrp))
+
+    def buy_text(d):
+        amt = min(seed, seed * risk / max(d, 1e-9))
+        txt = f'현물 매수 금액 약 ${amt:,.2f} (시드 ${seed:,.0f} × 위험 {risk:.0%} ÷ 손절 거리 {d:.2%})'
+        if amt < SPOT_MIN_NOTIONAL:
+            txt += f' — 현물 최소 주문 ${SPOT_MIN_NOTIONAL:.0f} 보다 작음'
+        return txt
+    if st['state'] == 'position':
+        exit_t = last_close_t + st['bars_left'] * pd.Timedelta(hours=1)          # 48봉째 봉의 마감 시각
+        action = (f'보유 중 · 진입가 {st["entry"]:,.2f} · 손절 {st["stop"]:,.2f} (거래소에 걸어 둔다) · '
+                  f'{exit_t:%m-%d %H:%M} UTC 봉 마감에 청산 (남은 {st["bars_left"]}봉)')
+    elif st['state'] == 'entry':
+        d = st['stop_dist']
+        action = f'다음 봉 시가({nxt} UTC)에 현물 롱 · 손절 = 진입가 − {d:.2%} (1.5 ATR) · 48봉째 종가에 청산'
+        lines.append(f'   {buy_text(d)}')
+    else:
+        d = P16_STOP_ATR * float(atrp[-1])
+        action = ('대기 · 군중이 평소보다 숏(z < −1)이고 1h 종가가 직전 20봉 최고가를 ATR 의 큰 배수로 뚫으면(z > +2) 다음 봉 시가에 롱')
+        lines.append(f'   (진입하면) {buy_text(d)}')
+    lines.insert(1, f'   ▶ {action}')
+    return dict(pair=pair, state=st['state'], action=action, lines=lines, stop=st.get('stop'))
+
+
+@njit(cache=False)
+def _fixed_stop_hold_sim(o, h, l, c, sig, atrp, k_atr, hold, side, cost, i0, i1):
+    """다음 봉 시가 진입, 손절 k_atr × ATR(신호 봉), hold 봉째 종가 청산(손절·갭 우선), 한 번에 하나. (P14-B 와 같은 체결)"""
+    ent = np.empty(i1, dtype=np.int64)
+    rr = np.empty(i1, dtype=np.float64)
+    m = 0
+    i = i0
+    while i < i1 - 1:
+        if not sig[i]:
+            i += 1
+            continue
+        e = i + 1
+        entry = o[e]
+        dist = k_atr * atrp[i] * c[i]
+        if not (dist > 0.0) or not (entry > 0.0):
+            i += 1
+            continue
+        stop = entry - side * dist
+        last = min(e + hold - 1, i1 - 1)
+        px, xi = c[last], last
+        for j in range(e, last + 1):
+            if (side > 0 and l[j] <= stop) or (side < 0 and h[j] >= stop):
+                px = stop
+                if (side > 0 and o[j] < stop) or (side < 0 and o[j] > stop):
+                    px = o[j]
+                xi = j
+                break
+        ent[m] = e
+        rr[m] = (side * (px / entry - 1.0) - cost) / (dist / entry)
+        m += 1
+        i = xi + 1
+    return ent[:m], rr[:m]
+
+
+def lab_crowd_squeeze(df1h, metrics, start=P16_START, end=P16_END, split=P16_SPLIT):
+    """P16 한 시장 결과: 거래·평균R·두 반쪽·달 묶음 단측 5% 하한·연도별."""
+    df = normalize_frame(df1h)
+    idx = df.index
+    sig, atrp = crowd_squeeze_signal(df, metrics)
+    i0, i1 = int(idx.searchsorted(pd.Timestamp(start))), int(idx.searchsorted(pd.Timestamp(end)))
+    o, h, l, c = (df[k].values.astype(np.float64) for k in ('open', 'high', 'low', 'close'))
+    e, R = _fixed_stop_hold_sim(o, h, l, c, sig, np.nan_to_num(atrp), P16_STOP_ATR, P16_HOLD, 1, P16_COST, i0, i1)
+    T = idx.values[e]
+    n = len(R)
+    if n < 2:
+        return dict(n=n, mean_r=float('nan'), lo=float('nan'), halves=(float('nan'),) * 2, verdict='판정 불가', years={})
+    t, se = _cluster_t(R, T)
+    lo = float(R.mean() - norm_ppf(0.95) * se)
+    h1 = T < np.datetime64(pd.Timestamp(split))
+    halves = (float(R[h1].mean()) if h1.any() else float('nan'), float(R[~h1].mean()) if (~h1).any() else float('nan'))
+    yrs = pd.DatetimeIndex(T).year
+    v = lab_stage2_verdict(n, float(R.mean()), lo, list(halves))
+    return dict(n=n, mean_r=float(R.mean()), lo=lo, t=t, halves=halves, win=float(np.mean(R > 0)), verdict=v,
+                years={int(y): (int((yrs == y).sum()), float(R[yrs == y].mean())) for y in sorted(set(yrs))}, R=R, T=T)
 
 
 def lab_prior_reveals(engine):
@@ -9603,8 +10681,8 @@ def main(argv=None):
                 note('lab', '지정가 꼬리 잡기 (BTC 1분봉 체결)', top=lab_top_lines(res))
                 return 0
             if signal:
-                live = [t for t in journal.d.get('tracking', []) if t.get('scope') == 'btc'
-                        and track_state(journal, t) != 'refuted' and journal.state(f'btc|{t["pair"]}') != 'refuted']
+                live = [t for t in journal.d.get('tracking', []) if t.get('scope') in ('btc', 'eth')
+                        and track_state(journal, t) != 'refuted' and journal.state(f'{t["scope"]}|{t["pair"]}') != 'refuted']
                 if not live:
                     print('[LAB] 추적 중인 BTC 후보가 없습니다.')
                     return 0
@@ -9623,7 +10701,7 @@ def main(argv=None):
                     except KeyboardInterrupt:
                         print('\n[LAB] 지켜보기를 끝냈습니다.')
                     return 0
-                res = lab_signal_all(base, live, seed=seed, cost_mode=cost, status=status, states=states)
+                res = lab_signal_all(base, live, seed=seed, cost_mode=cost, status=status, states=states, http=store.http)
                 print(res['report'])
                 note('signal', '지금 신호 (종이 매매·연구 추적)', top=[f'{r["pair"]}: {r.get("action", r["state"])}'
                                                               for r in res['rows']])

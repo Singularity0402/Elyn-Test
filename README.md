@@ -39,7 +39,7 @@ python pattern_edge_v612.py --lab --alt-presample          # 사전등록 P3: �
 python pattern_edge_v612.py --lab --prospective             # 앞으로의 검증: 규칙 고정(2026-10-04) 이후 데이터로만 후보 채점 (언제든)
 python pattern_edge_v612.py --lab --wick                    # 지정가 꼬리 잡기: 미리 거는 지정가(수수료 0.02%)로 청산 꼬리를 받는 단타, 1분봉 체결 판정
 python pattern_edge_v612.py --lab --regime 4h:consensus     # 사전등록 P4: 다른 국면(2021-11~2026-10)에서 BTC(1순위)·ETH(2순위)로 판정 (1회)
-python pattern_edge_v612.py --lab --signal --seed 70        # 지금 신호: 추적 중인 BTC 후보(4h 체결강도·Bollinger)의 다음 봉 할 일·손절가 (종이 매매용)
+python pattern_edge_v612.py --lab --signal --seed 70        # 지금 신호: 【실전 — 권장 운용안】 P12 융합(BTC·ETH 4h, 단위당 0.75%) + P16 군중 숏 쏠림 돌파(BTC·ETH 1h 현물, 1%) → 【확인됐지만 권장안 밖】 다바스·터틀 → 【연구 추적】
 python pattern_edge_v612.py --lab --stop-pct 1              # 짧은 시간봉(5m/15m/1h) · 가격 1% 고정 손절 · 익절 2R/3R/신호 중 선택 · 계좌 위험 1/2/3% 별 결과
 #   --tp 2,3,5 : 익절 R 배수 후보 · --tfs 5m,15m : 시간봉 · --surrogate-n 20 : 같은 설정의 운의 크기
 python pattern_edge_v612.py --lab --stop-pct 1 --cost maker_entry --fees 0.045,0.018   # 내 실제 수수료(시장가%,지정가%)로 다시 (별개의 시험으로 집계)
@@ -55,6 +55,9 @@ python pattern_edge_v612.py --lab --masters                  # 사전등록 P10 
 python pattern_edge_v612.py --lab --equity --seed 70         # 시드 백테스트: 확인된 다바스 박스 4h(--tfs 1d)를 2018-01 부터 현물로 했다면 시드가 얼마가 됐나 (위험 1·2·3%·전부 매수, 연도·시작 해별, 위험 곡선 + 확인된 다바스·터틀을 한 계좌에서 돌린 포트폴리오)
 python pattern_edge_v612.py --lab --masters2                 # 사전등록 P11 단독: 다바스 ETH 재현 · 터틀 규칙 1·2(BTC) — 다바스 BTC 와 함께 돌릴 엣지 찾기 (한 번만, --proof 에도 포함)
 python pattern_edge_v612.py --lab --fusion --seed 70         # 사전등록 P12 단독: 성공 요소 융합(돌파 + 큰 추세 + 2N 손절 + 피라미딩 최대 4단위) — 확인된 터틀 1 보다 나은가까지 판정 (한 번만, --proof 에도 포함)
+python research/p12_audit.py 1m                               # P12 감사: 1분봉 재생(체결 순서) · 펀딩 · 미끄러짐 · 꼬리 의존 · 연도별 (BTC 1분봉 캐시 필요)
+python research/portfolio_2026-10-15.py                         # 권장 운용안 장부: P12(BTC·ETH) + P16(BTC·ETH) 한 계좌, 70달러 최소 주문 반영 · `dist` 를 붙이면 앞으로의 분포
+python research/p15_data_2026-10-15.py && python research/p15_carry_2026-10-15.py   # P15 알트 극단 펀딩 캐리 (공개 아카이브에서 알트 901개 자료를 받은 뒤 — 반증됨)
 python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 【실전】다바스 박스 4h·터틀 1·2 4h(과거 차트 두 국면 확인) + 【연구 추적】을 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
 python research/mc_plan_2026-10-17.py 4000 plan               # 1차 검증(몬테카를로, 데이터 불필요): 기록된 통계로 70달러 단계 계획 비교 · kelly(속도 천장) · grid · calib 도 있음 (결과: research/mc_plan_2026-10-17_output.txt)
 python research/loud_edges_2026-10-17.py                      # 1차 검증(계산, 데이터 불필요): 빠른 엣지가 과거 기록에서 보여야 하는 t · 규칙 수별 운의 한도 · P14 검정력 · P15 캐리 본전 (결과: research/loud_edges_2026-10-17_output.txt)

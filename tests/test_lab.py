@@ -412,11 +412,13 @@ def test_cli_universe_argument_validation(pe):
 # ── 연구 일지: 패인 기록과 같은 실수 방지 ─────────────────────────────
 def test_journal_seed_holds_full_history_and_persists(pe):
     j = pe.ResearchJournal.load()
-    assert j.n_trials() == 10030 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
+    assert j.n_trials() == 45966 and str(j.anchor.date()) == '2026-10-04' and str(j.seen_from.date()) == '2021-11-27'
     assert j.state('btc_presample|4h:keltner') == 'confirmed' and j.state('wf|15m:analog_engine') == 'refuted'
     assert j.state('btc|5m:tsmom') == 'no_evidence' and j.state('btc|4h:flow') == 'candidate'
     assert j.state('final|4h:keltner') == 'refuted' and j.state('universe|4h:keltner') == 'refuted'
-    assert [p['id'] for p in j.d['prereg']] == ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10', 'P11', 'P12'] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert [p['id'] for p in j.d['prereg']] == [f'P{i}' for i in range(1, 18)] and j.state('alt_presample|4h:consensus') == 'confirmed'
+    assert j.state(pe.P12_KEY) == 'confirmed' and j.state(pe.P17_KEY) == 'confirmed' and j.state(pe.P16_KEY) == 'confirmed'
+    assert j.state(pe.P15_KEY) == 'refuted' and j.state(pe.P14_A2_KEY) == 'refuted' and j.state(pe.P13_KEY) == 'not_refuted'
     assert j.state(pe.TH_KEY) == 'refuted' and j.state(pe.P10_KEY) == 'confirmed'      # 사용자 PC 판정(2026-10-15)이 기록됨
     assert j.state('masters|4h:darvas') == 'confirmed' and j.state(pe.P7_KEY) == 'refuted'
     assert j.state('regime|4h:consensus') == 'refuted' and j.state('btc|4h:consensus') == 'refuted'
@@ -425,20 +427,21 @@ def test_journal_seed_holds_full_history_and_persists(pe):
     assert [(t['scope'], t['pair']) for t in j.d['tracking']] == [('btc', '4h:flow'), ('btc', '4h:bollinger'), ('btc', '5m:volbreak'),
                                                                  ('btc', '15m:volbreak'), ('btc', '1h:volbreak'),
                                                                  ('btc', '4h:darvas'), ('btc', '1d:darvas'),
-                                                                 ('btc', '4h:turtle1'), ('btc', '4h:turtle2'), ('btc', '4h:fusion')]
+                                                                 ('btc', '4h:turtle1'), ('btc', '4h:turtle2'), ('btc', '4h:fusion'),
+                                                                 ('eth', '4h:fusion_eth'), ('btc', '1h:crowd'), ('eth', '1h:crowd_eth')]
     assert all(t['stop'] == 0.01 and t['cost'] == 0.0006 for t in j.d['tracking'] if t['pair'].endswith('volbreak'))
-    assert len(pe.RESEARCH_LESSONS) == 26 and any(e['kind'] == 'universe' for e in j.d['entries'])
-    assert j.n_trials(['btc|4h:flow|taker']) == 10030 and j.n_trials(['btc|4h:keltner|maker']) == 10031
+    assert len(pe.RESEARCH_LESSONS) == 28 and any(e['kind'] == 'universe' for e in j.d['entries'])
+    assert j.n_trials(['btc|4h:flow|taker']) == 45966 and j.n_trials(['btc|4h:keltner|maker']) == 45967
     j.record('lab', ['btc|4h:keltner|maker'], title='t')
     j2 = pe.ResearchJournal.load()
-    assert j2.n_trials() == 10031 and j2.d['entries'][-1]['title'] == 't'
+    assert j2.n_trials() == 45967 and j2.d['entries'][-1]['title'] == 't'
     text = j2.text()
     assert 'L7' in text and 'P1' in text and '반증' in text
     assert os.path.exists(j2.export_md())
     with open(j2.path, 'w', encoding='utf-8') as f:
         f.write('{broken')
     j3 = pe.ResearchJournal.load()                                            # 손상 → 보관 후 기본 기록으로 다시 시작
-    assert j3.n_trials() == 10030 and 'journal' in pe.HEALTH.items
+    assert j3.n_trials() == 45966 and 'journal' in pe.HEALTH.items
 
 
 def test_journal_blocks_refuted_and_repeated_tests(pe):
@@ -1546,8 +1549,9 @@ def test_signal_view_puts_confirmed_strategy_first_and_hides_refuted(pe):
     assert states['4h:darvas'] == 'confirmed' and states['15m:volbreak'] == 'not_refuted'
     base = _trend_1m(400, 0.0000004, seed=6)
     res = pe.lab_signal_all(base, [t for t in live if t['pair'] in ('4h:darvas', '1d:darvas')], seed=70, states=states)
-    assert res['report'].index('【실전') < len(res['report']) and '다바스 박스 돌파' in res['report']
-    assert '【연구 추적' not in res['report']
+    # 다바스는 확인됐지만 권장 운용안(P12·P16) 밖 — 같은 돌파를 겹쳐 사지 않도록 참고용 칸에 보인다
+    assert '【확인됐지만 권장안 밖' in res['report'] and '다바스 박스 돌파' in res['report']
+    assert '【연구 추적' not in res['report'] and '【실전' not in res['report']
 
 
 # ── 시드 백테스트: 확인된 다바스 박스를 그대로 돌려 70달러가 얼마가 됐나 ─────────────────────
@@ -1682,7 +1686,8 @@ def test_fusion_live_signal_matches_the_backtest_state(pe):
 def test_cli_fusion_guards_and_runs_once(pe):
     assert pe.main(['--lab', '--fusion', '--oracle']) == 2
     j = pe.ResearchJournal.load()
-    assert j.state(pe.P12_KEY) == 'preregistered'
+    assert j.state(pe.P12_KEY) == 'confirmed'                     # 클라우드 실데이터 판정(2026-10-15)이 기록됨
+    assert pe.main(['--lab', '--fusion']) == 2                    # 이미 판정됨 → --retest 없이는 다시 하지 않는다
     j.set_status(pe.P12_KEY, 'not_refuted', '테스트')
     j.save()
     assert pe.main(['--lab', '--fusion']) == 2
