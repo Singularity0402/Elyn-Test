@@ -62,6 +62,8 @@ python research/round3_2026-10-15.py all                       # 3차 P18~P23: �
 python research/round4_2026-10-15.py all                       # 4차 P24~P26: 큰손 대 군중·현물 주도 돌파·호가 깊이 (확인 0, bookDepth 자료 필요)
 python research/sizing_frontier_2026-10-15.py                  # 크기 경계: P12·P16 을 키우면 빨라지나 (아니다 — 2% 넘으면 중앙값 감소)
 python research/barbell_2026-10-15.py                          # 바벨: 권장안 + '복권 몫'(P12 크게) — 1,000달러 도달 확률과 그 값(반토막 확률)
+python research/r6_data_2026-10-29.py [spot] && python research/round6_2026-10-29.py all   # 6차 P30~P38: 쿨라마기·BNF·크래블·코너스·라쉬키·자라티니 (확인 1 = P33 BNF 알트, 재현 P38 반증 → 실전 아니오) · `p38` = 2018~2019 현물 재현
+python research/r6_bnf_audit_2026-10-29.py                    # P33 점검: 분포·최악 거래·이웃 문턱·한 계좌 자본 곡선(같은 금액 / R 크기)
 python pattern_edge_v612.py --lab --signal --watch --seed 70  # 지켜보기: 【실전】다바스 박스 4h·터틀 1·2 4h(과거 차트 두 국면 확인) + 【연구 추적】을 봉이 닫힐 때마다 다시 계산, 할 일이 바뀌면 소리로 알림 (주문은 직접, Ctrl+C 종료)
 python research/mc_plan_2026-10-17.py 4000 plan               # 1차 검증(몬테카를로, 데이터 불필요): 기록된 통계로 70달러 단계 계획 비교 · kelly(속도 천장) · grid · calib 도 있음 (결과: research/mc_plan_2026-10-17_output.txt)
 python research/loud_edges_2026-10-17.py                      # 1차 검증(계산, 데이터 불필요): 빠른 엣지가 과거 기록에서 보여야 하는 t · 규칙 수별 운의 한도 · P14 검정력 · P15 캐리 본전 (결과: research/loud_edges_2026-10-17_output.txt)

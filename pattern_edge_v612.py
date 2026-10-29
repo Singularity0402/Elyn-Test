@@ -6003,6 +6003,25 @@ R5_RESULTS = (
     ('r5|p29:alts', 'not_refuted', 'P29 P16 거울 알트 7개 합산 879건 +0.130R t +0.91 (6/7 양수)'),
 )
 R5_PROCEDURES = tuple(k for k, _, _ in R5_RESULTS)
+# 6차 사전등록 P30 ~ P37 (2026-10-29 커밋 c7efd23) · P38 재현 (커밋 a7000f6) — research/round6_2026-10-29.py
+R6_RESULTS = (
+    ('r6|p30:alts', 'not_refuted', 'P30 쿨라마기 돌파 알트 449건 +0.022R (반쪽 +0.179 / −0.075)'),
+    ('r6|p31:alts', 'not_refuted', 'P31 쿨라마기 에피소딕 피벗 알트 331건 +0.119R t +1.45 (두 반쪽 양수)'),
+    ('r6|p32:alts', 'refuted', 'P32 쿨라마기 포물선 공매도 알트 665건 −0.086R'),
+    ('r6|p33:alts', 'confirmed', 'P33 BNF 25일 이격도 알트 2,238건 +0.281R 하한 +0.002 → 확인. 단 한 계좌 자본 곡선 연 +11 ~ +17% · '
+                                 '낙폭 41 ~ 62%, 2025년 손실, 재현(P38) 반증 → 실전 아니오'),
+    ('r6|p34:btc', 'refuted', 'P34 크래블 NR7 시가 범위 돌파 BTC 5m 374건 −0.007R'),
+    ('r6|p34:eth', 'not_refuted', 'P34 ETH 375건 +0.017R (반쪽 +0.114 / −0.086)'),
+    ('r6|p35:btc_eth', 'not_refuted', 'P35 코너스 RSI(2) 일봉 롱 BTC+ETH 116건 +0.189R t +1.56 (두 반쪽 양수)'),
+    ('r6|p36:btc', 'inconclusive', 'P36 라쉬키 홀리 그레일 4h BTC 22건 — 판정 불가'),
+    ('r6|p36:eth', 'inconclusive', 'P36 ETH 21건 — 판정 불가'),
+    ('r6|p37:utc:btc', 'refuted', 'P37 자라티니 소음 영역 00:00 UTC BTC 2,339일 −0.109 (t −6.02)'),
+    ('r6|p37:utc:eth', 'refuted', 'P37 00:00 UTC ETH 2,236일 −0.053 (t −3.28)'),
+    ('r6|p37:us:btc', 'not_refuted', 'P37 뉴욕 정규장 BTC 1,047일 +0.006'),
+    ('r6|p37:us:eth', 'not_refuted', 'P37 뉴욕 정규장 ETH 956일 +0.016'),
+    ('r6|p38:spot2018', 'refuted', 'P38 BNF 재현 현물 알트 2018 ~ 2019 59건 −0.152R (2018 −0.48 · 2019 +0.33) → 재현 실패'),
+)
+R6_PROCEDURES = tuple(k for k, _, _ in R6_RESULTS)
 PLAN_RISK = dict(fusion=0.0075, crowd=0.01)
 PLAN_PAIRS = ('4h:fusion', '4h:fusion_eth', '1h:crowd', '1h:crowd_eth')
 VENUE_MIN_NOTIONAL = {'BTCUSDT': 100.0, 'ETHUSDT': 20.0}   # 선물 최소 주문 (기본값 — 실제 값은 거래소 화면에서 확인)
@@ -6081,6 +6100,10 @@ RESEARCH_LESSONS = [
     ('L28', '다른 시장 재현은 같은 시기의 같은 사건을 다시 센 것일 수 있다. 재현이 통과해도 겹침(같은 날 신호 비율)과 겹치지 않은 쪽의 '
             '성적을 함께 본다. — P16: ETH 재현 116건 +0.680R 중, BTC 신호와 24시간 안에 겹친 44건이 +1.745R, 안 겹친 72건은 +0.029R. '
             '"시장 전체 숏 스퀴즈"라는 한 종류의 사건을 두 시장에서 잡은 것이다'),
+    ('L29', '거래당 R(변동성 단위)로 확인돼도 한 계좌 자본 곡선은 나쁠 수 있다. 변동성으로 나눈 R은 변동성 큰 종목의 큰 % 손실을 작게 '
+            '보이게 하고, 신호가 폭락 때 한꺼번에 몰리면 자리가 모자라 일부만 체결된다. 채택 전에 같은 금액·R 크기 두 가지 한 계좌 곡선과 '
+            '처음 보는 기간 재현을 본다. — P33 BNF 이격도: 2,238건 +0.281R(확인)이지만 한 계좌 연 +11 ~ +17%·낙폭 41 ~ 62%, 2018 ~ 2019 '
+            '재현 −0.152R(반증) → 상승장에서만 통하는 눌림 매수'),
 ]
 RESEARCH_PREREG = [dict(
     id='P1', registered='2026-10-03', scope='btc_presample', pairs=['4h:keltner', '4h:flow', '4h:consensus'],
@@ -6230,7 +6253,33 @@ RESEARCH_PREREG = [dict(
     dict(id='P27', registered='2026-10-15', scope='r5', pairs=['p27:eth'],
          rule='ETH 1h: z(군중 롱숏) < −2 → 롱, > +2 → 숏, 1.5 ATR, 48봉.', why='군중의 극단은 되돌아간다 (BTC 는 P14-B 에서 봐서 제외).'),
     dict(id='P29', registered='2026-10-15', scope='r5', pairs=['p29:alts'],
-         rule='알트 7개 1h 합산: z(군중) > +1 · z(하방 돌파) > +2 → 숏, 1.5 ATR, 48봉.', why='P16 거울(ETH +0.478R)이 다른 시장에서도 보이나.')]
+         rule='알트 7개 1h 합산: z(군중) > +1 · z(하방 돌파) > +2 → 숏, 1.5 ATR, 48봉.', why='P16 거울(ETH +0.478R)이 다른 시장에서도 보이나.'),
+    dict(id='P30', registered='2026-10-29', scope='r6', pairs=['p30:alts'],
+         rule='알트 1d(그날 거래대금 상위 100, 상장 폐지 포함): 21·63일 수익률 상위 5% 이고 +30% 이상 · 종가 > 10일선 > 20일선 · 10일 폭 ≤ '
+              '2.5 ADR → 다음 날 10일 최고가 돌파 매수, 손절 1 ADR, 3일째 종가 절반 · 본전 · 10일선 종가 이탈.',
+         why='쿨라마기 돌파(본인 블로그 원문 수치).'),
+    dict(id='P31', registered='2026-10-29', scope='r6', pairs=['p31:alts'],
+         rule='하루 +20% · 거래대금 5배 · 직전 63일 +20% 이하 → 다음 날 시가, 손절 피벗 날 저가, 청산 P30 과 같음.', why='쿨라마기 에피소딕 피벗.'),
+    dict(id='P32', registered='2026-10-29', scope='r6', pairs=['p32:alts'],
+         rule='5일 +50% · 3일 연속 상승 → 다음 날 첫 1h 저가 이탈 공매도, 손절 그때까지 고가, 목표 전날 10일선, 10일.',
+         why='쿨라마기 포물선 공매도.'),
+    dict(id='P33', registered='2026-10-29', scope='r6', pairs=['p33:alts'],
+         rule='종가 ≤ 25일선 × 0.75 → 다음 날 시가 매수, 종가 ≥ 25일선이면 그 종가, 아니면 10일째, 손절 없음, R = 순수익 ÷ ADR20.',
+         why='BNF(코테가와 다카시) 25일 이격도 — 2차 자료.'),
+    dict(id='P34', registered='2026-10-29', scope='r6', pairs=['p34:btc', 'p34:eth'],
+         rule='전날 NR7 → 당일 00:00 UTC 시가 ± stretch(10일 min(고가−시가, 시가−저가) 평균) 양쪽 역지정가, 반대쪽 손절, 당일 종가 청산 (5m).',
+         why='토비 크래블 시가 범위 돌파 — 2차 자료, P6 의 친척.'),
+    dict(id='P35', registered='2026-10-29', scope='r6', pairs=['p35:btc_eth'],
+         rule='일봉 종가 > 200일선 · RSI(2) < 10 → 그 종가 매수, 종가 > 5일선 첫 날 청산, 롱만.', why='래리 코너스 RSI(2) — 2차 자료.'),
+    dict(id='P36', registered='2026-10-29', scope='r6', pairs=['p36:btc', 'p36:eth'],
+         rule='4h ADX(14) > 30 상승 · +DI > −DI · 저가 ≤ 20 EMA → 다음 봉 그 고가 돌파 매수, 손절 눌림 봉 저가, 목표 직전 20봉 최고가, 30봉 (숏 거울).',
+         why='린다 라쉬키 홀리 그레일 — 2차 자료.'),
+    dict(id='P37', registered='2026-10-29', scope='r6', pairs=['p37:utc:btc', 'p37:utc:eth', 'p37:us:btc', 'p37:us:eth'],
+         rule='5m, 30분마다 가격 > max(위 경계, VWAP) 롱 · < min(아래 경계, VWAP) 숏 · 세션 끝 청산, 경계 = max/min(시가, 직전 종가) × (1 ± 14세션 '
+              '같은 시각 평균 이동), 크기 min(4, 2% ÷ 14일 변동성). 세션 = 00:00 UTC 하루 · 뉴욕 정규장.',
+         why='자라티니·아지즈·바르본(2024) SPY 일중 모멘텀 — 논문 원문.'),
+    dict(id='P38', registered='2026-10-29', scope='r6', pairs=['p38:spot2018'],
+         rule='P33 그대로 바이낸스 현물 USDT 알트 2018-01 ~ 2019-12 (펀딩 없음), 단측 5%.', why='P33 확인의 처음 보는 기간 재현.')]
 RESEARCH_TRACKING = [dict(pair='4h:flow', scope='btc', since=RESEARCH_HOLDOUT_CURRENT, why='P1-H2 반증 안 됨 → 앞으로의 데이터로 채점'),
                      dict(pair='4h:bollinger', scope='btc', since='2026-10-05',
                           why='Lab #4: 2022~2026 82건 +0.878R (2026 포함) → 앞으로의 데이터로 채점'),
@@ -6504,6 +6553,14 @@ RESEARCH_HISTORY = [
                  '2 ~ 4%, 노출 10배): 2년 안 1,000달러를 10% 넘게 보려면 전 재산을 걸어야 하고, 그러면 반토막 아래로 끝날 확률 35 ~ 41%, '
                  '중앙값은 시드 아래 — 엣지가 아니라 분산을 산 것. 지속 가능한 최속안은 권장안(P12 0.75% + P16 1%).',
          lessons=['L18', 'L23', 'L25']),
+    dict(date='2026-10-29', kind='review', title='6차 묶음 P30 ~ P38 (이름난 단타·스윙 고수 규칙 그대로) — 확인 1 · 재현 실패',
+         summary='사용자: "오래 살아남은 유명 단타 트레이더를 최대한 모방하라." 서브 에이전트가 원문 규칙을 찾아 왔고(쿨라마기 블로그, 자라티니 '
+                 '논문 원문, 크래블·라쉬키·코너스·BNF 는 2차 자료), 13개를 계산 전에 등록해 한 번씩 돌렸다. 알트 전 종목(상장 폐지 포함 900개, '
+                 '그날 상위 100)에서 BNF 25일 이격도만 확인(2,238건 +0.281R, 하한 +0.002, 이웃 문턱 모두 양수)됐지만 한 계좌 곡선은 연 '
+                 '+11 ~ +17% · 낙폭 41 ~ 62%이고 2018 ~ 2019 재현(P38)은 −0.152R 반증 → 상승장 눌림 매수일 뿐, 실전 아니오. 쿨라마기 돌파·EP, '
+                 '코너스 RSI(2), 자라티니 뉴욕 정규장은 반증 안 됨(운과 구분 안 됨), 포물선 공매도·소음 영역 UTC 는 반증, 홀리 그레일은 거래 '
+                 '부족. 일중 시계열 모멘텀은 문헌(비트코인 본전 비용 3 ~ 10bp < 우리 12bp)만으로 뺐다. 권장안은 그대로다.',
+         lessons=['L22', 'L28', 'L29']),
 ]
 
 
@@ -6542,6 +6599,7 @@ def _research_seed_keys():
     keys += list(R3_PROCEDURES)                                                               # 3차 P18 ~ P23 (누적 45,988)
     keys += list(R4_PROCEDURES)                                                               # 4차 P24 ~ P26 (누적 45,996)
     keys += list(R5_PROCEDURES)                                                               # 5차 P27 · P29 (누적 45,998)
+    keys += list(R6_PROCEDURES)                                                               # 6차 P30 ~ P38 (누적 46,012)
     keys += ['btc|1h:oracle|taker|sl1tp2h24'] + [f'btc|1h:oracle|taker|sl1tp{t}h48' for t in (2, 3, 5)] \
         + [f'btc|4h:oracle|taker|sl2tp{t}h60' for t in (2, 3, 5)]                          # 정답 단서 학습 (누적 153)
     return sorted(set(keys))
@@ -6619,6 +6677,8 @@ def _research_seed_status():
         '2026-10-15')
     for k_, st_, why_ in R3_RESULTS + R4_RESULTS + R5_RESULTS:
         put(k_, st_, why_, '2026-10-15')
+    for k_, st_, why_ in R6_RESULTS:
+        put(k_, st_, why_, '2026-10-29')
     put(P17_KEY, 'confirmed', 'P17 P12 융합 ETH 4h 401건 +1.356R 하한 +0.650 · 국면별 위험 1% ×20.44 / ×3.24 (터틀 1 ×2.91 / ×1.79) '
                               '→ 확인 · 알트 7개 보조 6/7 양수', '2026-10-15')
     put(P13_KEY, 'not_refuted', 'P13 2단계 다바스: 1h 203건 +0.212R 하한 −0.058 · 4h 58건 +0.122R(국면 2 −0.176) → 반증 안 됨, '
@@ -7669,7 +7729,7 @@ def lab_watch(store, pairs, fixed=None, seed=70.0, cost_mode='taker', step_min=5
 #    정답 확률을 배운다 (삼중 장벽 라벨링 + 로지스틱 회귀). 배우는 데는 과거 train 만 쓰고, 정답의 결과 구간이 test 와
 #    겹치는 train 표본은 지운다(purge) → 미래 누설 없음. 성적은 그다음 test 구간에서만 매긴다.
 LAB_FAMILY_KO['oracle'] = '정답 단서 학습'
-LAB_BUILD = '2026-10-17d · 클라우드 실데이터: P12·P16·P17 확인 · 권장 운용안 신호(BTC·ETH)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
+LAB_BUILD = '2026-10-29 · 6차: 이름난 고수 13규칙(확인 1 · 재현 실패) · 권장 운용안 신호(BTC·ETH)'     # 사용자가 어느 파일을 돌렸는지 출력에서 바로 보이게
 LAB_CLI_FLAGS = frozenset({'--lab', '--cost', '--only', '--symbols', '--retest', '--presample', '--final', '--alt-presample',
                            '--prospective', '--wick', '--signal', '--seed', '--oracle', '--regime', '--universe', '--tfs',
                            '--reveal-holdout', '--fees', '--stop-pct', '--tp', '--hold', '--surrogate', '--surrogate-n',
