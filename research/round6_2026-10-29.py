@@ -5,7 +5,7 @@
 6B BTC·ETH (왕복 0.12%): P34 크래블 NR7 시가 범위 돌파(5m) · P35 코너스 RSI(2) 일봉 · P36 라쉬키 홀리 그레일 4h ·
    P37 자라티니 소음 영역 일중 모멘텀 · P38 일중 시계열 모멘텀(첫 30분 → 마지막 30분)
 판정은 3차와 같다 (거래 ≥ 30 · 평균 ≤ 0 → 반증 · 두 반쪽 > 0 이고 달 묶음 단측 5%/k 하한 > 0 → 확인 · 그 외 반증 안 됨). k 는 가족마다.
-실행: python research/round6_2026-10-29.py [6a|6b|all]   (먼저 research/r6_data_2026-10-29.py)
+실행: python research/round6_2026-10-29.py [6a|6b|all|p38]   (먼저 research/r6_data_2026-10-29.py [spot])
 """
 import importlib
 import io
@@ -624,6 +624,59 @@ def run_6b_intraday(M):
     return rows
 
 
+# ═════════════════════ P38 재현: P33 을 2018~2019 현물 알트에서 (어떤 시험에도 안 쓴 기간) ═════════════════════
+P38_START, P38_END = '2018-01-01', '2019-12-31'
+SPOT_EXCLUDE = {'PAXUSDT', 'USDSUSDT', 'USDSBUSDT', 'BKRWUSDT', 'EURUSDT', 'GBPUSDT', 'AUDUSDT', 'BGBPUSDT', 'IDRTUSDT', 'DAIUSDT'}
+
+
+def spot_panel():
+    df = pd.read_parquet(os.path.join(R6, 'spot_1d_2017_2019.parquet'))
+    df = df[~df['symbol'].isin(EXCLUDE | SPOT_EXCLUDE) & ~df['symbol'].str.contains(r'(?:UP|DOWN|BULL|BEAR)USDT$', regex=True)]
+    days = pd.date_range(df['date'].min(), df['date'].max(), freq='D')
+    return {k: df.pivot(index='date', columns='symbol', values=k).reindex(days).astype(np.float64)
+            for k in ('open', 'high', 'low', 'close', 'qvol')}
+
+
+def bnf_rows(W, U, start, end, use_funding):
+    C = W['close']
+    days, syms = C.index, list(C.columns)
+    A = alt_arrays(W)
+    ad = ((W['high'] / W['low'] - 1).rolling(20).mean()).values
+    sig = ((C / C.rolling(25).mean() - 1 <= BNF_DEV) & U).values
+    k_a, k_b = int(days.searchsorted(pd.Timestamp(start))), int(days.searchsorted(pd.Timestamp(end)) + 1)
+    R, T, ret, busy = [], [], [], np.full(len(syms), -1)
+    for t in range(max(k_a - 1, 0), k_b - 1):
+        for j in np.flatnonzero(sig[t]):
+            k0 = t + 1
+            e = A['O'][k0, j]
+            if busy[j] >= k0 or e != e:
+                continue
+            fills = run_bnf(A, j, k0)
+            kx = fills[0][2]
+            busy[j] = kx
+            t1 = days[kx] + pd.Timedelta(days=1)
+            fund = funding_paid(syms[j], days[k0], t1, t1, 0.0) if use_funding else 0.0
+            net = fills[0][1] / e - 1 - A_COST - fund
+            R.append(net / ad[t, j])
+            ret.append(net)
+            T.append(qtime(days[k0]))
+    return R, T, ret
+
+
+def run_p38():
+    W = spot_panel()
+    U = universe(W)
+    k_a = int(W['close'].index.searchsorted(pd.Timestamp(P38_START)))
+    n_u = U.iloc[k_a:].sum(axis=1)
+    print(f'유니버스(현물 2018~2019): 하루 평균 {n_u.mean():.0f}종목 (최소 {n_u.min()} · 최대 {n_u.max()}), 거쳐 간 종목 {int(U.iloc[k_a:].any().sum())}개')
+    R, T, ret = bnf_rows(W, U, P38_START, P38_END, use_funding=False)
+    row = r3.verdict_row('P38 BNF 재현 (현물 알트 2018~2019)', R, T, P38_START, P38_END, 1)
+    r3.show([row], 'P38 재현', 1)
+    if ret:
+        print(f'  거래당 순수익: 평균 {np.mean(ret):+.2%} · 중앙 {np.median(ret):+.2%} · 승률 {np.mean(np.array(ret) > 0):.0%}')
+    return row
+
+
 if __name__ == '__main__':
     pe.Paths.init()
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
@@ -631,3 +684,5 @@ if __name__ == '__main__':
         run_6a()
     if what in ('6b', 'all'):
         run_6b()
+    if what == 'p38':
+        run_p38()

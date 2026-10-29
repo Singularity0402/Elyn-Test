@@ -1,5 +1,5 @@
 """
-6차 자료 받기 (공개 아카이브만, 키 없음): 바이낸스 USDT 무기한 '전 종목'(상장 폐지 포함)의 1d 봉.
+6차 자료 받기 (선물 전 종목 1d · `spot` 인자를 주면 P38 재현용 2017-08 ~ 2019-12 현물 USDT 1d) (공개 아카이브만, 키 없음): 바이낸스 USDT 무기한 '전 종목'(상장 폐지 포함)의 1d 봉.
 생존 편향을 피하려고 그날그날 거래대금 순위로 종목을 고른다(시점 기준 유니버스). 결과: ~/CoinData_Matrix/r6/alts_1d.parquet
 열: date, symbol, open, high, low, close, volume, qvol(USDT 거래대금)
 실행: python research/r6_data_2026-10-29.py   (처음 한 번 수 분, 이후 캐시)
@@ -21,6 +21,11 @@ OUT = os.path.join(HOME, 'r6')
 RAW = os.path.join(OUT, 'raw_1d')
 S3 = 'https://s3-ap-northeast-1.amazonaws.com/data.binance.vision?prefix='
 LAST_MONTH = '2026-09'
+SPOT = len(sys.argv) > 1 and sys.argv[1] == 'spot'
+KL = 'data/spot/monthly/klines/' if SPOT else 'data/futures/um/monthly/klines/'
+if SPOT:
+    RAW = os.path.join(OUT, 'raw_spot_1d')
+    LAST_MONTH = '2019-12'
 
 
 def get(url, tries=4):
@@ -73,7 +78,7 @@ def one(sym):
     path = os.path.join(RAW, f'{sym}.pkl')
     if os.path.exists(path):
         return sym, 'cached'
-    keys = [k for k in listing(f'data/futures/um/monthly/klines/{sym}/1d/', what='Key') if k.endswith('.zip')]
+    keys = [k for k in listing(f'{KL}{sym}/1d/', what='Key') if k.endswith('.zip')]
     keys = [k for k in keys if re.search(r'-(\d{4}-\d{2})\.zip$', k).group(1) <= LAST_MONTH]
     parts = []
     for k in keys:
@@ -92,8 +97,8 @@ def one(sym):
 
 def main():
     os.makedirs(RAW, exist_ok=True)
-    syms = [s for s in listing('data/futures/um/monthly/klines/') if s.endswith('USDT')]
-    print(f'USDT 무기한 종목 {len(syms)}개 (상장 폐지 포함)', flush=True)
+    syms = [s for s in listing(KL) if s.endswith('USDT')]
+    print(f'USDT {"현물" if SPOT else "무기한"} 종목 {len(syms)}개 (상장 폐지 포함)', flush=True)
     done = 0
     with ThreadPoolExecutor(24) as ex:
         for sym, n in ex.map(one, syms):
@@ -103,7 +108,7 @@ def main():
     parts = [pd.read_pickle(os.path.join(RAW, f'{s}.pkl')) for s in syms if os.path.exists(os.path.join(RAW, f'{s}.pkl'))]
     df = pd.concat([p_ for p_ in parts if len(p_)])
     df = df.drop_duplicates(['symbol', 'date']).sort_values(['date', 'symbol']).reset_index(drop=True)
-    df.to_parquet(os.path.join(OUT, 'alts_1d.parquet'))
+    df.to_parquet(os.path.join(OUT, 'spot_1d_2017_2019.parquet' if SPOT else 'alts_1d.parquet'))
     print(f'저장: {len(df):,}행 · 종목 {df["symbol"].nunique()} · {df["date"].min().date()} ~ {df["date"].max().date()}')
 
 
