@@ -1,0 +1,22 @@
+{
+  "source_dimensions": [
+    1122,
+    1402
+  ],
+  "final_dimensions": [
+    1080,
+    1350
+  ],
+  "format": "PNG + JPEG",
+  "official_logo_dimensions": [
+    1080,
+    1350
+  ],
+  "opaque_logo_pixels_checked": 5978,
+  "opaque_logo_pixel_mismatches": 0,
+  "source_sha256": "b21d6236c1b06bf213111c4b61de5590885855ee10cc674140442486063dea4a",
+  "final_sha256": "7434d2d8f587e1a8d5a36cd2f1410b4c2dda231558e477efcc7d3d6b92c7e089",
+  "official_logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+  "font": "S-Core Dream 7 / 4",
+  "layout_note": "Official PNG overlaid without cropping, recoloring or regenerating. Artwork resized only; photographic edits used image generation tool."
+}
