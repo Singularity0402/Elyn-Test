@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "entry": "A",
+      "png_verified": true,
+      "text_box_intersections": 0,
+      "logo_mismatches": 0
+    },
+    {
+      "entry": "B",
+      "png_verified": true,
+      "text_box_intersections": 0,
+      "logo_mismatches": 0
+    }
+  ],
+  "actual_prompt_records": 5,
+  "reference_files_present": true,
+  "human_audience_count": 0,
+  "submitted_count": 0
+}

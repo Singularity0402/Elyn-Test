@@ -1,0 +1,12 @@
+{
+  "A": {
+    "description_chars_including_spaces": 223,
+    "limit": 500,
+    "required_hashtags_present": true
+  },
+  "B": {
+    "description_chars_including_spaces": 243,
+    "limit": 500,
+    "required_hashtags_present": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "records": [
+    {
+      "id": "A1",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Edit this existing 4:5 advertising photograph with three precise craft corrections, preserving the full composition, bowl size/location, hand anatomy and dry-tab grip, card placement, intimate navy background and empty upper quarter. No lettering/logos.\n1. ONLY THE COOKED RICE: reduce the exaggerated jelly translucency and hard wet specular highlights. Make the grains mostly opaque warm ivory, naturally short slightly elongated ovals of irregular sizes, with subtle grain fissures, tender nonuniform surfaces and tiny soft moist highlights. Authentic freshly cooked Korean short-grain rice: soft, appetizing, clearly separate grains with a few natural clumps, NOT gelatin capsules, pearls, clear candy, hard plastic or dry raw rice. Preserve quantity and the shallow white instant-rice tray.\n2. ONLY THE MOISTURE DRAWING: keep the SAME pair holding hands, heart and sun, but reduce the sculptural thickness and metallic/silver reflections of the water outlines by about half. Use tiny irregular CLEAR water beads and short coalesced surface-water paths blended with the surrounding fine condensation. Meniscus edges should be fine; highlights mostly neutral white and faint warm gold, not chrome. This is water ON thin transparent film, not jewelry, metal studs, glued beads, etched ink or a screen. Keep it readable and charming. The little heart should not be a solid thick metallic object.\n3. ONLY THE PENCIL CARD DRAWING: match the condensation drawing's actual arrangement and proportions more closely: same relative positions of the two people, their raised joined hands, heart above center and smiling sun upper right. Keep rusty-red pencil on folded ivory paper; no words. The paper and moisture renderings should clearly represent the same simple original sketch in two media.\nKeep the warm light and subtle real steam; do not increase glow or orange saturation. Keep the foil/film and food hygienically distinct. Do not change the top dark area, add hands, add props, or alter the image aspect ratio. One photorealistic 4:5 image, no text, logos or watermark.",
+      "reference": "A0_이전선택생성원본.png",
+      "result": "A1_미선택생성.png",
+      "native_filename": "exec-afdb467a-3b6a-41dc-8429-e954a705c3d9.png",
+      "note": "밥알·물방울 재질·원그림 대응 수정. 윤곽은 잘 보이나 금속 비즈 같은 반사 남아 미선택.",
+      "result_sha256": "d25ba625d6d5af8c38ef46c5a2ee2a2cae1432de01775ad3aacee055b22863c2"
+    },
+    {
+      "id": "B1",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Use case: ads-marketing / food product collection photograph. Create ONE exquisitely art-directed, photorealistic overhead food photograph, vertical 4:5 width:height 0.8, ideally 1600x2000. This is a future Korean instant-rice seasonal collection. EXACTLY FOUR shallow round plain white ribbed microwave rice bowls, photographed together on ONE continuous very pale warm ivory matte tabletop. No text, numbers, logos, printed designs or watermark; all calendar typography will be added afterwards.\nThe four delicious rice bowls form a balanced SQUARE AROUND AN EMPTY CENTER, with generous clear outer margins for a calendar ring. The TOP 26 percent must be empty pale ivory for headline and logo.\nPrecise positions using 1080x1350 reference layout: four bowls each about 260px in diameter, centered at (735,645) TOP RIGHT, (735,1035) BOTTOM RIGHT, (345,1035) BOTTOM LEFT, (345,645) TOP LEFT. These are relative layout coordinates, not numbers to draw. Keep the central area around (540,840), diameter180px, completely empty tabletop for a central calendar motif. Keep an empty outer circular band around the group, radius420-470px from (540,840), where fine calendar labels will be professionally added later. Do not draw the calendar. Scale the geometry naturally to the output. Bowls should not touch or overlap. Fully in frame. A premium still-life, not a four-panel collage.\nEach bowl represents one season through appetizing REAL cooked ingredients, not fantasy landscapes:\nTOP RIGHT / spring: tender glossy pearly white and barley rice, fresh small bright green spring chive pieces and a few fresh green broad-bean/pea accents, subtle pale green and ivory, delicate natural seasonal herb garnish.\nBOTTOM RIGHT / summer: plump ivory rice and golden cooked sweetcorn with small millet grains, a few tender pale yellow pieces, sunny fresh yellow and cream, realistic freshly cooked textures.\nBOTTOM LEFT / autumn: brown mixed-grain rice with a few succulent golden chestnut pieces and caramel-brown mushrooms, deep russet and golden-brown, savory and aromatic, NOT dry nuts on raw grains.\nTOP LEFT / winter: delicious muted lavender black-rice mix with small tender translucent cooked white radish cubes, winter ivory and restrained violet, plump and steaming, NOT dark beans piled high.\nAll four are still clearly RICE, not salad, soup or raw grain display. Individual cooked short grains naturally irregular and modestly moist, mostly opaque, no gelatinous pearls or oil gloss. Ingredients are seasonal creative flavor suggestions, not nutrition/medical claims.\nPackaging: authentic low shallow white instant-rice trays, refined clean slightly scalloped/ribbed sides. Each has a small modest plain silver/white peel-film remainder at the OUTSIDE rear rim, showing they are opened individual rice products. No giant wrappers, no faces or hands, no extra bowls, spoons, raw ingredients or separate props.\nLighting: soft clean natural daylight from upper left, very fine credible contact shadows close to the bowls, excellent realistic food microtexture, editorial commercial photography. Crisp but not sterile, warm-neutral whites, restraint and beauty. Avoid oversaturated ingredient colors, glitter, heavy steam, magical elements, cartoon/CGI look. Only very subtle real warmth, no steam that obstructs the empty calendar band.\nThis image is a background photograph for a designed 24-season edible-calendar poster. Exactly four REPRESENTATIVE bowls, one per season; do NOT create 24 bowls or any labels. All four bowls should look equally beautifully crafted and physically real, with the four seasonal palettes distinct. Keep the central void and outer typography band genuinely clean. No text or numbers anywhere.",
+      "reference": null,
+      "result": "B1_미선택생성.png",
+      "native_filename": "exec-9a794fb2-4c10-4344-b75f-25c330eff99e.png",
+      "note": "4계절 대표 밥 최초 생성. 밥은 식욕을 주지만 그릇이 커서 달력 조판 공간 부족, 재구성.",
+      "result_sha256": "57ae0954c2f2c7eb18878f5c3f0c58beea52040524c3e1b929a40d8c2ef43b50"
+    },
+    {
+      "id": "A2",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Edit this photograph into a convincing real cooked-rice food photograph. Preserve the composition, hand, paper sketch, dark blue empty upper quarter, transparent peeled lid, doodle layout, and warm lighting. Most important replace the entire rice texture: the current grains are jellylike translucent marbles and that is incorrect. Use REAL freshly cooked Korean short-grain rice, irregular short elongated grains, soft opaque ivory-white starch bodies with a few gentle matte moist glints, some grains lightly sticking together. Do not make round gel pearls or shiny transparent bubbles. Rice should look tender and appetizing, opaque like fresh white rice photographed in a real food advertisement. The drawing on the lid is very fine condensation: reduce its shiny outlined relief substantially, tiny diffuse moisture paths rather than chrome or thick clear beads. Its outline may be more subtle but still discernible as two children holding hands, a small heart between them and a sun upper right, approximately matching the pencil card. Make whole surface a gentle fine fog with tiny irregular water specks, the drawn paths emerge from difference in fog density. No cutouts or holes or printed ink. No added words, brand, logo. Preserve aspect ratio.",
+      "reference": "A1_미선택생성.png",
+      "result": "A2_미선택생성.png",
+      "native_filename": "exec-05666da4-92da-4dfb-b8d7-c597da191cc3.png",
+      "note": "밥알·김서림 재질을 추가 보정. 금속성 줄었으나 축소시 손잡은 그림 대비 약해 재수정.",
+      "result_sha256": "12d9a38b00b9c9110989d26cdc519ad22154e0aca566f21e5c44248ea635ad9d"
+    },
+    {
+      "id": "B2",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Edit this food photograph into a precise graphic-design-ready editorial background. Recompose all four bowls MUCH SMALLER: reduce each bowl diameter from almost half the canvas width to precisely 24% of canvas width. Keep them natural round white shallow instant-rice bowls with little silver peeled film tab visible, photographed directly overhead. On a 1080x1350 reference canvas, required four bowl centres are top left (345,645), top right (735,645), bottom left (345,1035), bottom right (735,1035); diameter 260px each. This means all bowls must sit well INSIDE the page, leaving broad blank 200px left and right bands, a 510px blank top region, and a clear blank cross between bowls. Exactly FOUR bowls, no extras. Same ivory paper tabletop seamless with natural soft shadows. Top left winter: purple black rice with opaque white radish cubes. Top right spring: ivory barley-rice with thin chopped green wild chive leaves and minced wild chive roots, NO large green beans, NO green peas. Bottom left autumn: brown multigrain rice with chestnuts and shiitake slices. Bottom right summer: yellow corn-and-millet rice. Make food very photorealistic and delicious. Do NOT enlarge food for impact; keeping each bowl diameter 24% of page width is essential for the design. NO words, logos, calendar marks, arrows or numbers. All remaining space completely empty ivory background.",
+      "reference": "B1_미선택생성.png",
+      "result": "B_선택생성원본.png",
+      "native_filename": "exec-936f78a8-031a-4ab1-8e90-0678e9260271.png",
+      "note": "그릇 축소·재배치, 봄의 큰 콩을 달래 형태로 변경. 조판 공간과 네 메뉴 구별 확보, 선택.",
+      "result_sha256": "388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545"
+    },
+    {
+      "id": "A3",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Make one very local edit to this image: keep the food, hand, film, card, lighting, framing and empty dark top unchanged. Only the fine condensation doodle on the transparent opened film: increase its readable contrast modestly so the two smiling children HOLDING HANDS, little central heart and upper-right sun can be clearly recognized at thumbnail size. Use slightly clearer, more transparent low-condensation paths against the surrounding matte fine fog; diffuse soft edges, not chrome, not metallic silver, not thick reflective glass beads, not printed ink. Keep the drawing tiny water/clear-fog texture, and keep its positions and rough shape consistent with the small red-pencil card at lower left. The joined hands and left person's head/body need the most separation from background droplets. Do not enlarge whole drawing or make outlines shiny. No text or logos.",
+      "reference": "A2_미선택생성.png",
+      "result": "A_선택생성원본.png",
+      "native_filename": "exec-ad3877a5-0e9e-46f7-9158-0c7af5e58127.png",
+      "note": "A2에서 얼굴·맞잡은 손·하트의 김서림 대비만 국소 보완. 최종 A 선택.",
+      "result_sha256": "61824e00bc7bded3a892fb7e131b88428907b70e91c53c6ab621f04321142c41"
+    }
+  ],
+  "selected": [
+    "A3",
+    "B2"
+  ],
+  "screenshots": "실제 제작 화면 캡처는 별도 필요. 이 JSON은 캡처가 아니다."
+}

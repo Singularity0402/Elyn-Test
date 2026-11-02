@@ -1,0 +1,397 @@
+{
+  "entries": [
+    {
+      "key": "A",
+      "file": "A_갓지은편지.png",
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "source_sha256": "61824e00bc7bded3a892fb7e131b88428907b70e91c53c6ab621f04321142c41",
+      "png_sha256": "6d4265f62ce7a1a1b02493aa651cca24b60d08e031d023205e91ddde0a2adaff",
+      "official_logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "official_logo_opaque_pixels": 5981,
+      "official_logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "밥을 데웠더니,",
+          "x": 64,
+          "y": 156,
+          "width": 361,
+          "height": 57,
+          "size": 58
+        },
+        {
+          "text": "네 그림이 피었다.",
+          "x": 64,
+          "y": 232,
+          "width": 457,
+          "height": 58,
+          "size": 61
+        },
+        {
+          "text": "데우면 김서림 속에 나타나는, 보내온 그림 한 장.",
+          "x": 67,
+          "y": 316,
+          "width": 412,
+          "height": 21,
+          "size": 20
+        },
+        {
+          "text": "갓 지은 편지 · 미래 제품 상상",
+          "x": 842,
+          "y": 65,
+          "width": 174,
+          "height": 14,
+          "size": 14
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 729,
+          "y": 1309,
+          "width": 278,
+          "height": 18,
+          "size": 18
+        }
+      ],
+      "calendar": null
+    },
+    {
+      "key": "B",
+      "file": "B_스물네장의계절.png",
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "source_sha256": "388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545",
+      "png_sha256": "3046a0884ccd8d124a333256907e457ab7903601837a6b0062ae9f34b10433c0",
+      "official_logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+      "official_logo_opaque_pixels": 5978,
+      "official_logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "밥으로 넘기는,",
+          "x": 64,
+          "y": 146,
+          "width": 361,
+          "height": 57,
+          "size": 58
+        },
+        {
+          "text": "스물네 장의 계절.",
+          "x": 64,
+          "y": 222,
+          "width": 459,
+          "height": 57,
+          "size": 61
+        },
+        {
+          "text": "24절기 햇반 컬렉션 · 네 계절 대표 디자인",
+          "x": 67,
+          "y": 294,
+          "width": 356,
+          "height": 20,
+          "size": 20
+        },
+        {
+          "text": "스물네 장의 계절 · 미래 제품 상상",
+          "x": 817,
+          "y": 65,
+          "width": 199,
+          "height": 14,
+          "size": 14
+        },
+        {
+          "text": "24",
+          "x": 502,
+          "y": 774,
+          "width": 76,
+          "height": 54,
+          "size": 67
+        },
+        {
+          "text": "절기마다 한 공기",
+          "x": 480,
+          "y": 849,
+          "width": 120,
+          "height": 17,
+          "size": 17
+        },
+        {
+          "text": "겨울 · 무흑미밥",
+          "x": 271,
+          "y": 779,
+          "width": 118,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "봄 · 달래보리밥",
+          "x": 691,
+          "y": 779,
+          "width": 118,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "가을 · 밤버섯잡곡밥",
+          "x": 254,
+          "y": 1169,
+          "width": 152,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "여름 · 옥수수기장밥",
+          "x": 674,
+          "y": 1169,
+          "width": 152,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 401,
+          "y": 1319,
+          "width": 278,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "입춘",
+          "x": 592,
+          "y": 318,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "우수",
+          "x": 720,
+          "y": 351,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "경칩",
+          "x": 835,
+          "y": 415,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "춘분",
+          "x": 929,
+          "y": 505,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "청명",
+          "x": 995,
+          "y": 615,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "곡우",
+          "x": 1029,
+          "y": 738,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "입하",
+          "x": 1029,
+          "y": 866,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "소만",
+          "x": 994,
+          "y": 989,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "망종",
+          "x": 929,
+          "y": 1099,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "하지",
+          "x": 835,
+          "y": 1189,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "소서",
+          "x": 720,
+          "y": 1253,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "대서",
+          "x": 592,
+          "y": 1286,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "입추",
+          "x": 459,
+          "y": 1286,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "처서",
+          "x": 332,
+          "y": 1253,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "백로",
+          "x": 216,
+          "y": 1189,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "추분",
+          "x": 122,
+          "y": 1099,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "한로",
+          "x": 56,
+          "y": 989,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "상강",
+          "x": 21,
+          "y": 866,
+          "width": 31,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "입동",
+          "x": 22,
+          "y": 738,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "소설",
+          "x": 57,
+          "y": 615,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "대설",
+          "x": 123,
+          "y": 505,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "동지",
+          "x": 217,
+          "y": 415,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "소한",
+          "x": 331,
+          "y": 351,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "대한",
+          "x": 459,
+          "y": 318,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        }
+      ],
+      "calendar": {
+        "terms": [
+          "입춘",
+          "우수",
+          "경칩",
+          "춘분",
+          "청명",
+          "곡우",
+          "입하",
+          "소만",
+          "망종",
+          "하지",
+          "소서",
+          "대서",
+          "입추",
+          "처서",
+          "백로",
+          "추분",
+          "한로",
+          "상강",
+          "입동",
+          "소설",
+          "대설",
+          "동지",
+          "소한",
+          "대한"
+        ],
+        "count": 24,
+        "direction": "입춘부터 시계방향, 봄·여름·가을·겨울 각6개",
+        "food_samples": 4,
+        "claim": "네 계절 대표 예시, 24종 전체 실물 사진 아님"
+      }
+    }
+  ],
+  "fonts": "S-Core Dream 7 / 4, copyright S-Core; font files not redistributed",
+  "photo_changes": "image generation tool only; typography, calendar and original logo composed separately"
+}
