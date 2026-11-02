@@ -1,0 +1,21 @@
+const {chromium}=require('C:/Users/user/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const fs=require('fs'),path=require('path'),{pathToFileURL}=require('url');
+(async()=>{
+const chrome='C:/Program Files/Google/Chrome/Application/chrome.exe';
+const browser=await chromium.launch({headless:true,...(fs.existsSync(chrome)?{executablePath:chrome}:{}),args:['--allow-file-access-from-files']});
+const context=await browser.newContext({viewport:{width:900,height:900}});const page=await context.newPage();let errors=[],external=[];
+page.on('pageerror',e=>errors.push(String(e)));page.on('request',r=>{if(/^https?:/.test(r.url()))external.push(r.url())});
+await page.goto(pathToFileURL(path.join(__dirname,'관객테스트.html')).href);
+await page.waitForFunction(()=>document.getElementById('ready').textContent.includes('준비됐습니다'));
+const prepared=await page.locator('#start').isDisabled();await page.locator('#consent').check();await page.locator('#start').click();
+await page.waitForSelector('#exposure.show img');const natural=await page.locator('#view img').evaluate(i=>[i.naturalWidth,i.naturalHeight]);
+await page.waitForSelector('#response.show',{timeout:7000});
+for(const name of ['product','event','memory','share'])await page.locator('#form textarea[name="'+name+'"]').fill('자동 동작 점검용 응답 — 실제 관객 데이터 아님');
+await page.locator('#form button').click();await page.waitForSelector('#saved.show');
+const record=await page.evaluate(()=>JSON.parse(localStorage.getItem('hetbahn_blind_letter_v1')));
+const recallDisabled=await page.locator('#recallStart').isDisabled();
+const result={software_test_only:true,real_participants_added:0,consent_gate:prepared,image_dimensions:natural,actual_exposure_ms:record.actualExposureMs,response_stage_after_mask:true,answers_saved:!!record.answers,recall_24h_gate:recallDisabled,external_network_requests:external.length,page_errors:errors};
+if(!prepared||natural[0]!==1080||!record.answers||!recallDisabled||external.length||errors.length)throw new Error(JSON.stringify(result));
+fs.writeFileSync(path.join(__dirname,'관찰도구_동작검사.json'),JSON.stringify(result,null,2)+'\n');
+console.log(JSON.stringify(result));await context.close();await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -1,0 +1,15 @@
+{
+  "software_test_only": true,
+  "real_participants_added": 0,
+  "consent_gate": true,
+  "image_dimensions": [
+    1080,
+    1350
+  ],
+  "actual_exposure_ms": 3007.899999976158,
+  "response_stage_after_mask": true,
+  "answers_saved": true,
+  "recall_24h_gate": true,
+  "external_network_requests": 0,
+  "page_errors": []
+}

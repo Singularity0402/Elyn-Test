@@ -1,0 +1,32 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>이미지 첫인상 관찰</title>
+<style>body{font:17px/1.6 system-ui,sans-serif;color:#222;background:#f4f3ef;margin:0}main{max-width:620px;padding:28px;margin:auto}h1{font-size:25px}button{padding:12px 20px;border:0;border-radius:6px;background:#242424;color:white;font:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:default}textarea{width:100%;min-height:78px;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #aaa;border-radius:5px}label{display:block;margin:18px 0 5px}.muted{color:#666;font-size:14px}.stage{display:none}.show{display:block}#view{width:360px;height:450px;max-width:100%;margin:20px auto;background:#ddd;display:flex;align-items:center;justify-content:center}#view img{width:100%;height:100%;object-fit:contain}#mask{font-size:42px}fieldset{border:0;padding:0}p{margin:14px 0}a{color:#8b111b}</style>
+<main><h1>이미지 첫인상 관찰</h1><section id="intro" class="stage show"><p>이미지 한 장을 3초 동안 본 뒤, 기억나는 내용을 답합니다. 작품에 대한 추가 설명이나 정답은 먼저 보여주지 않습니다.</p><p class="muted">이름과 연락처를 받지 않습니다. 응답은 이 기기에만 저장되며, 직접 파일을 내려받을 때만 내보냅니다. 한 사람이 한 이미지만 봅니다.</p><label><input type="checkbox" id="seen"> 이 작품이나 제작 대화를 전에 본 적이 있습니다.</label><label><input type="checkbox" id="consent"> 위 안내를 읽었고 자발적으로 참여합니다.</label><p><button id="start" disabled>3초 동안 보기</button></p><p id="ready" class="muted">이미지를 불러오는 중입니다.</p></section>
+<section id="exposure" class="stage"><div id="view"></div></section>
+<section id="response" class="stage"><p>이미지는 다시 보여주지 않습니다. 기억나는 대로 답해주세요.</p><form id="form"><label>1. 어떤 제품 또는 분야의 이미지였나요?</label><textarea name="product" required></textarea><label>2. 무슨 일이 벌어지고 있었나요?</label><textarea name="event" required></textarea><label>3. 가장 기억나는 장면이나 형태는 무엇인가요?</label><textarea name="memory" required></textarea><label>4. 누군가에게 이 이미지를 보낸다면, 누구에게 어떤 말과 함께 보내겠나요? 보내고 싶지 않다면 그렇게 적어주세요.</label><textarea name="share" required></textarea><p><button>응답 저장</button></p></form></section>
+<section id="saved" class="stage"><h2>응답이 이 기기에 저장됐습니다.</h2><p><button id="export">기록 파일 내려받기</button></p><p class="muted">내려받은 기록에는 무작위 배정과 실제 노출시간, 화면을 벗어났는지 여부가 함께 들어갑니다. 이는 실제 공유 행동의 기록은 아닙니다.</p><p id="later"></p><button id="recallStart" disabled>이미지 없이 지연 회상 응답하기</button></section>
+<section id="recall" class="stage"><h2>다시 떠올려보기</h2><form id="recallForm"><label>어떤 제품 또는 브랜드였나요?</label><textarea name="brand" required></textarea><label>기억나는 장면과 사건을 적어주세요.</label><textarea name="event" required></textarea><p><button>회상 기록 저장</button></p></form></section><p class="muted">사전 등록한 질문으로 관찰하는 보조 도구입니다. 응답을 받기 전에는 관객 효과를 판단하지 않습니다.</p></main>
+<script>
+'use strict';
+const SOURCES=['../final_2026-11-02/01_출품작_부엌을접고_내삶을펼치다.png','../letter_2026-11-02/01_재제작후보_갓지은편지.png'];
+const KEY='hetbahn_blind_letter_v1';
+const $=id=>document.getElementById(id);
+const show=id=>{document.querySelectorAll('.stage').forEach(e=>e.classList.remove('show'));$(id).classList.add('show')};
+let record;try{record=JSON.parse(localStorage.getItem(KEY)||'null')}catch{record=null}
+let pic=new Image(),loaded=false,exposing=false,begin=0;
+function save(){localStorage.setItem(KEY,JSON.stringify(record))}
+function saved(){show('saved');const elapsed=Date.now()-record.exposureEndedAt;const hours=elapsed/3600000;$('later').textContent='첫 노출 이후 '+hours.toFixed(1)+'시간이 지났습니다. 지연 회상은 24시간 이후에 열립니다.';$('recallStart').disabled=hours<24||!!record.recall}
+if(record&&record.answers){saved()}else{
+ const arr=new Uint32Array(1);crypto.getRandomValues(arr);const choice=arr[0]%2;
+ record={protocol:'2026-11-02-v1',id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+arr[0],condition:choice,source:SOURCES[choice],createdAt:Date.now(),screen:{width:innerWidth,height:innerHeight},targetExposureMs:3000,tabHidden:false};
+ pic.onload=()=>{loaded=true;$('ready').textContent='준비됐습니다.';$('start').disabled=!$('consent').checked};
+ pic.onerror=()=>{$('ready').textContent='이미지를 열지 못했습니다. 프로젝트 폴더 안에서 이 파일을 열어주세요.'};pic.src=record.source;
+}
+$('consent').onchange=()=>{$('start').disabled=!loaded||!$('consent').checked};
+function endExposure(){if(!exposing)return;exposing=false;record.actualExposureMs=performance.now()-begin;record.exposureEndedAt=Date.now();record.validFirstExposure=!record.previouslySeen&&!record.tabHidden&&record.actualExposureMs>=2800&&record.actualExposureMs<=3800;$('view').replaceChildren();save();show('response')}
+$('start').onclick=()=>{if(!loaded||!$('consent').checked)return;record.previouslySeen=$('seen').checked;show('exposure');$('view').replaceChildren(pic);requestAnimationFrame(()=>{begin=performance.now();record.exposureStartedAt=Date.now();exposing=true;setTimeout(endExposure,3000)})};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&exposing){record.tabHidden=true;endExposure()}});
+$('form').onsubmit=e=>{e.preventDefault();record.answers=Object.fromEntries(new FormData(e.target));record.answeredAt=Date.now();save();saved()};
+$('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(record,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='image-response-'+record.id+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+$('recallStart').onclick=()=>{if(Date.now()-record.exposureEndedAt<24*3600000||record.recall)return;show('recall')};
+$('recallForm').onsubmit=e=>{e.preventDefault();record.recall={...Object.fromEntries(new FormData(e.target)),at:Date.now(),delayMs:Date.now()-record.exposureEndedAt};save();saved()};
+</script></html>
