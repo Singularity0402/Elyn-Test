@@ -1,0 +1,43 @@
+{
+  "software_test_only": true,
+  "real_participants_added": 0,
+  "context": "완전히 분리한 임시 headless Chrome",
+  "offline": true,
+  "final_images_only": true,
+  "checks": {
+    "consent_gate_and_no_preexposure_image": true,
+    "actual_3s_exposure_ms": 3010.800000011921,
+    "image_hidden_and_removed": true,
+    "refresh_no_reexposure_fixed_assignment": true,
+    "recall_24h_lock_boundary_no_image": true,
+    "qa_namespace_and_export": true,
+    "tab_hidden_event_injected_interrupt": true,
+    "refresh_during_exposure_and_restart_denied": true,
+    "prior_exposure_self_report_preserved": true,
+    "participant_stop": true,
+    "aggregation": {
+      "qa_excluded": true,
+      "zero_sample_no_results_or_rates": true,
+      "raw_preserved": true,
+      "validation_negative_cases": true,
+      "duplicates_excluded": true,
+      "external_human_verification_distinct": true
+    },
+    "offline_route_fulfill_only_no_network": true
+  },
+  "image_sources": {
+    "A": {
+      "path": "C:\\Users\\user\\Elyn-Test\\docs\\contests\\hetbahn_2026\\audit_2026-11-03\\A_갓지은편지.png",
+      "final": true,
+      "image_sha256": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b"
+    },
+    "B": {
+      "path": "C:\\Users\\user\\Elyn-Test\\docs\\contests\\hetbahn_2026\\audit_2026-11-03\\B_스물네장의계절.png",
+      "final": true,
+      "image_sha256": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4"
+    }
+  },
+  "external_requests": [],
+  "errors": [],
+  "status": "PASS"
+}

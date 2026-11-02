@@ -1,0 +1,49 @@
+{
+  "report_kind": "record_quality_audit_only",
+  "protocol_id": "hetbahn-audit-2026-11-03-pilot-v1",
+  "scope": "A/B 파일럿 동등노출 비교. 경쟁대회 우위를 주장하지 않는다. L06은 실제 경쟁작 필수 기준으로 해석하지 않는다.",
+  "interpretation": "품질조건 유효여부는 실제 사람이 응답했다는 외부 출처 확인과 다르다. 정답 자동채점·학술 유의성·수상확률·성과비율을 산출하지 않는다. 내부목표 5/6은 통계보장이 아니다.",
+  "human_source_verification": "unverified; 진행자가 별도 익명 현장/모집 기록으로 확인해야 함",
+  "protocol_image_errors": {},
+  "files": [],
+  "counts": {
+    "input_files": 0,
+    "qa_excluded": 0,
+    "eligible_new_first_exposure": 0,
+    "eligible_24h_recall": 0,
+    "eligible_by_arm": {
+      "A": 0,
+      "B": 0
+    }
+  },
+  "sample_status": "유효 신규표본 0명. 관객 결과나 비율을 만들지 않는다.",
+  "duplicate_ids": [],
+  "missing_participant_ids": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08",
+    "P09",
+    "P10",
+    "P11",
+    "P12"
+  ],
+  "missing_eligible_participant_ids": [
+    "P01",
+    "P02",
+    "P03",
+    "P04",
+    "P05",
+    "P06",
+    "P07",
+    "P08",
+    "P09",
+    "P10",
+    "P11",
+    "P12"
+  ]
+}

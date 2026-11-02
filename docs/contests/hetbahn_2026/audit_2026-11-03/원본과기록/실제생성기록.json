@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-03",
+  "records": [
+    {
+      "id": "A4",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Edit target: the attached unbranded 4:5 photograph of steaming instant rice, a condensation drawing on a peeled film lid, and a red-pencil drawing on paper.\nPreserve the composition, empty navy upper quarter, white bowl size, table, right hand holding only the dry tab, warm room lighting and film silhouette. No added text, logo or objects.\nThree necessary craft fixes:\n1. REPLACE THE RICE TEXTURE decisively. These grains currently resemble round shiny gel beads. Use lifelike freshly cooked Korean short-grain white rice with grain bodies clearly elongated about 1.7–2 times their width, opaque ivory-white starch, soft irregular surfaces, tender small clumps. Diffuse gentle moist highlights instead of bright spherical glints. The rice must look like cooked rice in a real food photograph, not tapioca pearls, jelly, plastic, raw grains or perfectly identical pellets. Maintain the overall mound shape but materially change the grain morphology.\n2. The simple two-children-holding-hands, heart and sun motif on the opened film should be thin clear paths through a slightly matte mist. Keep it recognizable but reduce thick embossed or jewelry-like edge highlights. No metallic drawing, print ink or cut-through holes. Fine natural condensation elsewhere.\n3. Make the lower-left RED PENCIL PAPER SKETCH match the lid motif more faithfully: same two figures, same relative heights and proportions, same joined-hands arrangement, same heart between/above them, same sun upper-right. Use the lid composition as the master. Keep the card's location, warm off-white fibrous paper and red pencil medium; change only its drawing to correspond. Account for paper perspective but do not move the sun or flip the figures.\nProduct is an imagined future package; maintain photographic plausibility without new technical devices.",
+      "result": "A4_탈락생성원본.png",
+      "references": [
+        "A3_이전생성원본.png"
+      ],
+      "notes": "밥알 재질 개선 부족으로 탈락.",
+      "sha256": "fac7c3c0d1d0b545aba9015ba37ca0e569fbb1557998f0e717675e334b1c32ec"
+    },
+    {
+      "id": "A5",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Create a brand-new photorealistic Korean instant-rice advertising photograph, vertical 4:5, single warm intimate moment.\nThe key product concept is a future instant rice lid whose warm condensation reveals a personal little drawing. No words, brand logos or typography anywhere. Leave the top quarter mostly empty deep navy for later headline and official logo.\nA real matte white polypropylene shallow single-serving instant-rice tray sits on a dark walnut table, photographed from a gentle low three-quarter view. Close but not extreme macro. A right hand gently lifts a dry outer film tab at the right edge, not touching food. The transparent flexible peel film rises like a soft semicircle above the rice.\nMake the FOOD the most convincing part: authentic freshly cooked Korean white short-grain rice, gently clumped, soft OPAQUE ivory grains, distinct elongated oval bodies with tapered ends and tiny broken starch ridges, roughly twice as long as wide. Diffuse moist sheen on only a few grain tips, mostly matte tender white starch. Natural food-photography texture, not individual translucent round balls. A modest real wispy steam trail. Soft neutral window key light illuminates the rice so its whites remain neutral; a distant amber lamp adds atmosphere but does not turn the rice or tray metallic gold. The tray must look matte plastic, not aluminum.\nOn the transparent raised film, fine matte fog and tiny irregular moisture droplets form one simple personal doodle as clear paths through condensation: two smiling stick children holding hands, little heart above their joined hands, sun upper right. The doodle is thin subtle and recognizable, like moisture patterns, not shiny metal wire, glass beads, printed ink, raised embossing or deep etching.\nAt lower left on the table a small cream paper card bears the SAME simple doodle in red pencil. Match the motif composition across paper and lid: the left figure's head slightly higher, right figure wearing a simple triangular dress, joined hands low between them, heart above the joined hands, sun high at upper right. Preserve these relative placements in both, adjusted only for perspective.\nComposition: rice tray spans lower two-thirds but entire front rim stays in frame; hand only at upper-right of film; source card fully visible at lower-left; generous quiet dark upper quarter, unobtrusive background. Real intimate tabletop food photograph with tactile believable materials. No other props, no faces, no extra hands, no letters, no logos, no calendars.",
+      "result": "A5_중간생성원본.png",
+      "references": [],
+      "notes": "새 사진으로 쌀알·용기·종이 대응 개선. 별도 AI 검토에서 필름의 고정 인쇄 오인을 지적해 후속 보완.",
+      "sha256": "3101a9b73a225bd978f25aa559b95c487603f7f247c13726afe734ad4966a041"
+    },
+    {
+      "id": "A6",
+      "service": "OpenAI Codex 내장 이미지 생성",
+      "prompt": "Edit target: image 1, the newly made white-plastic instant-rice photograph. Image 2 is only a MATERIAL REFERENCE for the condensation motif on transparent film, not a composition or rice reference.\nPreserve image 1 exactly in composition, opaque elongated cooked rice, matte white tray, hand, paper card, empty navy upper area, neutral rice lighting. Do not import image 2's rice or metallic tray.\nMake one essential correction on the RAISED TRANSPARENT FILM ONLY: the children/heart/sun in image 1 currently look like a dark permanent printed stamp. Replace all those bold dark uniform lines with delicate natural condensation paths. Use fine irregular clear water beads and faint fog-density differences, softly broken outlines, soft neutral-silver microglints like image 2. No opaque dark pigment, no engraved grooves, no perforated holes, no embossing or thick glass/metal wire. Keep the figures recognizable at thumbnail size by a modest moisture contrast, not by black ink. Clear watery paths through haze should have the texture and reflection of actual moisture.\nKeep the exact motif positions and rough shapes of image 1 so the unchanged red-pencil card remains its corresponding original: left child head slightly higher, right child triangular dress, joined hands, heart above them, sun upper right. The PAPER remains red pencil. Only film motif material changes.\nNo words, logos, additional props, changes to rice or changes to the lower-left paper. Vertical4:5.",
+      "result": "A_선택생성원본.png",
+      "references": [
+        "A5_중간생성원본.png",
+        "A3_이전생성원본.png"
+      ],
+      "notes": "A5 음식·용기를 유지하며 필름 그림을 물기·김서림 표현으로 수정. 최종 선택.",
+      "sha256": "637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857"
+    }
+  ],
+  "selected_A": "A6",
+  "selected_B": "이전 B2 생성원본, 고지 확대 조판",
+  "real_service_screenshots_available": false
+}

@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-03",
+  "user_confirmed_existing_audience_or_public_post_data": "없음",
+  "supplied_attachment": "제공된표_제작증빙아님.png",
+  "attachment_classification": "미확인8/8 표 일부, 생성 요청/결과 없는 표",
+  "actual_service_capture_files": [],
+  "real_audience_raw_records": [],
+  "published_metrics_sources": [],
+  "long_term_independent_reactions": [],
+  "corrected_rule": "D10",
+  "remaining_unverified": [
+    "J08",
+    "L02",
+    "L03",
+    "L04",
+    "L05",
+    "L06",
+    "L08"
+  ],
+  "note": "자료가 없다는 현재 상태를 기록한다. 빈 배열이 효과 없음이나 수상 불가의 실험 결과라는 뜻도 아니다."
+}

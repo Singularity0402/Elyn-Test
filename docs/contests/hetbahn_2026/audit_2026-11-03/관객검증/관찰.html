@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>관찰</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f5f4f0;color:#222;font:17px/1.65 system-ui,sans-serif}main{max-width:650px;margin:auto;padding:24px}h1{font-size:24px}label{display:block;margin:16px 0}input[type=text],textarea{display:block;width:100%;font:inherit;padding:10px;border:1px solid #777;border-radius:6px}textarea{min-height:100px}button{font:inherit;padding:10px 18px;margin:8px 6px 8px 0;cursor:pointer}button:disabled{cursor:default;opacity:.5}[hidden]{display:none!important}#exposure{position:fixed;inset:0;background:#eee;z-index:2}#stimulus{width:100%;height:100%;display:flex;align-items:center;justify-content:center}#stimulus img{max-width:100%;max-height:100%;object-fit:contain}#stop{position:absolute;right:12px;bottom:12px}#status{white-space:pre-wrap}small{display:block;color:#555}
+</style><script src="protocol.js"></script></head><body><main>
+<h1>관찰</h1><p id="qaNotice" hidden>소프트웨어 동작검사 모드 · 실제 관객 응답으로 집계하지 않습니다.</p>
+<p id="status" role="status" aria-live="polite"></p>
+<section id="entry"><form id="join"><label>배정받은 참가 코드<input id="participant" type="text" pattern="P(0[1-9]|1[0-2])" maxlength="3" autocomplete="off" required placeholder="P01"></label><button>진행</button></form></section>
+<section id="ready" hidden><form id="consentForm">
+<p>자료 한 장을 약 3초 본 뒤, 기억에 남은 내용을 자유롭게 적습니다. 24시간 뒤에는 자료를 다시 보지 않고 기억을 적습니다. 정해진 표현을 맞출 필요는 없습니다.</p>
+<p>참가는 자율이며 언제든 중단할 수 있습니다. 응답과 화면 크기·노출시간·중단 이력을 이 기기에 저장하고 JSON 파일로 내려받습니다. 실명·이메일은 받지 않습니다. 답변에도 개인 연락처나 실명을 쓰지 마세요.</p>
+<label><input id="consent" type="checkbox" required> 위 내용을 이해했으며 기록 수집에 동의합니다.</label>
+<label><input id="adult" type="checkbox" required> 성인입니다.</label>
+<fieldset><legend>이번에 관찰할 자료를 이전에 본 적이 있나요?</legend><label><input type="radio" name="prior" value="no" required> 아니요</label><label><input type="radio" name="prior" value="yes" required> 예</label></fieldset>
+<p>시작 후 다시 볼 수 없습니다. 준비되면 눌러 주세요.</p><button id="begin">시작</button></form></section>
+<section id="response" hidden><form id="answersForm"><p>방금 본 내용을 떠오르는 대로 적어 주세요. 기억나지 않으면 그대로 적어 주세요.</p>
+<label>어떤 제품이었나요?<textarea name="product" required></textarea></label>
+<label>무슨 일이 있었나요?<textarea name="event" required></textarea></label>
+<label>어떤 장면이 기억나나요?<textarea name="scene" required></textarea></label>
+<label>누구에게 보내고 싶나요? 없다면 없다고 적어 주세요.<textarea name="share_recipient" required></textarea></label>
+<label>보낸다면 어떤 문장을 쓰고 싶나요? 없다면 없다고 적어 주세요.<textarea name="share_sentence" required></textarea></label>
+<label>보내고 싶은 이유 또는 보내고 싶지 않은 이유는 무엇인가요?<textarea name="share_reason" required></textarea></label>
+<button>응답 저장</button></form></section>
+<section id="waiting" hidden><p>첫 응답이 저장되었습니다. 같은 기기·브라우저와 참가 코드로 24시간 뒤 돌아와 주세요. 이미지는 다시 표시되지 않습니다.</p><p id="unlockText"></p><button id="recallBegin" disabled>기억 적기</button></section>
+<section id="recall" hidden><form id="recallForm"><p>이전 자료를 찾아보지 말고 지금 기억나는 내용을 자유롭게 적어 주세요. 기억나지 않으면 그대로 적어 주세요.</p><label>어떤 브랜드가 기억나나요?<textarea name="brand" required></textarea></label><label>어떤 장면이 기억나나요?<textarea name="scene" required></textarea></label><button>회상 저장</button></form></section>
+<section id="complete" hidden><p>응답이 저장되었습니다. 감사합니다.</p></section>
+<section id="blocked" hidden><p>진행을 중단했습니다. 아래 기록을 내려받아 진행자에게 전달해 주세요.</p></section>
+<div id="actions" hidden><button id="download">JSON 내려받기</button><small>24시간 회상 뒤에는 갱신된 JSON을 다시 내려받아 주세요.</small></div>
+</main><section id="exposure" hidden aria-label="관찰 자료"><div id="stimulus"></div><button id="stop">중단</button></section>
+<script>
+'use strict';
+const P = globalThis.OBSERVER_PROTOCOL, $ = id => document.getElementById(id);
+const qa = new URLSearchParams(location.search).get('qa') === '1';
+const kind = qa ? 'qa' : 'participant';
+const prefix = `observer:${P.protocol_id}:${kind}:`;
+let record = null, key = null, timer = null, started = null, objectURL = null, writeFailed = false;
+$('qaNotice').hidden = !qa;
+const stamp = () => new Date().toISOString();
+function event(type, detail = {}) { record.events.push({type, at: stamp(), ...detail}); }
+function hideImage() { $('exposure').hidden = true; $('stimulus').replaceChildren(); clearTimeout(timer); if (objectURL) URL.revokeObjectURL(objectURL); objectURL = null; }
+function save() {
+  record.updated_at = stamp(); record.revision = (record.revision || 0) + 1;
+  try { localStorage.setItem(key, JSON.stringify(record)); return true; }
+  catch (e) { writeFailed = true; hideImage(); $('status').textContent = '기기 저장에 실패했습니다. 진행을 멈추고 JSON을 내려받아 주세요.'; $('actions').hidden = false; return false; }
+}
+function view(id) { for (const name of ['entry','ready','response','waiting','recall','complete','blocked']) $(name).hidden = name !== id; $('actions').hidden = !record; }
+function fill(form, values) { for (const [name, value] of Object.entries(values || {})) if (form.elements.namedItem(name)) form.elements.namedItem(name).value = value; }
+function recallReady() {
+  if (!record || !record.exposure_ended_at) return false;
+  const due = Date.parse(record.exposure_ended_at) + P.recall_delay_ms;
+  return Number.isFinite(due) && Date.now() >= due;
+}
+function updateLock() {
+  if (!record || record.stage !== 'waiting') return;
+  const due = Date.parse(record.exposure_ended_at) + P.recall_delay_ms;
+  $('recallBegin').disabled = !recallReady();
+  $('unlockText').textContent = Number.isFinite(due) ? `기억 적기 가능 시각: ${new Date(due).toLocaleString()}` : '노출 종료시각을 확인할 수 없어 회상을 열 수 없습니다.';
+}
+function render() {
+  if (!record || writeFailed) return;
+  if (record.stage !== 'exposing') hideImage();
+  if (record.stage === 'ready') view('ready');
+  else if (record.stage === 'preparing') {view('blocked'); $('status').textContent = '자료를 준비하고 있습니다.';}
+  else if (record.stage === 'response') {view('response'); fill($('answersForm'), record.raw_answers);}
+  else if (record.stage === 'waiting') {view('waiting'); updateLock();}
+  else if (record.stage === 'recall') {view('recall'); fill($('recallForm'), record.recall_raw_answers);}
+  else if (record.stage === 'complete') view('complete');
+  else if (record.stage === 'blocked') view('blocked');
+}
+function readCurrent() { const data = localStorage.getItem(key); return data ? JSON.parse(data) : null; }
+function endExposure(reason) {
+  if (!record || record.stage !== 'exposing') return;
+  // 숨김을 먼저 실행하고 같은 프레임에서 실측한다. 새로고침 복구에서는 단조시계 값을 추정하지 않는다.
+  hideImage();
+  record.exposure_ms = started === null ? null : performance.now() - started;
+  record.exposure_ended_at = stamp();
+  if (reason !== 'elapsed') {record.interrupted = true; event('interruption', {reason});}
+  event('exposure_end', {reason, exposure_ms: record.exposure_ms});
+  record.stage = 'response'; save(); render();
+}
+function restoreInterrupted(reason) {
+  hideImage(); record.interrupted = true; record.exposure_ms = null;
+  record.exposure_ended_at = stamp(); event('interruption', {reason});
+  record.stage = record.exposure_started_at ? 'response' : 'blocked'; save();
+}
+$('join').addEventListener('submit', async e => {
+  e.preventDefault(); const id = $('participant').value.trim();
+  if (!Object.hasOwn(P.assignment, id)) return;
+  try {
+    if (!navigator.locks) throw new Error('저장 잠금을 지원하지 않는 브라우저입니다. localhost의 Chrome을 이용해 주세요.');
+    key = prefix + id;
+    await navigator.locks.request(key, () => {
+      record = readCurrent();
+      if (record) {
+        if (record.protocol_id !== P.protocol_id || record.participant_id !== id || record.arm !== P.assignment[id] || record.record_kind !== kind) throw new Error('기존 기록의 식별정보가 일치하지 않습니다.');
+        event('revisit', {previous_stage: record.stage, navigation: performance.getEntriesByType('navigation')[0]?.type || 'unknown'});
+        if (['exposing','preparing'].includes(record.stage)) restoreInterrupted('revisit_during_exposure_or_prepare');
+        else save();
+      } else {
+        record = {schema_version:P.schema_version, record_kind:kind, protocol_id:P.protocol_id, participant_id:id, arm:P.assignment[id], image_sha256:null,
+          created_at:stamp(), updated_at:stamp(), stage:'ready', revision:0, consent:null, prior_exposure:null,
+          screen:null, exposure_started_at:null, exposure_ended_at:null, exposure_ms:null, interrupted:false,
+          events:[], raw_answers:{}, answers_submitted_at:null, recall_raw_answers:{}, recall_submitted_at:null};
+        event('record_created'); save();
+      }
+    });
+    $('status').textContent = ''; render();
+  } catch (err) { $('status').textContent = String(err.message); }
+});
+$('consentForm').addEventListener('submit', async e => {
+  e.preventDefault(); if (!record || writeFailed) return;
+  await navigator.locks.request(key, async () => {
+    record = readCurrent();
+    if (record.stage !== 'ready') {event('restart_denied'); save(); render(); return;}
+    record.consent = {agreed:$('consent').checked, adult:$('adult').checked, at:stamp()};
+    record.prior_exposure = new FormData($('consentForm')).get('prior') === 'yes';
+    if (!record.consent.agreed || !record.consent.adult) return;
+    record.screen = {width:screen.width,height:screen.height,viewport_width:innerWidth,viewport_height:innerHeight,device_pixel_ratio:devicePixelRatio};
+    record.stage = 'preparing'; event('preparation_start'); if (!save()) return;
+    $('begin').disabled = true;
+    try {
+      const res = await fetch(P.images[record.arm].path, {cache:'no-store'});
+      if (!res.ok) throw new Error('자료 파일을 읽을 수 없습니다. 진행자에게 알려 주세요.');
+      const bytes = await res.arrayBuffer();
+      record.image_sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(v => v.toString(16).padStart(2,'0')).join('');
+      if (record.image_sha256 !== P.images[record.arm].sha256) throw new Error('자료 파일 확인이 필요합니다. 진행자에게 알려 주세요.');
+      objectURL = URL.createObjectURL(new Blob([bytes], {type:'image/png'}));
+      const img = new Image(); img.alt = '관찰 자료'; img.src = objectURL; await img.decode();
+      const fresh = readCurrent();
+      if (fresh.stage !== 'preparing') {record = fresh; hideImage(); render(); return;}
+      if (document.hidden) throw new Error('창이 숨겨져 노출을 시작하지 않았습니다.');
+      $('stimulus').replaceChildren(img);
+      record.stage = 'exposing'; record.exposure_started_at = stamp(); event('exposure_start');
+      if (!save()) return;
+      view('none'); $('exposure').hidden = false;
+      // DOM 배치 후 첫 렌더 직전의 단조시계부터 3초를 측정한다.
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      if (record.stage !== 'exposing') return;
+      started = performance.now();
+      timer = setTimeout(() => endExposure('elapsed'), P.target_exposure_ms);
+    } catch (err) {
+      hideImage(); record.stage = 'blocked'; event('preparation_failed', {message:String(err.message)}); save(); render(); $('status').textContent = String(err.message);
+    }
+  });
+});
+$('stop').addEventListener('click', () => endExposure('participant_stop'));
+document.addEventListener('visibilitychange', () => {if (document.hidden && record?.stage === 'exposing') endExposure('tab_hidden');});
+window.addEventListener('pagehide', () => {
+  if (record?.stage === 'exposing') endExposure('pagehide');
+  else if (record?.stage === 'preparing') {record.interrupted = true; event('interruption', {reason:'pagehide_during_prepare'}); save();}
+});
+window.addEventListener('storage', e => {
+  if (e.key !== key || !record) return;
+  hideImage();
+  if (!e.newValue) {writeFailed = true; $('status').textContent = '기록이 다른 창에서 제거되어 진행을 멈췄습니다.'; view('blocked'); return;}
+  record = JSON.parse(e.newValue);
+  if (record.stage === 'exposing' || record.stage === 'preparing') restoreInterrupted('concurrent_window');
+  render();
+});
+for (const [formId, field] of [['answersForm','raw_answers'],['recallForm','recall_raw_answers']]) {
+  $(formId).addEventListener('input', () => {
+    if (!record || writeFailed) return;
+    if (record.stage !== (formId === 'answersForm' ? 'response' : 'recall')) return;
+    record[field] = Object.fromEntries(new FormData($(formId))); save();
+  });
+  $(formId).addEventListener('submit', e => {
+    e.preventDefault(); if (writeFailed) return;
+    const isRecall = formId === 'recallForm';
+    if (record.stage !== (isRecall ? 'recall' : 'response') || (isRecall && !recallReady())) return;
+    record[field] = Object.fromEntries(new FormData($(formId)));
+    record[isRecall ? 'recall_submitted_at' : 'answers_submitted_at'] = stamp();
+    event(isRecall ? 'recall_submitted' : 'answers_submitted'); record.stage = isRecall ? 'complete' : 'waiting'; save(); render();
+  });
+}
+$('recallBegin').addEventListener('click', () => {if (record?.stage !== 'waiting' || !recallReady()) return; record.stage = 'recall'; event('recall_opened'); save(); render();});
+$('download').addEventListener('click', () => {
+  if (!record) return;
+  event('download'); save();
+  const url = URL.createObjectURL(new Blob([JSON.stringify(record,null,2)], {type:'application/json'}));
+  const a = document.createElement('a'); a.href = url; a.download = `${record.record_kind}_${record.protocol_id}_${record.participant_id}_${record.stage}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000);
+});
+setInterval(updateLock,1000);
+</script></body></html>

@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-03",
+  "checks": [
+    {
+      "entry": "A",
+      "png_sha256": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b",
+      "native_dimensions": [
+        1122,
+        1402
+      ],
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_decoded": true,
+      "text_intersections": 0,
+      "official_logo_pixels_checked": 5981,
+      "official_logo_mismatches": 0,
+      "notice_contrast": [
+        {
+          "text": "갓 지은 편지 · 미래 제품 상상",
+          "size": 20,
+          "glyph_samples": 598,
+          "minimum_ratio": 13.57,
+          "median_ratio": 13.82
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "size": 24,
+          "glyph_samples": 1535,
+          "minimum_ratio": 11.48,
+          "median_ratio": 14.91
+        }
+      ],
+      "description_chars": 223,
+      "audit_rows": 120,
+      "missing_rule_ids": 0
+    },
+    {
+      "entry": "B",
+      "png_sha256": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4",
+      "native_dimensions": [
+        1122,
+        1402
+      ],
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_decoded": true,
+      "text_intersections": 0,
+      "official_logo_pixels_checked": 5978,
+      "official_logo_mismatches": 0,
+      "notice_contrast": [
+        {
+          "text": "스물네 장의 계절 · 미래 제품 상상",
+          "size": 20,
+          "glyph_samples": 786,
+          "minimum_ratio": 5.18,
+          "median_ratio": 5.36
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "size": 24,
+          "glyph_samples": 1543,
+          "minimum_ratio": 5.12,
+          "median_ratio": 5.56
+        }
+      ],
+      "description_chars": 243,
+      "audit_rows": 120,
+      "missing_rule_ids": 0
+    }
+  ],
+  "manual_rule_changes": 0,
+  "classification_corrections": [
+    "D10"
+  ],
+  "real_audience_responses": 0,
+  "real_generation_screenshots_received": 0,
+  "supplied_table_is_generation_proof": false,
+  "actual_social_metrics_available": false,
+  "remaining_unverified_per_entry": 7,
+  "note": "contrast4.5 is an internal screen-craft target on opaque glyph pixels, not certification of mobile readability or audience effect. AI craft judgments remain internal."
+}
