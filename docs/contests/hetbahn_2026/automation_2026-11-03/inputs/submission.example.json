@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "entries": {
+    "A": {
+      "sns_url": null,
+      "drive_url": null
+    },
+    "B": {
+      "sns_url": null,
+      "drive_url": null
+    }
+  },
+  "receipt_refs": []
+}

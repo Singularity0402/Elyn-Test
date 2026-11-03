@@ -1,0 +1,1017 @@
+{
+  "schema_version": 1,
+  "run_id": "run-20261103T141535Z-6ff2f4b7",
+  "generated_at": "2026-11-03T14:15:35.361627+00:00",
+  "generated_at_kst": "2026-11-03T23:15:35.361627+09:00",
+  "stages": {
+    "baseline": {
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "policy_lock",
+          "status": "PASS",
+          "reason": "실행 중 기준 자동 갱신 금지"
+        },
+        {
+          "id": "manual_unchanged",
+          "status": "PASS"
+        },
+        {
+          "id": "audit_snapshot",
+          "status": "PASS"
+        },
+        {
+          "id": "manual_coverage_A",
+          "status": "PASS"
+        },
+        {
+          "id": "manual_coverage_B",
+          "status": "PASS"
+        },
+        {
+          "id": "review_binding_A",
+          "status": "PASS",
+          "scope": "current_artifact",
+          "reason": "기존 AI 판단을 해당 파일 버전에만 적용; 대중 효과나 수상 입증 아님"
+        },
+        {
+          "id": "review_binding_B",
+          "status": "PASS",
+          "scope": "unchanged_photo_and_concept",
+          "reason": "기존 AI 판단을 해당 파일 버전에만 적용; 대중 효과나 수상 입증 아님"
+        }
+      ]
+    },
+    "official": {
+      "id": "official_source",
+      "status": "PASS",
+      "url": "https://docs.google.com/forms/d/e/1FAIpQLSfbdn6XHYLkAMdo2-K8EN--QB6H2RYXYV9snzJCvPRe-KBQpA/viewform",
+      "checked_at": "2026-11-03T14:15:35.371769+00:00",
+      "checks": {
+        "contest_title": true,
+        "deadline": true,
+        "image_ratios": true,
+        "real_ai_history_required": true,
+        "future_disclosure": true,
+        "unlimited_entries": true,
+        "public_until": true,
+        "all_tags": true,
+        "description_limit": true,
+        "question_definitions_unchanged": true
+      },
+      "observed_constraints": {
+        "description_limit": 500,
+        "question_definitions_sha256": "8aa3e0846644e28a32a3a669b06b72a9b8f4d0ba712ea5a04a6eef14ff47c0cb"
+      },
+      "body_sha256": "c0ad76e7b09e9c8611db9bdfa97ad3cc47f5a0ca508c92f9c50870a710000379",
+      "reason": "필수 안내의 의미 표지를 확인함."
+    },
+    "brand_cache": {
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "brand_reference_white",
+          "status": "PASS",
+          "reason": "공식 원본 해시 일치"
+        },
+        {
+          "id": "brand_reference_red",
+          "status": "PASS",
+          "reason": "공식 원본 해시 일치"
+        }
+      ]
+    },
+    "assets": {
+      "status": "PASS",
+      "checks": [
+        {
+          "id": "asset_roots",
+          "status": "PASS",
+          "message": "Project and cache roots resolved"
+        },
+        {
+          "id": "asset_policy",
+          "status": "PASS",
+          "message": "Required asset and logo policy entries present"
+        },
+        {
+          "id": "official_logo_sha256",
+          "status": "PASS",
+          "entry": "white",
+          "message": "SHA-256 pin matched",
+          "details": {
+            "expected": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+            "actual": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286"
+          }
+        },
+        {
+          "id": "official_logo",
+          "status": "PASS",
+          "entry": "white",
+          "message": "Pinned official PNG decoded at 1080x1350",
+          "details": {
+            "alpha_positive_pixels": 7090
+          }
+        },
+        {
+          "id": "official_logo_sha256",
+          "status": "PASS",
+          "entry": "red",
+          "message": "SHA-256 pin matched",
+          "details": {
+            "expected": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+            "actual": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e"
+          }
+        },
+        {
+          "id": "official_logo",
+          "status": "PASS",
+          "entry": "red",
+          "message": "Pinned official PNG decoded at 1080x1350",
+          "details": {
+            "alpha_positive_pixels": 7113
+          }
+        },
+        {
+          "id": "asset_sha256",
+          "status": "PASS",
+          "entry": "A",
+          "message": "SHA-256 pin matched",
+          "details": {
+            "expected": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b",
+            "actual": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b"
+          }
+        },
+        {
+          "id": "asset_png",
+          "status": "PASS",
+          "entry": "A",
+          "message": "Final RGB/RGBA PNG fully decoded at 1080x1350"
+        },
+        {
+          "id": "source_sha256",
+          "status": "PASS",
+          "entry": "A",
+          "message": "SHA-256 pin matched",
+          "details": {
+            "expected": "637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857",
+            "actual": "637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857"
+          }
+        },
+        {
+          "id": "source_png",
+          "status": "PASS",
+          "entry": "A",
+          "message": "Source PNG fully decoded"
+        },
+        {
+          "id": "text_bounds",
+          "status": "PASS",
+          "entry": "A",
+          "message": "All text boxes are in range and do not overlap",
+          "details": {
+            "invalid_bounds": [],
+            "intersections": [],
+            "count": 6
+          }
+        },
+        {
+          "id": "calendar",
+          "status": "PASS",
+          "entry": "A",
+          "message": "A has no calendar"
+        },
+        {
+          "id": "source_resize",
+          "status": "PASS",
+          "entry": "A",
+          "message": "Source independently resized with fit:cover"
+        },
+        {
+          "id": "logo_pixels",
+          "status": "PASS",
+          "entry": "A",
+          "message": "Every official alpha>0 pixel matches independent composition",
+          "details": {
+            "pixels_checked": 7090,
+            "semitransparent_pixels_checked": 1109,
+            "mismatches": 0,
+            "mismatch_samples": []
+          }
+        },
+        {
+          "id": "notice_contrast",
+          "status": "PASS",
+          "entry": "A",
+          "message": "Opaque notice glyphs meet the internal minimum 4.5 contrast target",
+          "details": [
+            {
+              "role": "top",
+              "text": "갓 지은 편지 · 미래 제품 상상",
+              "ink_rgb": [
+                232,
+                221,
+                208
+              ],
+              "glyph_samples": 598,
+              "minimum_ratio": 13.567285816945946,
+              "worst_pixel": {
+                "x": 770,
+                "y": 65,
+                "background_rgb": [
+                  6,
+                  21,
+                  47
+                ]
+              },
+              "status": "PASS"
+            },
+            {
+              "role": "footer",
+              "text": "미래 제품 상상 · 실제 출시 제품 아님",
+              "ink_rgb": [
+                255,
+                248,
+                233
+              ],
+              "glyph_samples": 1535,
+              "minimum_ratio": 11.478738701404245,
+              "worst_pixel": {
+                "x": 631,
+                "y": 1312,
+                "background_rgb": [
+                  90,
+                  39,
+                  11
+                ]
+              },
+              "status": "PASS"
+            }
+          ]
+        },
+        {
+          "id": "asset_sha256",
+          "status": "PASS",
+          "entry": "B",
+          "message": "SHA-256 pin matched",
+          "details": {
+            "expected": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4",
+            "actual": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4"
+          }
+        },
+        {
+          "id": "asset_png",
+          "status": "PASS",
+          "entry": "B",
+          "message": "Final RGB/RGBA PNG fully decoded at 1080x1350"
+        },
+        {
+          "id": "source_sha256",
+          "status": "PASS",
+          "entry": "B",
+          "message": "SHA-256 pin matched",
+          "details": {
+            "expected": "388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545",
+            "actual": "388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545"
+          }
+        },
+        {
+          "id": "source_png",
+          "status": "PASS",
+          "entry": "B",
+          "message": "Source PNG fully decoded"
+        },
+        {
+          "id": "text_bounds",
+          "status": "PASS",
+          "entry": "B",
+          "message": "All text boxes are in range and do not overlap",
+          "details": {
+            "invalid_bounds": [],
+            "intersections": [],
+            "count": 35
+          }
+        },
+        {
+          "id": "calendar",
+          "status": "PASS",
+          "entry": "B",
+          "message": "All 24 terms and their clockwise label order verified",
+          "details": {
+            "count": 24,
+            "terms": [
+              "입춘",
+              "우수",
+              "경칩",
+              "춘분",
+              "청명",
+              "곡우",
+              "입하",
+              "소만",
+              "망종",
+              "하지",
+              "소서",
+              "대서",
+              "입추",
+              "처서",
+              "백로",
+              "추분",
+              "한로",
+              "상강",
+              "입동",
+              "소설",
+              "대설",
+              "동지",
+              "소한",
+              "대한"
+            ],
+            "clockwise_steps_degrees": [
+              14.976946172696614,
+              14.98524047477764,
+              15.097595545031993,
+              14.87220663566842,
+              15.00389412237547,
+              15.067750730581054,
+              15.011286018544752,
+              14.918803703005096,
+              15.015221553009042,
+              15.050677091070611,
+              15.00323546650111,
+              14.981785374657306,
+              14.96264359317081,
+              15.059644889808851,
+              14.959714688579425,
+              14.965342768696473,
+              15.003894122375527,
+              15.075142626750221,
+              15.003894122375527,
+              14.953107343125794,
+              15.016694837574619,
+              15.037341278795168,
+              14.988424873882934,
+              14.989511966945543
+            ]
+          }
+        },
+        {
+          "id": "source_resize",
+          "status": "PASS",
+          "entry": "B",
+          "message": "Source independently resized with fit:cover"
+        },
+        {
+          "id": "logo_pixels",
+          "status": "PASS",
+          "entry": "B",
+          "message": "Every official alpha>0 pixel matches independent composition",
+          "details": {
+            "pixels_checked": 7113,
+            "semitransparent_pixels_checked": 1135,
+            "mismatches": 0,
+            "mismatch_samples": []
+          }
+        },
+        {
+          "id": "notice_contrast",
+          "status": "PASS",
+          "entry": "B",
+          "message": "Opaque notice glyphs meet the internal minimum 4.5 contrast target",
+          "details": [
+            {
+              "role": "top",
+              "text": "스물네 장의 계절 · 미래 제품 상상",
+              "ink_rgb": [
+                102,
+                95,
+                86
+              ],
+              "glyph_samples": 786,
+              "minimum_ratio": 5.175119930644283,
+              "worst_pixel": {
+                "x": 946,
+                "y": 71,
+                "background_rgb": [
+                  238,
+                  232,
+                  225
+                ]
+              },
+              "status": "PASS"
+            },
+            {
+              "role": "footer",
+              "text": "미래 제품 상상 · 실제 출시 제품 아님",
+              "ink_rgb": [
+                98,
+                91,
+                81
+              ],
+              "glyph_samples": 1543,
+              "minimum_ratio": 5.117522306026637,
+              "worst_pixel": {
+                "x": 646,
+                "y": 1329,
+                "background_rgb": [
+                  231,
+                  224,
+                  215
+                ]
+              },
+              "status": "PASS"
+            }
+          ]
+        }
+      ],
+      "details": {
+        "dimensions": [
+          1080,
+          1350
+        ],
+        "contrast_target": 4.5,
+        "color_space": "srgb",
+        "entries": {
+          "A": {
+            "final_dimensions": [
+              1080,
+              1350
+            ],
+            "source_dimensions": [
+              1122,
+              1402
+            ],
+            "logo": {
+              "pixels_checked": 7090,
+              "semitransparent_pixels_checked": 1109,
+              "mismatches": 0,
+              "mismatch_samples": []
+            },
+            "notice_contrast": [
+              {
+                "role": "top",
+                "text": "갓 지은 편지 · 미래 제품 상상",
+                "ink_rgb": [
+                  232,
+                  221,
+                  208
+                ],
+                "glyph_samples": 598,
+                "minimum_ratio": 13.567285816945946,
+                "worst_pixel": {
+                  "x": 770,
+                  "y": 65,
+                  "background_rgb": [
+                    6,
+                    21,
+                    47
+                  ]
+                },
+                "status": "PASS"
+              },
+              {
+                "role": "footer",
+                "text": "미래 제품 상상 · 실제 출시 제품 아님",
+                "ink_rgb": [
+                  255,
+                  248,
+                  233
+                ],
+                "glyph_samples": 1535,
+                "minimum_ratio": 11.478738701404245,
+                "worst_pixel": {
+                  "x": 631,
+                  "y": 1312,
+                  "background_rgb": [
+                    90,
+                    39,
+                    11
+                  ]
+                },
+                "status": "PASS"
+              }
+            ]
+          },
+          "B": {
+            "final_dimensions": [
+              1080,
+              1350
+            ],
+            "source_dimensions": [
+              1122,
+              1402
+            ],
+            "calendar": {
+              "count": 24,
+              "terms": [
+                "입춘",
+                "우수",
+                "경칩",
+                "춘분",
+                "청명",
+                "곡우",
+                "입하",
+                "소만",
+                "망종",
+                "하지",
+                "소서",
+                "대서",
+                "입추",
+                "처서",
+                "백로",
+                "추분",
+                "한로",
+                "상강",
+                "입동",
+                "소설",
+                "대설",
+                "동지",
+                "소한",
+                "대한"
+              ],
+              "clockwise_steps_degrees": [
+                14.976946172696614,
+                14.98524047477764,
+                15.097595545031993,
+                14.87220663566842,
+                15.00389412237547,
+                15.067750730581054,
+                15.011286018544752,
+                14.918803703005096,
+                15.015221553009042,
+                15.050677091070611,
+                15.00323546650111,
+                14.981785374657306,
+                14.96264359317081,
+                15.059644889808851,
+                14.959714688579425,
+                14.965342768696473,
+                15.003894122375527,
+                15.075142626750221,
+                15.003894122375527,
+                14.953107343125794,
+                15.016694837574619,
+                15.037341278795168,
+                14.988424873882934,
+                14.989511966945543
+              ]
+            },
+            "logo": {
+              "pixels_checked": 7113,
+              "semitransparent_pixels_checked": 1135,
+              "mismatches": 0,
+              "mismatch_samples": []
+            },
+            "notice_contrast": [
+              {
+                "role": "top",
+                "text": "스물네 장의 계절 · 미래 제품 상상",
+                "ink_rgb": [
+                  102,
+                  95,
+                  86
+                ],
+                "glyph_samples": 786,
+                "minimum_ratio": 5.175119930644283,
+                "worst_pixel": {
+                  "x": 946,
+                  "y": 71,
+                  "background_rgb": [
+                    238,
+                    232,
+                    225
+                  ]
+                },
+                "status": "PASS"
+              },
+              {
+                "role": "footer",
+                "text": "미래 제품 상상 · 실제 출시 제품 아님",
+                "ink_rgb": [
+                  98,
+                  91,
+                  81
+                ],
+                "glyph_samples": 1543,
+                "minimum_ratio": 5.117522306026637,
+                "worst_pixel": {
+                  "x": 646,
+                  "y": 1329,
+                  "background_rgb": [
+                    231,
+                    224,
+                    215
+                  ]
+                },
+                "status": "PASS"
+              }
+            ]
+          }
+        }
+      },
+      "execution": {
+        "returncode": 0,
+        "stdout": "{\"status\":\"PASS\",\"checks\":[{\"id\":\"asset_roots\",\"status\":\"PASS\",\"message\":\"Project and cache roots resolved\"},{\"id\":\"asset_policy\",\"status\":\"PASS\",\"message\":\"Required asset and logo policy entries present\"},{\"id\":\"official_logo_sha256\",\"status\":\"PASS\",\"entry\":\"white\",\"message\":\"SHA-256 pin matched\",\"details\":{\"expected\":\"35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286\",\"actual\":\"35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286\"}},{\"id\":\"official_logo\",\"status\":\"PASS\",\"entry\":\"white\",\"message\":\"Pinned official PNG decoded at 1080x1350\",\"details\":{\"alpha_positive_pixels\":7090}},{\"id\":\"official_logo_sha256\",\"status\":\"PASS\",\"entry\":\"red\",\"message\":\"SHA-256 pin matched\",\"details\":{\"expected\":\"281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e\",\"actual\":\"281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e\"}},{\"id\":\"official_logo\",\"status\":\"PASS\",\"entry\":\"red\",\"message\":\"Pinned official PNG decoded at 1080x1350\",\"details\":{\"alpha_positive_pixels\":7113}},{\"id\":\"asset_sha256\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"SHA-256 pin matched\",\"details\":{\"expected\":\"5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b\",\"actual\":\"5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b\"}},{\"id\":\"asset_png\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"Final RGB/RGBA PNG fully decoded at 1080x1350\"},{\"id\":\"source_sha256\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"SHA-256 pin matched\",\"details\":{\"expected\":\"637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857\",\"actual\":\"637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857\"}},{\"id\":\"source_png\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"Source PNG fully decoded\"},{\"id\":\"text_bounds\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"All text boxes are in range and do not overlap\",\"details\":{\"invalid_bounds\":[],\"intersections\":[],\"count\":6}},{\"id\":\"calendar\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"A has no calendar\"},{\"id\":\"source_resize\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"Source independently resized with fit:cover\"},{\"id\":\"logo_pixels\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"Every official alpha>0 pixel matches independent composition\",\"details\":{\"pixels_checked\":7090,\"semitransparent_pixels_checked\":1109,\"mismatches\":0,\"mismatch_samples\":[]}},{\"id\":\"notice_contrast\",\"status\":\"PASS\",\"entry\":\"A\",\"message\":\"Opaque notice glyphs meet the internal minimum 4.5 contrast target\",\"details\":[{\"role\":\"top\",\"text\":\"갓 지은 편지 · 미래 제품 상상\",\"ink_rgb\":[232,221,208],\"glyph_samples\":598,\"minimum_ratio\":13.567285816945946,\"worst_pixel\":{\"x\":770,\"y\":65,\"background_rgb\":[6,21,47]},\"status\":\"PASS\"},{\"role\":\"footer\",\"text\":\"미래 제품 상상 · 실제 출시 제품 아님\",\"ink_rgb\":[255,248,233],\"glyph_samples\":1535,\"minimum_ratio\":11.478738701404245,\"worst_pixel\":{\"x\":631,\"y\":1312,\"background_rgb\":[90,39,11]},\"status\":\"PASS\"}]},{\"id\":\"asset_sha256\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"SHA-256 pin matched\",\"details\":{\"expected\":\"1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4\",\"actual\":\"1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4\"}},{\"id\":\"asset_png\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"Final RGB/RGBA PNG fully decoded at 1080x1350\"},{\"id\":\"source_sha256\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"SHA-256 pin matched\",\"details\":{\"expected\":\"388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545\",\"actual\":\"388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545\"}},{\"id\":\"source_png\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"Source PNG fully decoded\"},{\"id\":\"text_bounds\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"All text boxes are in range and do not overlap\",\"details\":{\"invalid_bounds\":[],\"intersections\":[],\"count\":35}},{\"id\":\"calendar\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"All 24 terms and their clockwise label order verified\",\"details\":{\"count\":24,\"terms\":[\"입춘\",\"우수\",\"경칩\",\"춘분\",\"청명\",\"곡우\",\"입하\",\"소만\",\"망종\",\"하지\",\"소서\",\"대서\",\"입추\",\"처서\",\"백로\",\"추분\",\"한로\",\"상강\",\"입동\",\"소설\",\"대설\",\"동지\",\"소한\",\"대한\"],\"clockwise_steps_degrees\":[14.976946172696614,14.98524047477764,15.097595545031993,14.87220663566842,15.00389412237547,15.067750730581054,15.011286018544752,14.918803703005096,15.015221553009042,15.050677091070611,15.00323546650111,14.981785374657306,14.96264359317081,15.059644889808851,14.959714688579425,14.965342768696473,15.003894122375527,15.075142626750221,15.003894122375527,14.953107343125794,15.016694837574619,15.037341278795168,14.988424873882934,14.989511966945543]}},{\"id\":\"source_resize\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"Source independently resized with fit:cover\"},{\"id\":\"logo_pixels\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"Every official alpha>0 pixel matches independent composition\",\"details\":{\"pixels_checked\":7113,\"semitransparent_pixels_checked\":1135,\"mismatches\":0,\"mismatch_samples\":[]}},{\"id\":\"notice_contrast\",\"status\":\"PASS\",\"entry\":\"B\",\"message\":\"Opaque notice glyphs meet the internal minimum 4.5 contrast target\",\"details\":[{\"role\":\"top\",\"text\":\"스물네 장의 계절 · 미래 제품 상상\",\"ink_rgb\":[102,95,86],\"glyph_samples\":786,\"minimum_ratio\":5.175119930644283,\"worst_pixel\":{\"x\":946,\"y\":71,\"background_rgb\":[238,232,225]},\"status\":\"PASS\"},{\"role\":\"footer\",\"text\":\"미래 제품 상상 · 실제 출시 제품 아님\",\"ink_rgb\":[98,91,81],\"glyph_samples\":1543,\"minimum_ratio\":5.117522306026637,\"worst_pixel\":{\"x\":646,\"y\":1329,\"background_rgb\":[231,224,215]},\"status\":\"PASS\"}]}],\"details\":{\"dimensions\":[1080,1350],\"contrast_target\":4.5,\"color_space\":\"srgb\",\"entries\":{\"A\":{\"final_dimensions\":[1080,1350],\"source_dimensions\":[1122,1402],\"logo\":{\"pixels_checked\":7090,\"semitransparent_pixels_checked\":1109,\"mismatches\":0,\"mismatch_samples\":[]},\"notice_contrast\":[{\"role\":\"top\",\"text\":\"갓 지은 편지 · 미래 제품 상상\",\"ink_rgb\":[232,221,208],\"glyph_samples\":598,\"minimum_ratio\":13.567285816945946,\"worst_pixel\":{\"x\":770,\"y\":65,\"background_rgb\":[6,21,47]},\"status\":\"PASS\"},{\"role\":\"footer\",\"text\":\"미래 제품 상상 · 실제 출시 제품 아님\",\"ink_rgb\":[255,248,233],\"glyph_samples\":1535,\"minimum_ratio\":11.478738701404245,\"worst_pixel\":{\"x\":631,\"y\":1312,\"background_rgb\":[90,39,11]},\"status\":\"PASS\"}]},\"B\":{\"final_dimensions\":[1080,1350],\"source_dimensions\":[1122,1402],\"calendar\":{\"count\":24,\"terms\":[\"입춘\",\"우수\",\"경칩\",\"춘분\",\"청명\",\"곡우\",\"입하\",\"소만\",\"망종\",\"하지\",\"소서\",\"대서\",\"입추\",\"처서\",\"백로\",\"추분\",\"한로\",\"상강\",\"입동\",\"소설\",\"대설\",\"동지\",\"소한\",\"대한\"],\"clockwise_steps_degrees\":[14.976946172696614,14.98524047477764,15.097595545031993,14.87220663566842,15.00389412237547,15.067750730581054,15.011286018544752,14.918803703005096,15.015221553009042,15.050677091070611,15.00323546650111,14.981785374657306,14.96264359317081,15.059644889808851,14.959714688579425,14.965342768696473,15.003894122375527,15.075142626750221,15.003894122375527,14.953107343125794,15.016694837574619,15.037341278795168,14.988424873882934,14.989511966945543]},\"logo\":{\"pixels_checked\":7113,\"semitransparent_pixels_checked\":1135,\"mismatches\":0,\"mismatch_samples\":[]},\"notice_contrast\":[{\"role\":\"top\",\"text\":\"스물네 장의 계절 · 미래 제품 상상\",\"ink_rgb\":[102,95,86],\"glyph_samples\":786,\"minimum_ratio\":5.175119930644283,\"worst_pixel\":{\"x\":946,\"y\":71,\"background_rgb\":[238,232,225]},\"status\":\"PASS\"},{\"role\":\"footer\",\"text\":\"미래 제품 상상 · 실제 출시 제품 아님\",\"ink_rgb\":[98,91,81],\"glyph_samples\":1543,\"minimum_ratio\":5.117522306026637,\"worst_pixel\":{\"x\":646,\"y\":1329,\"background_rgb\":[231,224,215]},\"status\":\"PASS\"}]}}}}\n",
+        "stderr": "",
+        "seconds": 0.471
+      }
+    },
+    "copy": {
+      "status": "PASS",
+      "checks": [
+        {
+          "entry": "A",
+          "status": "PASS",
+          "description_chars": 223,
+          "copy_sha256": "cb51cb28d8aec29d6f8d43d3ddf55d0be9023badb604813023a8359a3b2e6396",
+          "required_tags": true,
+          "future_disclosure": true,
+          "unsupported_absolute_phrases": []
+        },
+        {
+          "entry": "B",
+          "status": "PASS",
+          "description_chars": 243,
+          "copy_sha256": "75a46b6dbe113acf703100a1a1ffb570c552ceeee9a7dc27d1a3d239a858ecc2",
+          "required_tags": true,
+          "future_disclosure": true,
+          "unsupported_absolute_phrases": []
+        }
+      ]
+    },
+    "intake": {
+      "status": "PASS",
+      "registered_new": {
+        "responses": 0,
+        "reviews": 0,
+        "metrics": 0,
+        "history": 0,
+        "screenshots": 0
+      },
+      "registered_totals": {
+        "responses": 0,
+        "reviews": 0,
+        "metrics": 0,
+        "history": 0,
+        "screenshots": 0
+      },
+      "claim": "자동 등록만 수행. 자료 진위·의미·효과는 승인하지 않음."
+    },
+    "tests": {
+      "status": "PASS",
+      "python": {
+        "returncode": 0,
+        "stdout": "",
+        "stderr": "test_ai_coding_alone_never_proves_human_source (test_evidence.EvidenceTests.test_ai_coding_alone_never_proves_human_source) ... ok\ntest_ai_source_attestation_is_invalid (test_evidence.EvidenceTests.test_ai_source_attestation_is_invalid) ... ok\ntest_auto_findings_are_explicitly_rejected (test_evidence.EvidenceTests.test_auto_findings_are_explicitly_rejected) ... ok\ntest_capture_checklist_without_review_remains_pending (test_evidence.EvidenceTests.test_capture_checklist_without_review_remains_pending) ... ok\ntest_capture_missing_binary_escape_or_wrong_original_rejected (test_evidence.EvidenceTests.test_capture_missing_binary_escape_or_wrong_original_rejected) ... ok\ntest_cli_stdout_is_json_and_optional_now (test_evidence.EvidenceTests.test_cli_stdout_is_json_and_optional_now) ... ok\ntest_conflicting_duplicate_id_excludes_all_versions (test_evidence.EvidenceTests.test_conflicting_duplicate_id_excludes_all_versions) ... ok\ntest_conflicting_review_findings_do_not_auto_pass (test_evidence.EvidenceTests.test_conflicting_review_findings_do_not_auto_pass) ... ok\ntest_current_asset_changed_rejects_all_success (test_evidence.EvidenceTests.test_current_asset_changed_rejects_all_success) ... ok\ntest_empty_input_seven_pending_each_arm (test_evidence.EvidenceTests.test_empty_input_seven_pending_each_arm) ... ok\ntest_fake_auto_pass_receipt_does_not_verify (test_evidence.EvidenceTests.test_fake_auto_pass_receipt_does_not_verify) ... ok\ntest_first_and_recall_merge_preserves_all_file_hashes (test_evidence.EvidenceTests.test_first_and_recall_merge_preserves_all_file_hashes) ... ok\ntest_future_nested_event_is_error (test_evidence.EvidenceTests.test_future_nested_event_is_error) ... ok\ntest_history_flags_required_no_invented_months_threshold (test_evidence.EvidenceTests.test_history_flags_required_no_invented_months_threshold) ... ok\ntest_image_hash_changed_response_excluded_even_with_receipt (test_evidence.EvidenceTests.test_image_hash_changed_response_excluded_even_with_receipt) ... ok\ntest_invalid_duplicate_does_not_leave_valid_copy_counted (test_evidence.EvidenceTests.test_invalid_duplicate_does_not_leave_valid_copy_counted) ... ok\ntest_json_duplicate_keys_nan_overflow_bad_schema_and_broken_json (test_evidence.EvidenceTests.test_json_duplicate_keys_nan_overflow_bad_schema_and_broken_json) ... ok\ntest_metrics_null_requires_reason_bool_and_negative_forbidden (test_evidence.EvidenceTests.test_metrics_null_requires_reason_bool_and_negative_forbidden) ... ok\ntest_metrics_separate_periods_preserve_null_and_actual_zero (test_evidence.EvidenceTests.test_metrics_separate_periods_preserve_null_and_actual_zero) ... ok\ntest_missing_file_path_escape_absolute_and_future_rejected (test_evidence.EvidenceTests.test_missing_file_path_escape_absolute_and_future_rejected) ... ok\ntest_only_current_selected_version_receipts_count (test_evidence.EvidenceTests.test_only_current_selected_version_receipts_count) ... ok\ntest_positive_five_of_six_target_and_partial_cohort_not_complete (test_evidence.EvidenceTests.test_positive_five_of_six_target_and_partial_cohort_not_complete) ... ok\ntest_production_inventory_is_not_fixture_storage (test_evidence.EvidenceTests.test_production_inventory_is_not_fixture_storage) ... ok\ntest_qa_dom_and_synthetic_excluded (test_evidence.EvidenceTests.test_qa_dom_and_synthetic_excluded) ... ok\ntest_recall_before_24_hours_not_counted_or_merged (test_evidence.EvidenceTests.test_recall_before_24_hours_not_counted_or_merged) ... ok\ntest_receipt_cannot_override_prior_exposure_interruption_or_missing_answers (test_evidence.EvidenceTests.test_receipt_cannot_override_prior_exposure_interruption_or_missing_answers) ... ok\ntest_rejected_receipt_yields_rejected_rule (test_evidence.EvidenceTests.test_rejected_receipt_yields_rejected_rule) ... ok\ntest_review_missing_source_note_time_target_or_current_artifact_rejected (test_evidence.EvidenceTests.test_review_missing_source_note_time_target_or_current_artifact_rejected) ... ok\ntest_rewritten_first_event_or_screen_conflicts (test_evidence.EvidenceTests.test_rewritten_first_event_or_screen_conflicts) ... ok\ntest_synthetic_positive_measurement_negative_effects_all_seven_verified (test_evidence.EvidenceTests.test_synthetic_positive_measurement_negative_effects_all_seven_verified) ... ok\ntest_ungrounded_quote_not_accepted (test_evidence.EvidenceTests.test_ungrounded_quote_not_accepted) ... ok\ntest_unreviewed_response_never_counts_as_verified_human (test_evidence.EvidenceTests.test_unreviewed_response_never_counts_as_verified_human) ... ok\ntest_capture_is_copied_and_queued_not_verified (test_intake.IntakeTests.test_capture_is_copied_and_queued_not_verified) ... ok\ntest_empty_bootstrap_creates_no_proof (test_intake.IntakeTests.test_empty_bootstrap_creates_no_proof) ... ok\ntest_manifest_duplicates_rejected (test_intake.IntakeTests.test_manifest_duplicates_rejected) ... ok\ntest_replaced_inbox_media_preserves_earlier_bytes (test_intake.IntakeTests.test_replaced_inbox_media_preserves_earlier_bytes) ... ok\ntest_resolved_capture_descriptor_escape_is_blocked_before_write (test_intake.IntakeTests.test_resolved_capture_descriptor_escape_is_blocked_before_write) ... ok\ntest_resolved_capture_file_escape_is_blocked_before_write (test_intake.IntakeTests.test_resolved_capture_file_escape_is_blocked_before_write) ... ok\ntest_response_registration_is_idempotent_not_human_approval (test_intake.IntakeTests.test_response_registration_is_idempotent_not_human_approval) ... ok\ntest_revision_change_does_not_rebind_old_capture (test_intake.IntakeTests.test_revision_change_does_not_rebind_old_capture) ... ok\ntest_archive_manifest_has_no_self_hash_or_duplicate (test_pipeline.PipelineTests.test_archive_manifest_has_no_self_hash_or_duplicate) ... ok\ntest_archive_path_escape_rejected (test_pipeline.PipelineTests.test_archive_path_escape_rejected) ... ok\ntest_changed_required_tag_is_detected (test_pipeline.PipelineTests.test_changed_required_tag_is_detected) ... ok\ntest_confirmed_constraint_conflict_is_fail_not_pending (test_pipeline.PipelineTests.test_confirmed_constraint_conflict_is_fail_not_pending) ... ok\ntest_duplicate_json_keys_rejected (test_pipeline.PipelineTests.test_duplicate_json_keys_rejected) ... ok\ntest_evidence_count_recomputed_when_one_item_changes (test_pipeline.PipelineTests.test_evidence_count_recomputed_when_one_item_changes) ... ok\ntest_evidence_error_cannot_be_hidden_by_pass_label (test_pipeline.PipelineTests.test_evidence_error_cannot_be_hidden_by_pass_label) ... ok\ntest_failed_assets_override_positive_receipts (test_pipeline.PipelineTests.test_failed_assets_override_positive_receipts) ... ok\ntest_form_limit_hint_validation_conflict_rejected (test_pipeline.PipelineTests.test_form_limit_hint_validation_conflict_rejected) ... ok\ntest_formal_readiness_does_not_wait_for_history (test_pipeline.PipelineTests.test_formal_readiness_does_not_wait_for_history) ... ok\ntest_git_line_endings_do_not_invalidate_semantic_review (test_pipeline.PipelineTests.test_git_line_endings_do_not_invalidate_semantic_review) ... ok\ntest_html_never_displays_changed_file_as_approved_snapshot (test_pipeline.PipelineTests.test_html_never_displays_changed_file_as_approved_snapshot) ... ok\ntest_live_form_constraint_limit_and_definition_change (test_pipeline.PipelineTests.test_live_form_constraint_limit_and_definition_change) ... ok\ntest_no_evidence_is_pending_not_complete (test_pipeline.PipelineTests.test_no_evidence_is_pending_not_complete) ... ok\ntest_nonfinite_json_rejected (test_pipeline.PipelineTests.test_nonfinite_json_rejected) ... ok\ntest_observation_completion_never_declares_award (test_pipeline.PipelineTests.test_observation_completion_never_declares_award) ... ok\ntest_official_markers_inside_script_are_not_trusted (test_pipeline.PipelineTests.test_official_markers_inside_script_are_not_trusted) ... ok\ntest_official_tags_survive_markup_boundaries (test_pipeline.PipelineTests.test_official_tags_survive_markup_boundaries) ... ok\ntest_package_failure_and_published_report_agree (test_pipeline.PipelineTests.test_package_failure_and_published_report_agree) ... ok\ntest_package_rechecks_bytes_after_prior_validation (test_pipeline.PipelineTests.test_package_rechecks_bytes_after_prior_validation) ... ok\ntest_path_escape_rejected (test_pipeline.PipelineTests.test_path_escape_rejected) ... ok\ntest_process_nonzero_cannot_report_pass (test_pipeline.PipelineTests.test_process_nonzero_cannot_report_pass) ... ok\ntest_public_report_omits_actual_raw_answers (test_pipeline.PipelineTests.test_public_report_omits_actual_raw_answers) ... ok\ntest_terminal_summary_has_explicit_output_root (test_pipeline.PipelineTests.test_terminal_summary_has_explicit_output_root) ... ok\ntest_verified_capture_is_actually_added_to_package_members (test_pipeline.PipelineTests.test_verified_capture_is_actually_added_to_package_members) ... ok\n\n----------------------------------------------------------------------\nRan 65 tests in 1.460s\n\nOK\n",
+        "seconds": 1.701,
+        "tests_run": 65,
+        "status": "PASS"
+      },
+      "asset_mutations": {
+        "returncode": 0,
+        "stdout": "{\"status\":\"PASS\",\"tests_run\":26,\"tests\":26,\"passed\":26,\"failed\":0,\"results\":[{\"name\":\"baseline: real copied PNGs, pins, logo pixels, contrast, bounds and calendar pass\",\"status\":\"PASS\"},{\"name\":\"CLI baseline emits exactly one JSON result and exits zero\",\"status\":\"PASS\"},{\"name\":\"tampered logo pixel fails even when historical report still says zero mismatches\",\"status\":\"PASS\"},{\"name\":\"one semitransparent official edge pixel is directly checked\",\"status\":\"PASS\"},{\"name\":\"tampering away from logo fails the whole-file pin\",\"status\":\"PASS\"},{\"name\":\"tampered source fails independently of final PNG\",\"status\":\"PASS\"},{\"name\":\"tampered final and source together cannot bypass both pins\",\"status\":\"PASS\"},{\"name\":\"tampered official cache fails pin before logo composition\",\"status\":\"PASS\"},{\"name\":\"missing official cache fails\",\"status\":\"PASS\"},{\"name\":\"overlapping injected text boxes fail\",\"status\":\"PASS\"},{\"name\":\"out-of-range text box fails\",\"status\":\"PASS\"},{\"name\":\"reordered calendar policy terms fail\",\"status\":\"PASS\"},{\"name\":\"missing calendar label fails even when count remains 24\",\"status\":\"PASS\"},{\"name\":\"swapped calendar label positions fail clockwise geometry\",\"status\":\"PASS\"},{\"name\":\"low actual glyph contrast fails even if source and final pins are updated\",\"status\":\"PASS\"},{\"name\":\"absence of opaque notice glyphs fails\",\"status\":\"PASS\"},{\"name\":\"truncated PNG fails actual decode even when its pin is injected\",\"status\":\"PASS\"},{\"name\":\"wrong PNG dimensions fail\",\"status\":\"PASS\"},{\"name\":\"grayscale final is rejected even when pin is injected\",\"status\":\"PASS\"},{\"name\":\"project path traversal fails\",\"status\":\"PASS\"},{\"name\":\"cache path traversal fails\",\"status\":\"PASS\"},{\"name\":\"junction/symlink escape from project root fails\",\"status\":\"PASS\"},{\"name\":\"CLI malformed arguments fail with JSON and nonzero exit\",\"status\":\"PASS\"},{\"name\":\"CLI invalid JSON policy fails with JSON and nonzero exit\",\"status\":\"PASS\"},{\"name\":\"invalid module policy returns JSON FAIL rather than rejecting\",\"status\":\"PASS\"},{\"name\":\"invalid module root returns JSON FAIL rather than rejecting\",\"status\":\"PASS\"}],\"baseline\":{\"status\":\"PASS\",\"checks\":24,\"entries\":{\"A\":{\"logo\":{\"pixels_checked\":7090,\"semitransparent_pixels_checked\":1109,\"mismatches\":0,\"mismatch_samples\":[]},\"notice_contrast\":[{\"role\":\"top\",\"text\":\"갓 지은 편지 · 미래 제품 상상\",\"ink_rgb\":[232,221,208],\"glyph_samples\":598,\"minimum_ratio\":13.567285816945946,\"worst_pixel\":{\"x\":770,\"y\":65,\"background_rgb\":[6,21,47]},\"status\":\"PASS\"},{\"role\":\"footer\",\"text\":\"미래 제품 상상 · 실제 출시 제품 아님\",\"ink_rgb\":[255,248,233],\"glyph_samples\":1535,\"minimum_ratio\":11.478738701404245,\"worst_pixel\":{\"x\":631,\"y\":1312,\"background_rgb\":[90,39,11]},\"status\":\"PASS\"}]},\"B\":{\"logo\":{\"pixels_checked\":7113,\"semitransparent_pixels_checked\":1135,\"mismatches\":0,\"mismatch_samples\":[]},\"notice_contrast\":[{\"role\":\"top\",\"text\":\"스물네 장의 계절 · 미래 제품 상상\",\"ink_rgb\":[102,95,86],\"glyph_samples\":786,\"minimum_ratio\":5.175119930644283,\"worst_pixel\":{\"x\":946,\"y\":71,\"background_rgb\":[238,232,225]},\"status\":\"PASS\"},{\"role\":\"footer\",\"text\":\"미래 제품 상상 · 실제 출시 제품 아님\",\"ink_rgb\":[98,91,81],\"glyph_samples\":1543,\"minimum_ratio\":5.117522306026637,\"worst_pixel\":{\"x\":646,\"y\":1329,\"background_rgb\":[231,224,215]},\"status\":\"PASS\"}]}}},\"cleanup\":\"Removed only the resolved isolated run directory\"}\n",
+        "stderr": "",
+        "seconds": 8.681,
+        "tests_run": 26,
+        "status": "PASS"
+      },
+      "observer_browser": {
+        "software_test_only": true,
+        "real_participants_added": 0,
+        "context": "완전히 분리한 임시 headless Chrome",
+        "offline": true,
+        "final_images_only": true,
+        "checks": {
+          "consent_gate_and_no_preexposure_image": true,
+          "actual_3s_exposure_ms": 3004.699999988079,
+          "image_hidden_and_removed": true,
+          "refresh_no_reexposure_fixed_assignment": true,
+          "recall_24h_lock_boundary_no_image": true,
+          "qa_namespace_and_export": true,
+          "tab_hidden_event_injected_interrupt": true,
+          "refresh_during_exposure_and_restart_denied": true,
+          "prior_exposure_self_report_preserved": true,
+          "participant_stop": true,
+          "aggregation": {
+            "qa_excluded": true,
+            "zero_sample_no_results_or_rates": true,
+            "raw_preserved": true,
+            "validation_negative_cases": true,
+            "duplicates_excluded": true,
+            "external_human_verification_distinct": true
+          },
+          "offline_route_fulfill_only_no_network": true
+        },
+        "image_sources": {
+          "A": {
+            "path": "C:\\Users\\user\\Elyn-Test\\docs\\contests\\hetbahn_2026\\audit_2026-11-03\\A_갓지은편지.png",
+            "final": true,
+            "image_sha256": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b"
+          },
+          "B": {
+            "path": "C:\\Users\\user\\Elyn-Test\\docs\\contests\\hetbahn_2026\\audit_2026-11-03\\B_스물네장의계절.png",
+            "final": true,
+            "image_sha256": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4"
+          }
+        },
+        "external_requests": [],
+        "errors": [],
+        "status": "PASS",
+        "execution": {
+          "returncode": 0,
+          "stdout": "{\n  \"software_test_only\": true,\n  \"real_participants_added\": 0,\n  \"context\": \"완전히 분리한 임시 headless Chrome\",\n  \"offline\": true,\n  \"final_images_only\": true,\n  \"checks\": {\n    \"consent_gate_and_no_preexposure_image\": true,\n    \"actual_3s_exposure_ms\": 3004.699999988079,\n    \"image_hidden_and_removed\": true,\n    \"refresh_no_reexposure_fixed_assignment\": true,\n    \"recall_24h_lock_boundary_no_image\": true,\n    \"qa_namespace_and_export\": true,\n    \"tab_hidden_event_injected_interrupt\": true,\n    \"refresh_during_exposure_and_restart_denied\": true,\n    \"prior_exposure_self_report_preserved\": true,\n    \"participant_stop\": true,\n    \"aggregation\": {\n      \"qa_excluded\": true,\n      \"zero_sample_no_results_or_rates\": true,\n      \"raw_preserved\": true,\n      \"validation_negative_cases\": true,\n      \"duplicates_excluded\": true,\n      \"external_human_verification_distinct\": true\n    },\n    \"offline_route_fulfill_only_no_network\": true\n  },\n  \"image_sources\": {\n    \"A\": {\n      \"path\": \"C:\\\\Users\\\\user\\\\Elyn-Test\\\\docs\\\\contests\\\\hetbahn_2026\\\\audit_2026-11-03\\\\A_갓지은편지.png\",\n      \"final\": true,\n      \"image_sha256\": \"5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b\"\n    },\n    \"B\": {\n      \"path\": \"C:\\\\Users\\\\user\\\\Elyn-Test\\\\docs\\\\contests\\\\hetbahn_2026\\\\audit_2026-11-03\\\\B_스물네장의계절.png\",\n      \"final\": true,\n      \"image_sha256\": \"1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4\"\n    }\n  },\n  \"external_requests\": [],\n  \"errors\": [],\n  \"status\": \"PASS\"\n}\n",
+          "stderr": "",
+          "seconds": 12.487
+        }
+      }
+    }
+  },
+  "policy_sha256": "c0ff064ba9e827ff316bd8444a704c445302e6c91adc8ed5552c4316669df54e",
+  "evidence": {
+    "status": "PENDING",
+    "rule_states": {
+      "A": {
+        "J08": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L02": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L03": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L04": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L05": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L06": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L08": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        }
+      },
+      "B": {
+        "J08": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L02": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L03": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L04": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L05": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L06": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        },
+        "L08": {
+          "state": "PENDING",
+          "reason": "required external evidence or review is incomplete"
+        }
+      }
+    },
+    "counts": {
+      "received_response_files": 0,
+      "qa_excluded": 0,
+      "valid_first_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "valid_recall_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "verified_human_first_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "verified_human_recall_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "coded_understanding_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "coded_share_intent_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "coded_recall_by_arm": {
+        "A": 0,
+        "B": 0
+      },
+      "conflicting_participant_ids": 0,
+      "excluded_response_files": 0,
+      "valid_review_files": 0,
+      "verified_metrics_files": 0,
+      "verified_history_files": 0
+    },
+    "errors": [],
+    "review_requests": [],
+    "outcomes": {
+      "by_arm": {
+        "A": {
+          "product_understood": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "event_understood": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "understanding_joint": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "share_intent": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "brand_recalled": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "relationship_recalled": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "recall_joint": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "actual_sharing_from_intent": null
+        },
+        "B": {
+          "product_understood": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "event_understood": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "understanding_joint": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "share_intent": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "brand_recalled": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "relationship_recalled": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "recall_joint": {
+            "measured": 0,
+            "positive": 0,
+            "percent": null,
+            "target_per_arm": 5,
+            "target_met": null
+          },
+          "actual_sharing_from_intent": null
+        }
+      },
+      "metrics": {
+        "A": [],
+        "B": []
+      },
+      "history": {
+        "A": [],
+        "B": []
+      },
+      "comparison": {
+        "comparable": false,
+        "scope": "fixed A/B pilot only; no contest-wide ranking or winner inference",
+        "recall_comparable": false
+      }
+    }
+  },
+  "submission": {
+    "status": "PENDING",
+    "entries": {
+      "A": {
+        "sns_url": "PENDING",
+        "drive_url": "PENDING",
+        "ai_generation_capture": "PENDING"
+      },
+      "B": {
+        "sns_url": "PENDING",
+        "drive_url": "PENDING",
+        "ai_generation_capture": "PENDING"
+      }
+    },
+    "missing": [
+      "A sns_url",
+      "A drive_url",
+      "A 실제 제작 화면",
+      "B sns_url",
+      "B drive_url",
+      "B 실제 제작 화면"
+    ],
+    "note": "주소 형식/HTTP200만으로 로그인 없는 실제 열람을 확정하지 않음. 게시·폼 접수는 실행하지 않음."
+  },
+  "decision": {
+    "verdict": "EVIDENCE_PENDING",
+    "internal_validation_complete": true,
+    "submission_ready": false,
+    "research_observation_complete": false,
+    "pending_rules": {
+      "A": [
+        "J08",
+        "L02",
+        "L03",
+        "L04",
+        "L05",
+        "L06",
+        "L08"
+      ],
+      "B": [
+        "J08",
+        "L02",
+        "L03",
+        "L04",
+        "L05",
+        "L06",
+        "L08"
+      ]
+    },
+    "pending_counts": {
+      "A": 7,
+      "B": 7
+    },
+    "failed_stages": [],
+    "contest_result": "NOT_OBSERVED",
+    "claim_scope": "출품 준비·관측 완료·목표 반응·수상 결과는 별도 판정. 운명·우승 확정 수치 없음."
+  },
+  "code_sha256": {
+    "evidence.py": "fde29123ea7accc2064144973a83af671d74e66b70ba97055513352b7fd4fa0a",
+    "intake.py": "1f7b8032b297550652ebf98aa3f0def4ef36f063794a317864a8f43add35c7ee",
+    "run_checks.py": "67ea56d106bba03dcc2ef09977604ae534d46d10640e67f2499c04172209b031",
+    "asset_checks.cjs": "7e4dd3c9100d18464ad4fad74a42aa32ee86377a91bfbfcf9d3d188fae39147e",
+    "report_ui.cjs": "0e5d271f5f98784952225d0ad17c3d022c4605f905fc4ed2b0bc7bbf4d32df56"
+  }
+}

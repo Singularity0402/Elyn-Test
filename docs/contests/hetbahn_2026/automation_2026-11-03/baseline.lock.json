@@ -1,0 +1,5 @@
+{
+  "policy_sha256": "c0ff064ba9e827ff316bd8444a704c445302e6c91adc8ed5552c4316669df54e",
+  "baseline_commit": "3965010",
+  "note": "실행 중 잠금 갱신 금지. 기준 변경은 새 검토와 별도 기록 필요."
+}

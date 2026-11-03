@@ -1,0 +1,474 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "3965010",
+  "baseline_scope": "A6/B 수정본의 일관성·증거 검사 기준. 대중 선호나 수상 우위의 승인 아님.",
+  "assets": {
+    "A": {
+      "path": "audit_2026-11-03/A_갓지은편지.png",
+      "sha256": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b",
+      "source_path": "audit_2026-11-03/원본과기록/A_선택생성원본.png",
+      "source_sha256": "637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857",
+      "logo_variant": "white",
+      "text_bounds": [
+        {
+          "text": "밥을 데웠더니,",
+          "x": 64,
+          "y": 156,
+          "width": 361,
+          "height": 57,
+          "size": 58
+        },
+        {
+          "text": "네 그림이 피었다.",
+          "x": 64,
+          "y": 232,
+          "width": 457,
+          "height": 58,
+          "size": 61
+        },
+        {
+          "text": "보내온 그림을 담은 햇반.",
+          "x": 67,
+          "y": 312,
+          "width": 245,
+          "height": 23,
+          "size": 23
+        },
+        {
+          "text": "데우면 김서림 속에 나타납니다.",
+          "x": 67,
+          "y": 348,
+          "width": 310,
+          "height": 22,
+          "size": 23
+        },
+        {
+          "text": "갓 지은 편지 · 미래 제품 상상",
+          "x": 764,
+          "y": 64,
+          "width": 252,
+          "height": 19,
+          "size": 20
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 630,
+          "y": 1307,
+          "width": 377,
+          "height": 24,
+          "size": 24
+        }
+      ],
+      "calendar": null
+    },
+    "B": {
+      "path": "audit_2026-11-03/B_스물네장의계절.png",
+      "sha256": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4",
+      "source_path": "audit_2026-11-03/원본과기록/B_선택생성원본.png",
+      "source_sha256": "388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545",
+      "logo_variant": "red",
+      "text_bounds": [
+        {
+          "text": "밥으로 넘기는,",
+          "x": 64,
+          "y": 146,
+          "width": 361,
+          "height": 57,
+          "size": 58
+        },
+        {
+          "text": "스물네 장의 계절.",
+          "x": 64,
+          "y": 222,
+          "width": 459,
+          "height": 57,
+          "size": 61
+        },
+        {
+          "text": "24절기 햇반 컬렉션 · 네 계절 대표 디자인",
+          "x": 67,
+          "y": 294,
+          "width": 356,
+          "height": 20,
+          "size": 20
+        },
+        {
+          "text": "스물네 장의 계절 · 미래 제품 상상",
+          "x": 726,
+          "y": 64,
+          "width": 290,
+          "height": 19,
+          "size": 20
+        },
+        {
+          "text": "24",
+          "x": 502,
+          "y": 774,
+          "width": 76,
+          "height": 54,
+          "size": 67
+        },
+        {
+          "text": "절기마다 한 공기",
+          "x": 480,
+          "y": 849,
+          "width": 120,
+          "height": 17,
+          "size": 17
+        },
+        {
+          "text": "겨울 · 무흑미밥",
+          "x": 271,
+          "y": 779,
+          "width": 118,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "봄 · 달래보리밥",
+          "x": 691,
+          "y": 779,
+          "width": 118,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "가을 · 밤버섯잡곡밥",
+          "x": 254,
+          "y": 1169,
+          "width": 152,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "여름 · 옥수수기장밥",
+          "x": 674,
+          "y": 1169,
+          "width": 152,
+          "height": 18,
+          "size": 18
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 352,
+          "y": 1310,
+          "width": 377,
+          "height": 24,
+          "size": 24
+        },
+        {
+          "text": "입춘",
+          "x": 592,
+          "y": 318,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "우수",
+          "x": 720,
+          "y": 351,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "경칩",
+          "x": 835,
+          "y": 415,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "춘분",
+          "x": 929,
+          "y": 505,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "청명",
+          "x": 995,
+          "y": 615,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "곡우",
+          "x": 1029,
+          "y": 738,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "입하",
+          "x": 1029,
+          "y": 866,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "소만",
+          "x": 994,
+          "y": 989,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "망종",
+          "x": 929,
+          "y": 1099,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "하지",
+          "x": 835,
+          "y": 1189,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "소서",
+          "x": 720,
+          "y": 1253,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "대서",
+          "x": 592,
+          "y": 1286,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "입추",
+          "x": 459,
+          "y": 1286,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "처서",
+          "x": 332,
+          "y": 1253,
+          "width": 28,
+          "height": 15,
+          "size": 16
+        },
+        {
+          "text": "백로",
+          "x": 216,
+          "y": 1189,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "추분",
+          "x": 122,
+          "y": 1099,
+          "width": 29,
+          "height": 17,
+          "size": 16
+        },
+        {
+          "text": "한로",
+          "x": 56,
+          "y": 989,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "상강",
+          "x": 21,
+          "y": 866,
+          "width": 31,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "입동",
+          "x": 22,
+          "y": 738,
+          "width": 29,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "소설",
+          "x": 57,
+          "y": 615,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "대설",
+          "x": 123,
+          "y": 505,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "동지",
+          "x": 217,
+          "y": 415,
+          "width": 28,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "소한",
+          "x": 331,
+          "y": 351,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        },
+        {
+          "text": "대한",
+          "x": 459,
+          "y": 318,
+          "width": 30,
+          "height": 16,
+          "size": 16
+        }
+      ],
+      "calendar": {
+        "terms": [
+          "입춘",
+          "우수",
+          "경칩",
+          "춘분",
+          "청명",
+          "곡우",
+          "입하",
+          "소만",
+          "망종",
+          "하지",
+          "소서",
+          "대서",
+          "입추",
+          "처서",
+          "백로",
+          "추분",
+          "한로",
+          "상강",
+          "입동",
+          "소설",
+          "대설",
+          "동지",
+          "소한",
+          "대한"
+        ],
+        "count": 24,
+        "direction": "입춘부터 시계방향, 봄·여름·가을·겨울 각6개",
+        "food_samples": 4,
+        "claim": "네 계절 대표 예시, 24종 전체 실물 사진 아님"
+      }
+    }
+  },
+  "logos": {
+    "white": {
+      "sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "url": "https://drive.usercontent.google.com/download?id=1RuieJZHUHi8m7GXGpv9VshM2s_Dtodwe&export=download",
+      "cache_name": "logo_white.png"
+    },
+    "red": {
+      "sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+      "url": "https://drive.usercontent.google.com/download?id=1FKRj70bu0VfV039IjZ-8JJC_RGyuh0Xz&export=download",
+      "cache_name": "logo_red.png"
+    }
+  },
+  "manual_path": "quality_2026-11-02/규칙120.json",
+  "manual_semantic_sha256": "d675648def43bdb81ed833b0f24f27e564a78f7547d50cdf64ec4439391cc606",
+  "audit_path": "audit_2026-11-03/원본과기록/120규칙_재감찰.json",
+  "protocol_path": "audit_2026-11-03/관객검증/protocol.js",
+  "observer_check_path": "audit_2026-11-03/관객검증/동작검사.cjs",
+  "copy_paths": {
+    "A": "audit_2026-11-03/A_제출문구.md",
+    "B": "audit_2026-11-03/B_제출문구.md"
+  },
+  "sample_plan": {
+    "participants": 12,
+    "per_arm": 6,
+    "target_ms": 3000,
+    "valid_ms": [
+      2800,
+      3800
+    ],
+    "recall_hours": 24,
+    "internal_target_per_arm": 5,
+    "meaning": "내부 파일럿 목표. 모집단·수상 확률로 환산하지 않음."
+  },
+  "external_rules": [
+    "J08",
+    "L02",
+    "L03",
+    "L04",
+    "L05",
+    "L06",
+    "L08"
+  ],
+  "official_source": {
+    "url": "https://docs.google.com/forms/d/e/1FAIpQLSfbdn6XHYLkAMdo2-K8EN--QB6H2RYXYV9snzJCvPRe-KBQpA/viewform",
+    "checked_date": "2026-11-03",
+    "deadline": "2026-11-13T23:59:00+09:00",
+    "public_until": "2026-11-27",
+    "description_limit": 500,
+    "required_tags": [
+      "#햇반",
+      "#햇반AI공모전",
+      "#갓지은아이디어",
+      "@hetbahn.30years"
+    ],
+    "question_definitions_sha256": "8aa3e0846644e28a32a3a669b06b72a9b8f4d0ba712ea5a04a6eef14ff47c0cb"
+  },
+  "audit_sha256": "08f66203b6e9b0e795c95fbed365b6d4307bb60a69973341972fefb57478ae6e",
+  "review_bindings": [
+    {
+      "entry": "A",
+      "scope": "current_artifact",
+      "path": "audit_2026-11-03/원본과기록/A6_후속시각검토.json",
+      "sha256": "897e88eab89a28fd66d7fc2dfa0cdf782881d517b3c5742228520d94b677221a",
+      "subject_sha256": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b",
+      "semantic_sha256": "cc4909cdd76645cfe821e3770e420ae56e915cb07f9b60684ae5c61a283304fc"
+    },
+    {
+      "entry": "B",
+      "scope": "unchanged_photo_and_concept",
+      "path": "portfolio_2026-11-02/원본과기록/기획서없는AI검토.json",
+      "sha256": "0fea22fc02ce9492d20897ad09fb818e3447c2e6a9433e72eae0859691386c1b",
+      "subject_sha256": "388519e7353630da6d95edfd7e44dbcac8330f200effb4fe83eb95740c383545",
+      "semantic_sha256": "cf5ebad2893b5ca00d868320d27b949f9f0f731ea7b4ab762fe5b98af6625893"
+    }
+  ],
+  "submission_required_rules": [
+    "J08"
+  ],
+  "research_observation_rules": [
+    "L02",
+    "L03",
+    "L04",
+    "L05",
+    "L06",
+    "L08"
+  ],
+  "stage_scope": "공식 출품 준비와 장기 효과 관측을 분리. 연구가 미완료라고 규정상 가능한 접수를 막지 않고, 실제 효과가 입증됐다고도 쓰지 않는다.",
+  "audit_semantic_sha256": "7c6c8906fa8de20711e4b76c09def67ff2a71bc0d26c95140653758fc266d815"
+}

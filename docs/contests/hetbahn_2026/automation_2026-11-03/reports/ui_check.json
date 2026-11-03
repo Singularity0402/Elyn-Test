@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "software_test_only": true,
+  "real_participants_added": 0,
+  "views": [
+    {
+      "width": 1200,
+      "height": 1000,
+      "horizontal_overflow": false
+    },
+    {
+      "width": 360,
+      "height": 780,
+      "horizontal_overflow": false
+    }
+  ],
+  "external_requests": [],
+  "errors": [],
+  "html_sha256": "878f02dadecc7ea17e8821dca3d3a3213c7c536b8eb021e2fb69d0b15455bf64",
+  "report_sha256": "e09f246516163746425b25de997f1de852d63afca9654f88cefc740afcb6c8ed"
+}

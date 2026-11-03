@@ -1,0 +1,10 @@
+.private/
+inputs/*
+!inputs/evidence.example.json
+!inputs/submission.example.json
+!inputs/README.md
+runs/
+.test-runs/
+__pycache__/
+tests/__pycache__/
+reports/*.zip

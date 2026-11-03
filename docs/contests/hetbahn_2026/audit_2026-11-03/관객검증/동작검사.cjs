@@ -201,5 +201,5 @@ print(json.dumps({'qa_excluded':True,'zero_sample_no_results_or_rates':True,'raw
 (async()=>{
   try {await run();}
   catch(error) {result.status='FAIL'; result.failure=String(error.stack||error); process.exitCode=1;}
-  finally {if(browser) await browser.close(); fs.rmSync(temporary,{recursive:true,force:true}); console.log(JSON.stringify(result,null,2));}
+  finally {if(browser) await browser.close(); if(path.dirname(path.resolve(temporary))!==path.resolve(os.tmpdir())||!path.basename(temporary).startsWith('hetbahn-observer-qa-'))throw new Error('Unsafe QA cleanup path');fs.rmSync(temporary,{recursive:true,force:true}); console.log(JSON.stringify(result,null,2));}
 })();

@@ -1,0 +1,11 @@
+{
+  "status": "PASS",
+  "files": 9,
+  "bytes": 9424639,
+  "sha256": "bc16009a76e09aa5e216bc5dae4aaa8b3742dbfd2b3eb5c5ef45efa5e84a22bf",
+  "crc": "PASS",
+  "participant_raw_answers_included": false,
+  "standalone_logo_or_font_included": false,
+  "run_id": "run-20261103T141535Z-6ff2f4b7",
+  "report_sha256": "e09f246516163746425b25de997f1de852d63afca9654f88cefc740afcb6c8ed"
+}
