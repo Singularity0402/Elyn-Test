@@ -1,0 +1,1247 @@
+{
+  "artifact_date": "2026-11-04",
+  "status": "FILES_PASS_EXTERNAL_PENDING",
+  "file_validation_complete": true,
+  "submission_ready": false,
+  "scope": "new C-H file checks only; not product safety, audience or award validation",
+  "actual_data_supplied": {
+    "service_generation_screens": 0,
+    "human_responses": 0,
+    "public_metrics": 0,
+    "verified_submissions": 0
+  },
+  "pending_per_entry": [
+    "J08",
+    "L02",
+    "L03",
+    "L04",
+    "L05",
+    "L06",
+    "L08"
+  ],
+  "check_count": 204,
+  "failed_count": 0,
+  "checks": [
+    {
+      "id": "original_rules_pin",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "entry_sets",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.gitattributes",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.gitignore",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:120규칙_판정안내.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:assets.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:build_docs.py",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:concepts.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:C_내몫의한칸.jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:C_내몫의한칸.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:C_제출문구.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:D_제출문구.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:D_펼쳐쓰는햇반.jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:D_펼쳐쓰는햇반.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:E_바삭한첫입.jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:E_바삭한첫입.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:E_제출문구.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:F_비빌자리.jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:F_비빌자리.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:F_제출문구.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:gallery.html",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:G_제출문구.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:G_찍어먹는햇반.jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:G_찍어먹는햇반.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:H_제출문구.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:H_한손의식사.jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:H_한손의식사.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:layout.cjs",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:README.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:verify.py",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:verify_gallery.cjs",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:검증실행.cmd",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:관객검증_사전계획.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:기획_제품화_심리.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:제작공정_사전기준.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:추가6작품_제작검수보고.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:추가6작품_한눈에.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/C_before_logo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/C_resized_photo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/D_before_logo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/D_resized_photo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/E_before_logo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/E_resized_photo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/F_before_logo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/F_resized_photo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/G_before_logo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/G_resized_photo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/H_before_logo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:.private/H_resized_photo.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:미선택/C_v1.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:미선택/D_v1.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:미선택/E_v1.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:미선택/F_v1.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:미선택/F_v2.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:미선택/G_v1.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/120규칙_추가6작.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/CDE_360실제축소.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/C_360폭.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/C_선택생성원본.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/C_접점확대.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/C_흑백360.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/D_360폭.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/D_선택생성원본.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/D_접점확대.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/D_흑백360.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/E_360폭.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/E_선택생성원본.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/E_접점확대.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/E_흑백360.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/FGH_360실제축소.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/F_360폭.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/F_선택생성원본.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/F_접점확대.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/F_흑백360.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/G_360폭.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/G_선택생성원본.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/G_접점확대.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/G_흑백360.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/H_360폭.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/H_선택생성원본.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/H_접점확대.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/H_흑백360.png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/검토대상_해시.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/기획변경과시안반론.md",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/무문구_첫검토.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/시안_수정후검토.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/실제생성기록.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/완성8작품_비교와제품검토.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "pin:원본과기록/출력검수.json",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "history_count",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:C1",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:D1",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:E1",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:F1",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:G1",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:H1",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:D2",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:E2",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:F2",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:C2",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:G2",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "generation:F3",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:source",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:final_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:selected_history",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:copy",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:text_geometry",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:official_logo_file",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:official_logo_pixels",
+      "status": "PASS",
+      "details": {
+        "alpha_positive_pixels": 7113,
+        "opaque_mismatches": 0,
+        "independent_alpha_rounding_differences": 1029,
+        "independent_max_delta": 1,
+        "production_exact_mismatches": 0
+      }
+    },
+    {
+      "id": "C:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 10.494,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "C:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 6.173,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "C:contrast:sub",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 7.41,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "C:contrast:concept",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 7.066,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "C:contrast:footer",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 7.324,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "C:audit_rows",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "C:external_not_fabricated",
+      "status": "PASS",
+      "details": {
+        "PASS": 111,
+        "FAIL": 0,
+        "PENDING": 7,
+        "NA": 2
+      }
+    },
+    {
+      "id": "D:png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:source",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:final_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:selected_history",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:copy",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:text_geometry",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:official_logo_file",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:official_logo_pixels",
+      "status": "PASS",
+      "details": {
+        "alpha_positive_pixels": 7090,
+        "opaque_mismatches": 0,
+        "independent_alpha_rounding_differences": 969,
+        "independent_max_delta": 1,
+        "production_exact_mismatches": 0
+      }
+    },
+    {
+      "id": "D:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 13.18,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "D:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 8.75,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "D:contrast:sub",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 12.028,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "D:contrast:concept",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 12.462,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "D:contrast:footer",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 8.641,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "D:audit_rows",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "D:external_not_fabricated",
+      "status": "PASS",
+      "details": {
+        "PASS": 113,
+        "FAIL": 0,
+        "PENDING": 7,
+        "NA": 0
+      }
+    },
+    {
+      "id": "E:png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:source",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:final_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:selected_history",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:copy",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:text_geometry",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:official_logo_file",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:official_logo_pixels",
+      "status": "PASS",
+      "details": {
+        "alpha_positive_pixels": 7090,
+        "opaque_mismatches": 0,
+        "independent_alpha_rounding_differences": 907,
+        "independent_max_delta": 1,
+        "production_exact_mismatches": 0
+      }
+    },
+    {
+      "id": "E:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 15.309,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "E:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 10.89,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "E:contrast:sub",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 14.13,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "E:contrast:concept",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 13.862,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "E:contrast:footer",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 11.471,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "E:audit_rows",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "E:external_not_fabricated",
+      "status": "PASS",
+      "details": {
+        "PASS": 111,
+        "FAIL": 0,
+        "PENDING": 7,
+        "NA": 2
+      }
+    },
+    {
+      "id": "F:png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:source",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:final_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:selected_history",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:copy",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:text_geometry",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:official_logo_file",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:official_logo_pixels",
+      "status": "PASS",
+      "details": {
+        "alpha_positive_pixels": 7113,
+        "opaque_mismatches": 0,
+        "independent_alpha_rounding_differences": 982,
+        "independent_max_delta": 1,
+        "production_exact_mismatches": 0
+      }
+    },
+    {
+      "id": "F:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 7.27,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "F:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 4.717,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "F:contrast:sub",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 6.002,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "F:contrast:concept",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 5.776,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "F:contrast:footer",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 5.289,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "F:audit_rows",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "F:external_not_fabricated",
+      "status": "PASS",
+      "details": {
+        "PASS": 113,
+        "FAIL": 0,
+        "PENDING": 7,
+        "NA": 0
+      }
+    },
+    {
+      "id": "G:png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:source",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:final_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:selected_history",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:copy",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:text_geometry",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:official_logo_file",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:official_logo_pixels",
+      "status": "PASS",
+      "details": {
+        "alpha_positive_pixels": 7090,
+        "opaque_mismatches": 0,
+        "independent_alpha_rounding_differences": 891,
+        "independent_max_delta": 1,
+        "production_exact_mismatches": 0
+      }
+    },
+    {
+      "id": "G:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 11.053,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "G:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 9.006,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "G:contrast:sub",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 10.209,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "G:contrast:concept",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 10.58,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "G:contrast:footer",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 10.826,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "G:audit_rows",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "G:external_not_fabricated",
+      "status": "PASS",
+      "details": {
+        "PASS": 113,
+        "FAIL": 0,
+        "PENDING": 7,
+        "NA": 0
+      }
+    },
+    {
+      "id": "H:png",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:source",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:jpg",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:final_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:selected_history",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:copy",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:text_geometry",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:official_logo_file",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:official_logo_pixels",
+      "status": "PASS",
+      "details": {
+        "alpha_positive_pixels": 7113,
+        "opaque_mismatches": 0,
+        "independent_alpha_rounding_differences": 978,
+        "independent_max_delta": 1,
+        "production_exact_mismatches": 0
+      }
+    },
+    {
+      "id": "H:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 7.482,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "H:contrast:headline",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 5.151,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "H:contrast:sub",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 6.232,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "H:contrast:concept",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 6.394,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "H:contrast:footer",
+      "status": "PASS",
+      "details": {
+        "whole_box_min_ratio": 4.873,
+        "target": 4.5,
+        "scope": "internal typography contrast, not human legibility certification"
+      }
+    },
+    {
+      "id": "H:audit_rows",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "H:external_not_fabricated",
+      "status": "PASS",
+      "details": {
+        "PASS": 113,
+        "FAIL": 0,
+        "PENDING": 7,
+        "NA": 0
+      }
+    },
+    {
+      "id": "A:prior_preserved",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "B:prior_preserved",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "gallery_process",
+      "status": "PASS",
+      "details": {
+        "exit_code": 0,
+        "stderr": ""
+      }
+    },
+    {
+      "id": "gallery_binding",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "id": "package_internal_links",
+      "status": "PASS",
+      "details": {
+        "resolved_local_links": 54
+      }
+    },
+    {
+      "id": "package_crc_and_hashes",
+      "status": "PASS",
+      "details": {
+        "files": 42,
+        "sha256": "3605261c1505be0f4b813ec782a485623d0de1f0e50ef9028ee38bb3d8575179",
+        "bytes": 33237615
+      }
+    }
+  ],
+  "package": {
+    "path": "추가6작품_제출자료.zip",
+    "sha256": "3605261c1505be0f4b813ec782a485623d0de1f0e50ef9028ee38bb3d8575179",
+    "bytes": 33237615,
+    "entries": 42
+  }
+}

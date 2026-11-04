@@ -1,0 +1,333 @@
+{
+  "date": "2026-11-04",
+  "scope": "추가6작 완성PNG/JPG·문구·선택생성원본·검토기록. 실제 서비스 제작 화면 캡처는 별도 필요. MD/HTML 링크는 묶음 폴더에 맞춰 재작성.",
+  "files": [
+    {
+      "source": "C_내몫의한칸.png",
+      "source_sha256": "ddbdf9de040fcd1ca91f98c5c959af12c4ad0d73d1810dd858540e42d918fc70",
+      "archive": "01_출품PNG/C_내몫의한칸.png",
+      "bytes": 2254846,
+      "sha256": "ddbdf9de040fcd1ca91f98c5c959af12c4ad0d73d1810dd858540e42d918fc70",
+      "rewritten_links": false
+    },
+    {
+      "source": "C_내몫의한칸.jpg",
+      "source_sha256": "c15fba12f01e63cb855c2b8b0316a8b8f752b0ba36367d54ab00c3d6cc276fdc",
+      "archive": "02_JPG대체/C_내몫의한칸.jpg",
+      "bytes": 492741,
+      "sha256": "c15fba12f01e63cb855c2b8b0316a8b8f752b0ba36367d54ab00c3d6cc276fdc",
+      "rewritten_links": false
+    },
+    {
+      "source": "C_제출문구.md",
+      "source_sha256": "d2e0de0788ded2270c096d26abed6d915fe20112288ff7831aabd9eabb046e1c",
+      "archive": "03_신청서와캡션/C_제출문구.md",
+      "bytes": 1363,
+      "sha256": "d2e0de0788ded2270c096d26abed6d915fe20112288ff7831aabd9eabb046e1c",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/C_선택생성원본.png",
+      "source_sha256": "2c4e2b7d80575f57d0150c6b4969583de83d7f55ffb77f31ff4191555c4c2062",
+      "archive": "04_생성원본과기록/C_선택생성원본.png",
+      "bytes": 1804989,
+      "sha256": "2c4e2b7d80575f57d0150c6b4969583de83d7f55ffb77f31ff4191555c4c2062",
+      "rewritten_links": false
+    },
+    {
+      "source": "D_펼쳐쓰는햇반.png",
+      "source_sha256": "b20f19a948aac82a8689a868b53ba4e2224b37ed67b10626fe2e78256a1cfb31",
+      "archive": "01_출품PNG/D_펼쳐쓰는햇반.png",
+      "bytes": 3114561,
+      "sha256": "b20f19a948aac82a8689a868b53ba4e2224b37ed67b10626fe2e78256a1cfb31",
+      "rewritten_links": false
+    },
+    {
+      "source": "D_펼쳐쓰는햇반.jpg",
+      "source_sha256": "cffdbed41c43df57b0bbebab1a56ba4cc0f113c2f6a08427d0655fe962359a2c",
+      "archive": "02_JPG대체/D_펼쳐쓰는햇반.jpg",
+      "bytes": 854523,
+      "sha256": "cffdbed41c43df57b0bbebab1a56ba4cc0f113c2f6a08427d0655fe962359a2c",
+      "rewritten_links": false
+    },
+    {
+      "source": "D_제출문구.md",
+      "source_sha256": "7027a3761c95b401c8c29cb4072c771d6cf5cfb15291d4427d1ab5c470eb8bf5",
+      "archive": "03_신청서와캡션/D_제출문구.md",
+      "bytes": 1382,
+      "sha256": "7027a3761c95b401c8c29cb4072c771d6cf5cfb15291d4427d1ab5c470eb8bf5",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/D_선택생성원본.png",
+      "source_sha256": "36acc46e4e1c8e76978823a42719cbcb2af30f2776d2a79e42a88ee124cb07a6",
+      "archive": "04_생성원본과기록/D_선택생성원본.png",
+      "bytes": 2462781,
+      "sha256": "36acc46e4e1c8e76978823a42719cbcb2af30f2776d2a79e42a88ee124cb07a6",
+      "rewritten_links": false
+    },
+    {
+      "source": "E_바삭한첫입.png",
+      "source_sha256": "3e5986269fb093962b6f5cd87be55cea3fc072932e922e857d90c980118be688",
+      "archive": "01_출품PNG/E_바삭한첫입.png",
+      "bytes": 2750325,
+      "sha256": "3e5986269fb093962b6f5cd87be55cea3fc072932e922e857d90c980118be688",
+      "rewritten_links": false
+    },
+    {
+      "source": "E_바삭한첫입.jpg",
+      "source_sha256": "4fedc8e1114af3afa84bc0f2431b322e45c335a00b14f1bf00759719dd7f68db",
+      "archive": "02_JPG대체/E_바삭한첫입.jpg",
+      "bytes": 718312,
+      "sha256": "4fedc8e1114af3afa84bc0f2431b322e45c335a00b14f1bf00759719dd7f68db",
+      "rewritten_links": false
+    },
+    {
+      "source": "E_제출문구.md",
+      "source_sha256": "01373613352a912dc8ed1ace968fd975fced7b0000fd93472807cbe82252674e",
+      "archive": "03_신청서와캡션/E_제출문구.md",
+      "bytes": 1374,
+      "sha256": "01373613352a912dc8ed1ace968fd975fced7b0000fd93472807cbe82252674e",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/E_선택생성원본.png",
+      "source_sha256": "ea355d2972c72f35ef328bb72c71304924e1d555dd825aa41b52dd5a7cd53a97",
+      "archive": "04_생성원본과기록/E_선택생성원본.png",
+      "bytes": 2095542,
+      "sha256": "ea355d2972c72f35ef328bb72c71304924e1d555dd825aa41b52dd5a7cd53a97",
+      "rewritten_links": false
+    },
+    {
+      "source": "F_비빌자리.png",
+      "source_sha256": "b94dee6e4c0373e29c888cdac05c300ebd361bf601c0f0677c23692f2b4dc2e7",
+      "archive": "01_출품PNG/F_비빌자리.png",
+      "bytes": 2300347,
+      "sha256": "b94dee6e4c0373e29c888cdac05c300ebd361bf601c0f0677c23692f2b4dc2e7",
+      "rewritten_links": false
+    },
+    {
+      "source": "F_비빌자리.jpg",
+      "source_sha256": "cdedf8dbfcc27237c8b1a7db06a568aafd1eed2d55d81ae3d6300d34a7492ef6",
+      "archive": "02_JPG대체/F_비빌자리.jpg",
+      "bytes": 516207,
+      "sha256": "cdedf8dbfcc27237c8b1a7db06a568aafd1eed2d55d81ae3d6300d34a7492ef6",
+      "rewritten_links": false
+    },
+    {
+      "source": "F_제출문구.md",
+      "source_sha256": "8a9a2f3395f24ffe0d6dd887f99bdfdab00dabf796b99acdd8db4236f8d6a99e",
+      "archive": "03_신청서와캡션/F_제출문구.md",
+      "bytes": 1392,
+      "sha256": "8a9a2f3395f24ffe0d6dd887f99bdfdab00dabf796b99acdd8db4236f8d6a99e",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/F_선택생성원본.png",
+      "source_sha256": "74a059ffe05d1fa8de8e21e9a32b576e56b3eb91881f3cb16b80ac538f663e4f",
+      "archive": "04_생성원본과기록/F_선택생성원본.png",
+      "bytes": 1838858,
+      "sha256": "74a059ffe05d1fa8de8e21e9a32b576e56b3eb91881f3cb16b80ac538f663e4f",
+      "rewritten_links": false
+    },
+    {
+      "source": "G_찍어먹는햇반.png",
+      "source_sha256": "7ee873617b219a408850a10ed864e665dfd57da1970aa7a26e8f5cd13646c6c2",
+      "archive": "01_출품PNG/G_찍어먹는햇반.png",
+      "bytes": 2833647,
+      "sha256": "7ee873617b219a408850a10ed864e665dfd57da1970aa7a26e8f5cd13646c6c2",
+      "rewritten_links": false
+    },
+    {
+      "source": "G_찍어먹는햇반.jpg",
+      "source_sha256": "2ff8bdd4e12f0be6c72de62acb9ebc352bc14117e592a6873a944b44260833d0",
+      "archive": "02_JPG대체/G_찍어먹는햇반.jpg",
+      "bytes": 678025,
+      "sha256": "2ff8bdd4e12f0be6c72de62acb9ebc352bc14117e592a6873a944b44260833d0",
+      "rewritten_links": false
+    },
+    {
+      "source": "G_제출문구.md",
+      "source_sha256": "55cc03bb8159f0782fdde3300a9174f726bdeae926789eca4f759e7c2ff62adf",
+      "archive": "03_신청서와캡션/G_제출문구.md",
+      "bytes": 1398,
+      "sha256": "55cc03bb8159f0782fdde3300a9174f726bdeae926789eca4f759e7c2ff62adf",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/G_선택생성원본.png",
+      "source_sha256": "a3d1f8026914843fe471095aa4a3ce7efc8f93ba2f53a9ba0edfe23cce059c18",
+      "archive": "04_생성원본과기록/G_선택생성원본.png",
+      "bytes": 1971363,
+      "sha256": "a3d1f8026914843fe471095aa4a3ce7efc8f93ba2f53a9ba0edfe23cce059c18",
+      "rewritten_links": false
+    },
+    {
+      "source": "H_한손의식사.png",
+      "source_sha256": "ad022481a0d5012696d9277139bcab309c94690e52971e77a8d929b68f6c3186",
+      "archive": "01_출품PNG/H_한손의식사.png",
+      "bytes": 2659101,
+      "sha256": "ad022481a0d5012696d9277139bcab309c94690e52971e77a8d929b68f6c3186",
+      "rewritten_links": false
+    },
+    {
+      "source": "H_한손의식사.jpg",
+      "source_sha256": "f1874a4748740e96f37d796d4c67c4c2094a0f86bb2f90b8b2fac51bef37da79",
+      "archive": "02_JPG대체/H_한손의식사.jpg",
+      "bytes": 557965,
+      "sha256": "f1874a4748740e96f37d796d4c67c4c2094a0f86bb2f90b8b2fac51bef37da79",
+      "rewritten_links": false
+    },
+    {
+      "source": "H_제출문구.md",
+      "source_sha256": "2779cc533e46bbb078654f8d58c1a90bb3b228b4c9e2729292a66f0efc0c1f12",
+      "archive": "03_신청서와캡션/H_제출문구.md",
+      "bytes": 1403,
+      "sha256": "2779cc533e46bbb078654f8d58c1a90bb3b228b4c9e2729292a66f0efc0c1f12",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/H_선택생성원본.png",
+      "source_sha256": "70eff1eb8e0d7ed7b522793400ad201a84b2e038aeabe9037b871b94a297eac0",
+      "archive": "04_생성원본과기록/H_선택생성원본.png",
+      "bytes": 2019453,
+      "sha256": "70eff1eb8e0d7ed7b522793400ad201a84b2e038aeabe9037b871b94a297eac0",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/실제생성기록.json",
+      "source_sha256": "8f171f4cddb5216ac2dceeadc7124fcd30442c5cec54a227176d03d0360be741",
+      "archive": "05_검수기록/실제생성기록.json",
+      "bytes": 34359,
+      "sha256": "8f171f4cddb5216ac2dceeadc7124fcd30442c5cec54a227176d03d0360be741",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/출력검수.json",
+      "source_sha256": "4c4b7a496b8387e8e0754b34cf06a2c78d1766996006f3836a1f30ac5ec4e3d4",
+      "archive": "05_검수기록/출력검수.json",
+      "bytes": 20512,
+      "sha256": "4c4b7a496b8387e8e0754b34cf06a2c78d1766996006f3836a1f30ac5ec4e3d4",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/120규칙_추가6작.json",
+      "source_sha256": "ff609b71437fb5199ebd9adfe16e3a57531741ac9437ec8a3a0b8e2e4a21399e",
+      "archive": "05_검수기록/120규칙_추가6작.json",
+      "bytes": 396312,
+      "sha256": "ff609b71437fb5199ebd9adfe16e3a57531741ac9437ec8a3a0b8e2e4a21399e",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/무문구_첫검토.json",
+      "source_sha256": "0bb784cb9f03ecc428fcc6be122d8621fd674fb2ffea4256e8a8f81e6224a59d",
+      "archive": "05_검수기록/무문구_첫검토.json",
+      "bytes": 15950,
+      "sha256": "0bb784cb9f03ecc428fcc6be122d8621fd674fb2ffea4256e8a8f81e6224a59d",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/시안_수정후검토.json",
+      "source_sha256": "ec232cd588c10af590de3d597ce61c8f63ad53b216de4e8d28c8a32aeaf19595",
+      "archive": "05_검수기록/시안_수정후검토.json",
+      "bytes": 2885,
+      "sha256": "ec232cd588c10af590de3d597ce61c8f63ad53b216de4e8d28c8a32aeaf19595",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/완성8작품_비교와제품검토.json",
+      "source_sha256": "a5f6958aa17ba4a050b62ce5ad07176bdd027a23f969455fbc15e05bdd0c5729",
+      "archive": "05_검수기록/완성8작품_비교와제품검토.json",
+      "bytes": 15159,
+      "sha256": "a5f6958aa17ba4a050b62ce5ad07176bdd027a23f969455fbc15e05bdd0c5729",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/검토대상_해시.json",
+      "source_sha256": "33b59789b961983edc13208006176891e180a1935a9e586cf0942091efaf472b",
+      "archive": "05_검수기록/검토대상_해시.json",
+      "bytes": 949,
+      "sha256": "33b59789b961983edc13208006176891e180a1935a9e586cf0942091efaf472b",
+      "rewritten_links": false
+    },
+    {
+      "source": "원본과기록/갤러리_동작검사.json",
+      "source_sha256": "90f10fd66fc7b339333552d501eb413b1806144a612bea4b1964162d18a9856c",
+      "archive": "05_검수기록/갤러리_동작검사.json",
+      "bytes": 2706,
+      "sha256": "90f10fd66fc7b339333552d501eb413b1806144a612bea4b1964162d18a9856c",
+      "rewritten_links": false
+    },
+    {
+      "source": "추가6작품_제작검수보고.md",
+      "source_sha256": "c48d23163a0d282e9557304209fbec047e37d7a3d8ec69db7d7a5b4b6bbf2275",
+      "archive": "05_검수기록/추가6작품_제작검수보고.md",
+      "bytes": 10368,
+      "sha256": "8e1cf207e55bf77179627e7b945a34845d325bf30327becd8dd28bbb1b68fa93",
+      "rewritten_links": true
+    },
+    {
+      "source": "기획_제품화_심리.md",
+      "source_sha256": "f04a0e67c56ec4bc0c02d7ed02065e5ec602fe7dae27afa12e8fa1de4f7a9f97",
+      "archive": "05_검수기록/기획_제품화_심리.md",
+      "bytes": 18560,
+      "sha256": "f04a0e67c56ec4bc0c02d7ed02065e5ec602fe7dae27afa12e8fa1de4f7a9f97",
+      "rewritten_links": false
+    },
+    {
+      "source": "제작공정_사전기준.md",
+      "source_sha256": "7249303092f8900f6184d7ebc7008aea41b2239dfa6590a83cb966a7c2a50ec6",
+      "archive": "05_검수기록/제작공정_사전기준.md",
+      "bytes": 4743,
+      "sha256": "7249303092f8900f6184d7ebc7008aea41b2239dfa6590a83cb966a7c2a50ec6",
+      "rewritten_links": false
+    },
+    {
+      "source": "120규칙_판정안내.md",
+      "source_sha256": "53033be5eedcbd9ef21296fbf2277a187807c8883832e308d6f0dba9fc90ec03",
+      "archive": "05_검수기록/120규칙_판정안내.md",
+      "bytes": 1389,
+      "sha256": "53033be5eedcbd9ef21296fbf2277a187807c8883832e308d6f0dba9fc90ec03",
+      "rewritten_links": false
+    },
+    {
+      "source": "관객검증_사전계획.md",
+      "source_sha256": "7e2ae554c7b6ebc19a6d6488204322767c3b89578c98ce6c3a7cbcabc0a8ff29",
+      "archive": "05_검수기록/관객검증_사전계획.md",
+      "bytes": 2352,
+      "sha256": "7e2ae554c7b6ebc19a6d6488204322767c3b89578c98ce6c3a7cbcabc0a8ff29",
+      "rewritten_links": false
+    },
+    {
+      "source": "README.md",
+      "source_sha256": "fcec4b4be3d4d2382f614c531882f03ac7d2fb1074dcc7c8ca02e385cbe1c80f",
+      "archive": "먼저읽기.md",
+      "bytes": 2057,
+      "sha256": "25e91ccc2acafd0439af4b3c70ad75f0545dcbf7db8ee0603804c597cfc8a2fa",
+      "rewritten_links": true
+    },
+    {
+      "source": "추가6작품_한눈에.png",
+      "source_sha256": "5764fc0e2161f6e722e024f8340cfefcdefbcce345e49d82ef48908cef1f896f",
+      "archive": "검토용_6작품한눈에.png",
+      "bytes": 2093302,
+      "sha256": "5764fc0e2161f6e722e024f8340cfefcdefbcce345e49d82ef48908cef1f896f",
+      "rewritten_links": false
+    },
+    {
+      "source": "gallery.html",
+      "source_sha256": "f368a5933dcacb9a13bfb0de6dc169645e347969d792e73633f9a33f79c01654",
+      "archive": "gallery.html",
+      "bytes": 4441,
+      "sha256": "37299c1558ce8f85513ddc535be7086858fab4accc7c5809c8d39281e0151f41",
+      "rewritten_links": true
+    },
+    {
+      "source": null,
+      "archive": "05_검수기록/파일검수_요약.json",
+      "bytes": 26234,
+      "sha256": "548868ec8e6e7d034effac0271aad607e0a3e28c4556bb67ec2471f71b08d0f4",
+      "generated": "current verification snapshot; no self-referential ZIP hash"
+    }
+  ]
+}

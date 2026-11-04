@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-04",
+  "final_judge_order": [
+    "H",
+    "B",
+    "D",
+    "G",
+    "C",
+    "A",
+    "F",
+    "E"
+  ],
+  "new_entries": {
+    "C": "ddbdf9de040fcd1ca91f98c5c959af12c4ad0d73d1810dd858540e42d918fc70",
+    "D": "b20f19a948aac82a8689a868b53ba4e2224b37ed67b10626fe2e78256a1cfb31",
+    "E": "3e5986269fb093962b6f5cd87be55cea3fc072932e922e857d90c980118be688",
+    "F": "b94dee6e4c0373e29c888cdac05c300ebd361bf601c0f0677c23692f2b4dc2e7",
+    "G": "7ee873617b219a408850a10ed864e665dfd57da1970aa7a26e8f5cd13646c6c2",
+    "H": "ad022481a0d5012696d9277139bcab309c94690e52971e77a8d929b68f6c3186"
+  },
+  "prior_entries": {
+    "A": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b",
+    "B": "1df49d188cb60fec5f27a29c79e6060153cb5803a5655e61eaaf8600a5ec95c4"
+  },
+  "note": "무문구1차/후속은 각시안 이미지. 최종8작은 해당 완성포스터. 제품검토는 구조 설명과 선행을 받은 AI 의견."
+}

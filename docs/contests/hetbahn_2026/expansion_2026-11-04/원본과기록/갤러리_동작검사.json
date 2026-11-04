@@ -1,0 +1,104 @@
+{
+  "status": "PASS",
+  "scope": "isolated local HTML software QA, not service generation history or human response",
+  "html_sha256": "f368a5933dcacb9a13bfb0de6dc169645e347969d792e73633f9a33f79c01654",
+  "asset_hashes": {
+    "C": "ddbdf9de040fcd1ca91f98c5c959af12c4ad0d73d1810dd858540e42d918fc70",
+    "D": "b20f19a948aac82a8689a868b53ba4e2224b37ed67b10626fe2e78256a1cfb31",
+    "E": "3e5986269fb093962b6f5cd87be55cea3fc072932e922e857d90c980118be688",
+    "F": "b94dee6e4c0373e29c888cdac05c300ebd361bf601c0f0677c23692f2b4dc2e7",
+    "G": "7ee873617b219a408850a10ed864e665dfd57da1970aa7a26e8f5cd13646c6c2",
+    "H": "ad022481a0d5012696d9277139bcab309c94690e52971e77a8d929b68f6c3186"
+  },
+  "viewports": [
+    {
+      "viewport": 1200,
+      "scroll": 1200,
+      "title": "햇반 추가 여섯 작품",
+      "images": [
+        {
+          "alt": "내 몫의 한 칸",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 363.328125
+        },
+        {
+          "alt": "펼쳐쓰는 햇반",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 363.328125
+        },
+        {
+          "alt": "바삭한 첫입",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 363.34375
+        },
+        {
+          "alt": "비빌 자리",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 363.328125
+        },
+        {
+          "alt": "찍어 먹는 햇반",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 363.328125
+        },
+        {
+          "alt": "한 손의 식사",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 363.34375
+        }
+      ],
+      "cards": 6
+    },
+    {
+      "viewport": 360,
+      "scroll": 360,
+      "title": "햇반 추가 여섯 작품",
+      "images": [
+        {
+          "alt": "내 몫의 한 칸",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 322
+        },
+        {
+          "alt": "펼쳐쓰는 햇반",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 322
+        },
+        {
+          "alt": "바삭한 첫입",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 322
+        },
+        {
+          "alt": "비빌 자리",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 322
+        },
+        {
+          "alt": "찍어 먹는 햇반",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 322
+        },
+        {
+          "alt": "한 손의 식사",
+          "width": 1080,
+          "height": 1350,
+          "rendered": 322
+        }
+      ],
+      "cards": 6
+    }
+  ],
+  "external_requests": []
+}

@@ -1,0 +1,680 @@
+{
+  "date": "2026-11-04",
+  "scope": "추가6후보; A6/B 기존승인파일과분리",
+  "entries": [
+    {
+      "key": "C",
+      "title": "내 몫의 한 칸",
+      "file": "C_내몫의한칸.png",
+      "jpg": "C_내몫의한칸.jpg",
+      "source": "원본과기록/C_선택생성원본.png",
+      "selected_version": 2,
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "2c4e2b7d80575f57d0150c6b4969583de83d7f55ffb77f31ff4191555c4c2062",
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_sha256": "ddbdf9de040fcd1ca91f98c5c959af12c4ad0d73d1810dd858540e42d918fc70",
+      "logo_variant": "red",
+      "logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+      "logo_alpha_positive_pixels": 7113,
+      "logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "한 공기의 크기를,",
+          "x": 64,
+          "y": 156,
+          "width": 467,
+          "height": 63,
+          "size": 62,
+          "color": "#352d27",
+          "role": "headline"
+        },
+        {
+          "text": "내가 정한다.",
+          "x": 64,
+          "y": 236,
+          "width": 332,
+          "height": 62,
+          "size": 64,
+          "color": "#9c222b",
+          "role": "headline"
+        },
+        {
+          "text": "50g씩, 필요한 만큼 떼어 쓰는 햇반.",
+          "x": 67,
+          "y": 322,
+          "width": 381,
+          "height": 28,
+          "size": 25,
+          "color": "#50443a",
+          "role": "sub"
+        },
+        {
+          "text": "내 몫의 한 칸 · 미래 제품 상상",
+          "x": 759,
+          "y": 65,
+          "width": 257,
+          "height": 20,
+          "size": 20,
+          "color": "#50443a",
+          "role": "concept"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 64,
+          "y": 1302,
+          "width": 377,
+          "height": 24,
+          "size": 24,
+          "color": "#50443a",
+          "role": "footer"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "한 공기의 크기를,",
+          "minimum_ratio": 10.523,
+          "sampled_glyph_pixels": 7178,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "내가 정한다.",
+          "minimum_ratio": 6.187,
+          "sampled_glyph_pixels": 5544,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "50g씩, 필요한 만큼 떼어 쓰는 햇반.",
+          "minimum_ratio": 7.459,
+          "sampled_glyph_pixels": 1973,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "내 몫의 한 칸 · 미래 제품 상상",
+          "minimum_ratio": 7.066,
+          "sampled_glyph_pixels": 976,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "minimum_ratio": 7.326,
+          "sampled_glyph_pixels": 1889,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        }
+      ],
+      "description_chars": 234
+    },
+    {
+      "key": "D",
+      "title": "펼쳐쓰는 햇반",
+      "file": "D_펼쳐쓰는햇반.png",
+      "jpg": "D_펼쳐쓰는햇반.jpg",
+      "source": "원본과기록/D_선택생성원본.png",
+      "selected_version": 2,
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "36acc46e4e1c8e76978823a42719cbcb2af30f2776d2a79e42a88ee124cb07a6",
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_sha256": "b20f19a948aac82a8689a868b53ba4e2224b37ed67b10626fe2e78256a1cfb31",
+      "logo_variant": "white",
+      "logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "logo_alpha_positive_pixels": 7090,
+      "logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "밥은 펼쳐두었다.",
+          "x": 64,
+          "y": 156,
+          "width": 447,
+          "height": 60,
+          "size": 62,
+          "color": "#fff3df",
+          "role": "headline"
+        },
+        {
+          "text": "속은 당신답게.",
+          "x": 64,
+          "y": 236,
+          "width": 395,
+          "height": 61,
+          "size": 64,
+          "color": "#eac394",
+          "role": "headline"
+        },
+        {
+          "text": "김밥용 밥 시트, 펼쳐쓰는 햇반.",
+          "x": 67,
+          "y": 322,
+          "width": 329,
+          "height": 25,
+          "size": 25,
+          "color": "#f1e8d8",
+          "role": "sub"
+        },
+        {
+          "text": "펼쳐쓰는 햇반 · 미래 제품 상상",
+          "x": 751,
+          "y": 65,
+          "width": 265,
+          "height": 20,
+          "size": 20,
+          "color": "#f1e8d8",
+          "role": "concept"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 639,
+          "y": 1302,
+          "width": 377,
+          "height": 24,
+          "size": 24,
+          "color": "#f1e8d8",
+          "role": "footer"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "밥은 펼쳐두었다.",
+          "minimum_ratio": 13.18,
+          "sampled_glyph_pixels": 7796,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "속은 당신답게.",
+          "minimum_ratio": 8.768,
+          "sampled_glyph_pixels": 6733,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "김밥용 밥 시트, 펼쳐쓰는 햇반.",
+          "minimum_ratio": 12.028,
+          "sampled_glyph_pixels": 1683,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "펼쳐쓰는 햇반 · 미래 제품 상상",
+          "minimum_ratio": 12.471,
+          "sampled_glyph_pixels": 1016,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "minimum_ratio": 8.777,
+          "sampled_glyph_pixels": 1889,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        }
+      ],
+      "description_chars": 236
+    },
+    {
+      "key": "E",
+      "title": "바삭한 첫입",
+      "file": "E_바삭한첫입.png",
+      "jpg": "E_바삭한첫입.jpg",
+      "source": "원본과기록/E_선택생성원본.png",
+      "selected_version": 2,
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "ea355d2972c72f35ef328bb72c71304924e1d555dd825aa41b52dd5a7cd53a97",
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_sha256": "3e5986269fb093962b6f5cd87be55cea3fc072932e922e857d90c980118be688",
+      "logo_variant": "white",
+      "logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "logo_alpha_positive_pixels": 7090,
+      "logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "촉촉한 밥 위에,",
+          "x": 64,
+          "y": 156,
+          "width": 406,
+          "height": 63,
+          "size": 62,
+          "color": "#fff3e2",
+          "role": "headline"
+        },
+        {
+          "text": "바삭한 첫입.",
+          "x": 64,
+          "y": 236,
+          "width": 332,
+          "height": 61,
+          "size": 64,
+          "color": "#ffc576",
+          "role": "headline"
+        },
+        {
+          "text": "먹기 직전에 얹는 누룽지 디스크.",
+          "x": 67,
+          "y": 322,
+          "width": 344,
+          "height": 25,
+          "size": 25,
+          "color": "#f7e6d0",
+          "role": "sub"
+        },
+        {
+          "text": "바삭한 첫입 · 미래 제품 상상",
+          "x": 771,
+          "y": 65,
+          "width": 245,
+          "height": 20,
+          "size": 20,
+          "color": "#f7e6d0",
+          "role": "concept"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 639,
+          "y": 1302,
+          "width": 377,
+          "height": 24,
+          "size": 24,
+          "color": "#f7e6d0",
+          "role": "footer"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "촉촉한 밥 위에,",
+          "minimum_ratio": 15.309,
+          "sampled_glyph_pixels": 6935,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "바삭한 첫입.",
+          "minimum_ratio": 10.894,
+          "sampled_glyph_pixels": 5671,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "먹기 직전에 얹는 누룽지 디스크.",
+          "minimum_ratio": 14.249,
+          "sampled_glyph_pixels": 1644,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "바삭한 첫입 · 미래 제품 상상",
+          "minimum_ratio": 13.862,
+          "sampled_glyph_pixels": 971,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "minimum_ratio": 12.8,
+          "sampled_glyph_pixels": 1889,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        }
+      ],
+      "description_chars": 233
+    },
+    {
+      "key": "F",
+      "title": "비빌 자리",
+      "file": "F_비빌자리.png",
+      "jpg": "F_비빌자리.jpg",
+      "source": "원본과기록/F_선택생성원본.png",
+      "selected_version": 3,
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "74a059ffe05d1fa8de8e21e9a32b576e56b3eb91881f3cb16b80ac538f663e4f",
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_sha256": "b94dee6e4c0373e29c888cdac05c300ebd361bf601c0f0677c23692f2b4dc2e7",
+      "logo_variant": "red",
+      "logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+      "logo_alpha_positive_pixels": 7113,
+      "logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "비빌 때만,",
+          "x": 64,
+          "y": 156,
+          "width": 266,
+          "height": 61,
+          "size": 62,
+          "color": "#392c26",
+          "role": "headline"
+        },
+        {
+          "text": "더 넉넉하게.",
+          "x": 64,
+          "y": 236,
+          "width": 332,
+          "height": 61,
+          "size": 64,
+          "color": "#8b252c",
+          "role": "headline"
+        },
+        {
+          "text": "반찬 넣을 자리를 펼치는 햇반 용기.",
+          "x": 67,
+          "y": 322,
+          "width": 375,
+          "height": 25,
+          "size": 25,
+          "color": "#49382e",
+          "role": "sub"
+        },
+        {
+          "text": "비빌 자리 · 미래 제품 상상",
+          "x": 790,
+          "y": 65,
+          "width": 226,
+          "height": 19,
+          "size": 20,
+          "color": "#49382e",
+          "role": "concept"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 639,
+          "y": 1302,
+          "width": 377,
+          "height": 24,
+          "size": 24,
+          "color": "#49382e",
+          "role": "footer"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "비빌 때만,",
+          "minimum_ratio": 7.297,
+          "sampled_glyph_pixels": 4958,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "더 넉넉하게.",
+          "minimum_ratio": 4.727,
+          "sampled_glyph_pixels": 5319,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "반찬 넣을 자리를 펼치는 햇반 용기.",
+          "minimum_ratio": 6.005,
+          "sampled_glyph_pixels": 1975,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "비빌 자리 · 미래 제품 상상",
+          "minimum_ratio": 5.794,
+          "sampled_glyph_pixels": 881,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "minimum_ratio": 5.289,
+          "sampled_glyph_pixels": 1889,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        }
+      ],
+      "description_chars": 243
+    },
+    {
+      "key": "G",
+      "title": "찍어 먹는 햇반",
+      "file": "G_찍어먹는햇반.png",
+      "jpg": "G_찍어먹는햇반.jpg",
+      "source": "원본과기록/G_선택생성원본.png",
+      "selected_version": 2,
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "a3d1f8026914843fe471095aa4a3ce7efc8f93ba2f53a9ba0edfe23cce059c18",
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_sha256": "7ee873617b219a408850a10ed864e665dfd57da1970aa7a26e8f5cd13646c6c2",
+      "logo_variant": "white",
+      "logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "logo_alpha_positive_pixels": 7090,
+      "logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "밥도 이제,",
+          "x": 64,
+          "y": 142,
+          "width": 257,
+          "height": 59,
+          "size": 60,
+          "color": "#fff7e7",
+          "role": "headline"
+        },
+        {
+          "text": "찍어 먹는다.",
+          "x": 64,
+          "y": 214,
+          "width": 328,
+          "height": 58,
+          "size": 62,
+          "color": "#ffddae",
+          "role": "headline"
+        },
+        {
+          "text": "손에 쥐고 반찬에 찍는 햇반 딥.",
+          "x": 67,
+          "y": 289,
+          "width": 316,
+          "height": 23,
+          "size": 24,
+          "color": "#fff0df",
+          "role": "sub"
+        },
+        {
+          "text": "찍어 먹는 햇반 · 미래 제품 상상",
+          "x": 745,
+          "y": 65,
+          "width": 271,
+          "height": 20,
+          "size": 20,
+          "color": "#fff0df",
+          "role": "concept"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 639,
+          "y": 1302,
+          "width": 377,
+          "height": 24,
+          "size": 24,
+          "color": "#fff0df",
+          "role": "footer"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "밥도 이제,",
+          "minimum_ratio": 11.061,
+          "sampled_glyph_pixels": 4166,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "찍어 먹는다.",
+          "minimum_ratio": 9.006,
+          "sampled_glyph_pixels": 5062,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "손에 쥐고 반찬에 찍는 햇반 딥.",
+          "minimum_ratio": 10.58,
+          "sampled_glyph_pixels": 1489,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "찍어 먹는 햇반 · 미래 제품 상상",
+          "minimum_ratio": 10.628,
+          "sampled_glyph_pixels": 1024,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "minimum_ratio": 10.901,
+          "sampled_glyph_pixels": 1889,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        }
+      ],
+      "description_chars": 245
+    },
+    {
+      "key": "H",
+      "title": "한 손의 식사",
+      "file": "H_한손의식사.png",
+      "jpg": "H_한손의식사.jpg",
+      "source": "원본과기록/H_선택생성원본.png",
+      "selected_version": 1,
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "70eff1eb8e0d7ed7b522793400ad201a84b2e038aeabe9037b871b94a297eac0",
+      "final_dimensions": [
+        1080,
+        1350
+      ],
+      "png_sha256": "ad022481a0d5012696d9277139bcab309c94690e52971e77a8d929b68f6c3186",
+      "logo_variant": "red",
+      "logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+      "logo_alpha_positive_pixels": 7113,
+      "logo_mismatches": 0,
+      "text_bounds": [
+        {
+          "text": "밥을 여는 손,",
+          "x": 64,
+          "y": 156,
+          "width": 345,
+          "height": 61,
+          "size": 62,
+          "color": "#213747",
+          "role": "headline"
+        },
+        {
+          "text": "하나면 되도록.",
+          "x": 64,
+          "y": 236,
+          "width": 395,
+          "height": 61,
+          "size": 64,
+          "color": "#83313a",
+          "role": "headline"
+        },
+        {
+          "text": "고정 받침과 고리형 탭을 더한 개봉 구조.",
+          "x": 67,
+          "y": 322,
+          "width": 431,
+          "height": 25,
+          "size": 25,
+          "color": "#2c4150",
+          "role": "sub"
+        },
+        {
+          "text": "한 손의 식사 · 미래 제품 상상",
+          "x": 67,
+          "y": 370,
+          "width": 252,
+          "height": 20,
+          "size": 20,
+          "color": "#2c4150",
+          "role": "concept"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 639,
+          "y": 1302,
+          "width": 377,
+          "height": 24,
+          "size": 24,
+          "color": "#14232c",
+          "role": "footer"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "밥을 여는 손,",
+          "minimum_ratio": 7.559,
+          "sampled_glyph_pixels": 5679,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "하나면 되도록.",
+          "minimum_ratio": 5.171,
+          "sampled_glyph_pixels": 6791,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "고정 받침과 고리형 탭을 더한 개봉 구조.",
+          "minimum_ratio": 6.274,
+          "sampled_glyph_pixels": 2235,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "한 손의 식사 · 미래 제품 상상",
+          "minimum_ratio": 6.417,
+          "sampled_glyph_pixels": 885,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "minimum_ratio": 4.93,
+          "sampled_glyph_pixels": 1889,
+          "target": 4.5,
+          "note": "내부 조판 목표; 실제 인간 가독성·시선 측정 아님"
+        }
+      ],
+      "description_chars": 239
+    }
+  ],
+  "notice": "미래 제품 상상 · 실제 출시 제품 아님",
+  "limitation": "파일·조판 검사는 실제 제품 성능·사람 반응·수상 검증이 아니다."
+}
