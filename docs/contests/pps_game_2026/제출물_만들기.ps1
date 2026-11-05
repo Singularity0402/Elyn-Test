@@ -12,6 +12,8 @@ New-Item -ItemType Directory -Force $out | Out-Null
 $tmp = Join-Path $env:TEMP ('pps_zip_' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $tmp | Out-Null
 Copy-Item (Join-Path $work 'index.html') $tmp
+New-Item -ItemType Directory -Force (Join-Path $tmp 'assets') | Out-Null
+Copy-Item (Join-Path $work 'assets\*.jpg') (Join-Path $tmp 'assets')
 $readme = "미리도착한하루`r`n1. index.html을 더블클릭합니다. (크롬 또는 엣지)`r`n2. 인터넷 연결과 설치가 필요 없습니다.`r`n3. 마우스, 터치, 키보드(Tab, Enter, 숫자 1 2 3)로 할 수 있습니다. 소리를 켜면 더 좋습니다. 약 2분.`r`n"
 [IO.File]::WriteAllText((Join-Path $tmp '실행방법.txt'), $readme, (New-Object Text.UTF8Encoding($true)))
 

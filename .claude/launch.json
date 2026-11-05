@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pps-game",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8792", "--bind", "127.0.0.1", "--directory", "docs/contests/pps_game_2026"],
+      "port": 8792
+    }
+  ]
+}

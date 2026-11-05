@@ -29,10 +29,11 @@ main{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(320px,1fr);gap:14
 #q{position:absolute;left:0;right:0;top:4%;text-align:center;color:var(--cream);font-weight:800;font-size:clamp(16px,3.4vw,40px);line-height:1.25;text-shadow:0 2px 14px rgba(0,0,0,.65);pointer-events:none;padding:0 14px;opacity:0;transition:opacity .6s}
 #q.on{opacity:1}
 #q.end{font-size:clamp(15px,2.7vw,30px)}
-#q small{display:block;font-size:.5em;font-weight:600;margin-top:.35em;color:#F4D98B}
+#q small{display:block;font-size:.5em;font-weight:700;margin-top:.35em;color:#FFE7A3;text-shadow:0 1px 8px rgba(0,0,0,.85)}
 #cap{position:absolute;left:0;right:0;bottom:3.5%;text-align:center;pointer-events:none;padding:0 12px}
 #cap span{display:inline-block;background:rgba(14,23,32,.82);color:#FFF6E0;border-radius:10px;padding:7px 16px;font-weight:700;font-size:clamp(15px,2.2vw,26px);opacity:0;transition:opacity .35s}
 #cap.on span{opacity:1}
+#cap.top{top:3.5%;bottom:auto}
 #panel{background:var(--paper);border-radius:16px;padding:18px 18px 20px;min-height:280px}
 .kicker{color:var(--teal);font-weight:800;font-size:15px;letter-spacing:.03em;margin:0 0 4px}
 h1,h2{margin:0 0 8px;line-height:1.3}
@@ -204,6 +205,45 @@ var TOWN_OBJS=[
  {label:'나무', box:[556,196,138,160], svg:'<rect x="615" y="270" width="16" height="86" fill="#8A6439"/><circle cx="623" cy="250" r="42" fill="#6DB36B"/><circle cx="593" cy="272" r="28" fill="#7CC37A"/><circle cx="652" cy="274" r="28" fill="#5FA35E"/>'}
 ];
 
+/* ---------- 일러스트 덮어쓰기: 장면마다 컬러 일러스트 1장(ChatGPT 이미지 생성)을 깔고,
+   물건 자리만 같은 그림을 부드러운 가장자리로 오려 얹는다. 좌표는 원본 1536x1024 기준. ---------- */
+var AK=800/1536, AOY=-36.5;
+function gbox(a){ return [a[0]*AK, a[1]*AK+AOY, a[2]*AK, a[3]*AK]; }
+function art(src){ return '<image href="'+src+'" x="0" y="'+AOY+'" width="800" height="'+(1024*AK)+'" preserveAspectRatio="none"/>'; }
+function piece(src,r,id){
+  var b=gbox(r), pad=10;
+  return '<mask id="'+id+'" maskUnits="userSpaceOnUse" x="-40" y="-80" width="880" height="620"><rect x="'+(b[0]+pad)+'" y="'+(b[1]+pad)+'" width="'+Math.max(4,b[2]-2*pad)+'" height="'+Math.max(4,b[3]-2*pad)+'" rx="18" fill="#fff" filter="url(#feather)"/></mask>'+
+         '<g mask="url(#'+id+')">'+art(src)+'</g>';
+}
+var ART={
+  s1:{src:'assets/s1.jpg', o:{'책상':[135,585,655,305],'칠판':[440,160,670,380],'벽시계':[1158,112,250,246]}},
+  s2:{src:'assets/s2.jpg', o:{'건물 골조':[510,395,540,433],'크레인':[1000,135,515,687],'안전모':[238,812,264,138]}},
+  s3:{src:'assets/s3.jpg', o:{'구급차':[140,615,550,310],'소방 드론':[825,265,360,153],'구급 가방':[1125,703,315,212]}},
+  s4:{src:'assets/s4.jpg', o:{'담요':[140,668,380,227],'생수':[572,598,388,302],'간이침대':[1008,676,480,219]}},
+  s5:{src:'assets/s5.jpg', o:{'비축 창고':[0,388,410,444],'공장':[380,312,535,500],'전선 릴':[925,612,240,258],'구리 파이프':[1210,545,302,317]}}
+};
+var WH_DOOR=gbox([62,545,290,277]), WH_LIFT=Math.round(WH_DOOR[3]+8);
+function whShutter(){
+  var d=WH_DOOR, h='<clipPath id="whClip"><rect x="'+d[0]+'" y="'+d[1]+'" width="'+d[2]+'" height="'+d[3]+'"/></clipPath>'+
+    '<g clip-path="url(#whClip)"><g id="whDoor" class="whdoor"><rect x="'+d[0]+'" y="'+d[1]+'" width="'+d[2]+'" height="'+d[3]+'" fill="#3E5266"/>';
+  for(var y=d[1]+9;y<d[1]+d[3];y+=11){ h+='<rect x="'+d[0]+'" y="'+y+'" width="'+d[2]+'" height="3" fill="#2C3C4C"/><rect x="'+d[0]+'" y="'+(y+3)+'" width="'+d[2]+'" height="1.5" fill="#6E8499" opacity=".7"/>'; }
+  h+='<rect x="'+(d[0]+d[2]/2-12)+'" y="'+(d[1]+d[3]-14)+'" width="24" height="6" rx="3" fill="#C9D6DF"/></g></g>';
+  return h;
+}
+SCENES.forEach(function(sc){
+  var A=ART[sc.key]; if(!A) return;
+  sc.bg=art(A.src);
+  sc.objs.forEach(function(o,i){
+    var r=A.o[o.label]; if(!r) return;
+    o.box=gbox(r); o.svg=piece(A.src,r,'mk_'+sc.key+'_'+i)+(o.free?whShutter():'');
+  });
+});
+TOWN_BG=art('assets/s0.jpg');
+TOWN_OBJS.forEach(function(o,i){
+  var r={'가로등':[750,225,190,575],'나무':[1110,310,400,490]}[o.label]; if(!r) return;
+  o.box=gbox(r); o.svg=piece('assets/s0.jpg',r,'mk_town_'+i);
+});
+
 /* ---------- 상태 ---------- */
 var svg=document.getElementById('svg'), panel=document.getElementById('panel'), qEl=document.getElementById('q'),
     capEl=document.getElementById('cap'), liveEl=document.getElementById('live'), stepsEl=document.getElementById('steps');
@@ -216,7 +256,7 @@ var soundOn=true, AC=null;
 
 function $(s){return document.querySelector(s);}
 function say(t){liveEl.textContent=''; setTimeout(function(){liveEl.textContent=t;},30);}
-function caption(t){var s=capEl.firstChild; if(t){s.textContent=t; capEl.className='on';}else{capEl.className='';}}
+function caption(t){var s=capEl.firstChild; var top=(sceneIdx>=0&&sceneIdx<SCENES.length)?' top':''; if(t){s.textContent=t; capEl.className='on'+top;}else{capEl.className=''+top;}}
 function bigQ(html,extra){ if(html){qEl.innerHTML=html; qEl.className='on'+(extra?' '+extra:'');}else{qEl.className='';} }
 
 /* ---------- 소리(코드로 합성, 선택 사항) ---------- */
@@ -241,8 +281,9 @@ function fanfare(){ [523,659,784,1047].forEach(function(f,i){tone(f,0.5,i*0.12,0
 /* ---------- 그리기 ---------- */
 function mk(objList,bgMarkup,extra){
   var defs='<defs><radialGradient id="gl"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD76A" stop-opacity="0"/></radialGradient>'+
-   '<filter id="fbg" color-interpolation-filters="sRGB"><feColorMatrix id="mbg" type="saturate" values="0.12"/></filter>';
-  objList.forEach(function(o,i){ defs+='<filter id="fo'+i+'" color-interpolation-filters="sRGB"><feColorMatrix id="mo'+i+'" type="saturate" values="0"/></filter>'; });
+   '<filter id="fbg" color-interpolation-filters="sRGB"><feColorMatrix id="mbg" type="saturate" values="0.12"/></filter>'+
+   '<filter id="feather" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>';
+  objList.forEach(function(o,i){ defs+='<filter id="fo'+i+'" color-interpolation-filters="sRGB"><feColorMatrix id="mo'+i+'" type="saturate" values="0.12"/></filter>'; });
   defs+='</defs>';
   var h=defs+'<rect width="800" height="460" fill="#14202B"/>'+'<g filter="url(#fbg)">'+bgMarkup+'</g>';
   objList.forEach(function(o,i){
@@ -269,7 +310,7 @@ function showFocus(i){
   fx().appendChild(svgEl('rect',{'class':'ring',id:'focusRing',x:b[0]-4,y:b[1]-4,width:b[2]+8,height:b[3]+8,rx:12}));
 }
 function clearFocus(){ var r=document.getElementById('focusRing'); if(r&&r.parentNode) r.parentNode.removeChild(r); }
-function applyOne(i){ var m=document.getElementById('mo'+i); if(m) m.setAttribute('values',String(Math.max(0,Math.min(1,P[i])))); }
+function applyOne(i){ var m=document.getElementById('mo'+i); if(m) m.setAttribute('values',String(0.12+0.88*Math.max(0,Math.min(1,P[i])))); }
 function applyBg(){
   var n=0,s=0; for(var i=0;i<objs.length;i++){ n++; s+=P[i]; }
   var avg=n?s/n:0; var v=bgIsTown?0.12:(0.12+0.88*avg);
@@ -456,7 +497,7 @@ function nextScene(){ if(sceneIdx<SCENES.length-1) loadScene(sceneIdx+1); else o
 /* 5장면: 창고 반전 */
 function openWarehouse(){
   stage='flood'; keepRing=false; caption('미리 쌓아 둔 것이 있었어요'); clearRings();
-  var d=document.getElementById('whDoor'); if(d){ d.style.transform='translateY(-96px)'; }
+  var d=document.getElementById('whDoor'); if(d){ d.style.transform='translateY(-'+WH_LIFT+'px)'; }
   tone(98,0.6,0,0.16,'triangle');
   var t0=performance.now(), from=P.slice();
   function step(ts){
