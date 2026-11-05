@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>미리도착한하루</title>
+<style>
+:root{--ink:#2B3340;--paper:#FBF4E4;--cream:#FFF6E0;--gold:#F2B632;--gold2:#D99A1E;--teal:#2E8F8A;--coral:#E8604C;--night:#14202B;--line:#D9CDB0}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--night);color:var(--ink);font-family:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;font-size:clamp(17px,1.05vw,23px);line-height:1.55;-webkit-text-size-adjust:100%}
+#app{max-width:1880px;min-height:100vh;margin:0 auto;padding:10px 12px 22px;display:flex;flex-direction:column;justify-content:center}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#F3EBD6;padding:4px 2px 10px}
+.brand{font-weight:800;font-size:19px;letter-spacing:.04em}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#steps{display:flex;gap:6px;margin-right:6px}
+#steps i{width:12px;height:12px;border-radius:50%;background:#3A4A5A;display:block}
+#steps i.cur{background:var(--gold);box-shadow:0 0 0 3px rgba(242,182,50,.35)}
+#steps i.ok{background:var(--teal)}
+button{font:inherit;cursor:pointer}
+.tbtn{background:#22313F;color:#F3EBD6;border:1px solid #3A4A5A;border-radius:999px;padding:6px 14px;min-height:40px}
+.tbtn:hover{background:#2C3F51}
+main{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(320px,1fr);gap:14px;align-items:start}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+#stage{position:relative;background:#0E1720;border-radius:16px;overflow:hidden;border:1px solid #223344}
+#svg{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+#svg:active{cursor:grabbing}
+.obj{outline:none}
+#q{position:absolute;left:0;right:0;top:4%;text-align:center;color:var(--cream);font-weight:800;font-size:clamp(16px,3.4vw,40px);line-height:1.25;text-shadow:0 2px 14px rgba(0,0,0,.65);pointer-events:none;padding:0 14px;opacity:0;transition:opacity .6s}
+#q.on{opacity:1}
+#q.end{font-size:clamp(15px,2.7vw,30px)}
+#q small{display:block;font-size:.5em;font-weight:600;margin-top:.35em;color:#F4D98B}
+#cap{position:absolute;left:0;right:0;bottom:3.5%;text-align:center;pointer-events:none;padding:0 12px}
+#cap span{display:inline-block;background:rgba(14,23,32,.82);color:#FFF6E0;border-radius:10px;padding:7px 16px;font-weight:700;font-size:clamp(15px,2.2vw,26px);opacity:0;transition:opacity .35s}
+#cap.on span{opacity:1}
+#panel{background:var(--paper);border-radius:16px;padding:18px 18px 20px;min-height:280px}
+.kicker{color:var(--teal);font-weight:800;font-size:15px;letter-spacing:.03em;margin:0 0 4px}
+h1,h2{margin:0 0 8px;line-height:1.3}
+h1{font-size:1.65em}
+h2{font-size:1.3em}
+p{margin:0 0 10px}
+.sit{font-size:1.06em}
+.meter{display:flex;gap:8px;align-items:center;font-weight:700;margin:12px 0 4px}
+.meter b{display:inline-block;width:26px;height:26px;border-radius:50%;background:#D8D2C2;border:2px solid #BFB8A4}
+.meter b.on{background:var(--gold);border-color:var(--gold2)}
+.stamps{display:grid;gap:10px;margin:12px 0 4px}
+.stamp{display:flex;gap:12px;align-items:center;text-align:left;background:#fff;border:2px solid var(--ink);border-radius:12px;padding:10px 14px;min-height:58px;color:var(--ink);font-weight:700}
+.stamp:hover:not(:disabled){background:#FFF3CF}
+.stamp .sn{flex:none;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+.stamp.right{background:#DDF1E4;border-color:#2F8A55}
+.stamp.right .sn{background:#2F8A55}
+.stamp.wrong{background:#F1E6E2;border-color:#C9A89F;color:#8A6F68;animation:shake .35s}
+.stamp:disabled{cursor:default}
+.hintline{background:#FFF0D0;border-radius:10px;padding:8px 12px;margin:8px 0 0;font-size:.94em}
+.fact{background:#fff;border-left:6px solid var(--teal);border-radius:8px;padding:10px 14px;margin:12px 0 10px;font-size:.94em}
+.fact .tag{display:inline-block;background:var(--teal);color:#fff;font-weight:800;font-size:13px;border-radius:6px;padding:1px 8px;margin-bottom:4px}
+.fact .src{display:block;color:#6B6657;font-size:13px;margin-top:6px}
+.fiction{display:inline-block;background:var(--gold);color:#3A2C05;font-weight:800;font-size:13px;border-radius:6px;padding:1px 8px;margin-bottom:6px}
+.primary{background:var(--gold);color:#2B2008;border:0;border-radius:12px;padding:12px 22px;font-weight:800;min-height:48px;font-size:18px}
+.primary:hover{background:#FFC94A}
+.second{background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:12px;padding:10px 18px;font-weight:700;min-height:48px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.small{font-size:14px;color:#6B6657}
+.list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+.list li{background:#fff;border-radius:10px;padding:8px 12px;font-size:.94em;display:flex;gap:10px;align-items:baseline}
+.list li b{flex:none;color:var(--teal)}
+.score{font-weight:800;font-size:18px;margin:10px 0 0}
+.ring{fill:none;stroke:#F2B632;stroke-width:5;stroke-dasharray:14 10;animation:dash 1.1s linear infinite}
+.spark{fill:#FFE08A;transform-box:fill-box;transform-origin:center;animation:pop .8s ease-out forwards}
+.whdoor{transition:transform 1s ease-in-out}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@keyframes dash{to{stroke-dashoffset:-48}}
+@keyframes pop{0%{transform:scale(.2);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1.1);opacity:0}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+button:focus-visible{outline:4px solid #1F6FEB;outline-offset:2px}
+@media (max-width:860px){#cap{position:static;padding:0 10px 10px;background:#0E1720}#cap:not(.on){display:none}#cap span{display:block}}
+@media (prefers-reduced-motion:reduce){.ring,.spark,.stamp.wrong{animation:none}.whdoor{transition:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">미리도착한하루</div>
+    <div class="tools">
+      <div id="steps" aria-hidden="true"></div>
+      <button class="tbtn" id="snd" type="button">소리 켜짐</button>
+      <button class="tbtn" id="restart" type="button">처음부터</button>
+    </div>
+  </header>
+  <main>
+    <div id="stage">
+      <svg id="svg" viewBox="0 0 800 460" role="group" aria-label="게임 장면"></svg>
+      <div id="q"></div>
+      <div id="cap"><span></span></div>
+    </div>
+    <aside id="panel" aria-live="off"></aside>
+  </main>
+  <div id="live" class="sr" aria-live="polite"></div>
+  <noscript>이 게임은 자바스크립트가 켜진 브라우저(크롬, 엣지 등)에서 실행됩니다.</noscript>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- 데이터: 다섯 가지 도착 방법 ---------- */
+var ROUTES={
+  mall:{name:'종합쇼핑몰 주문',line:'미리 계약해 둔 상품을 바로 주문'},
+  bid:{name:'나라장터 입찰',line:'공고를 올려 공정하게 경쟁해 고르기'},
+  innov:{name:'혁신제품 시범구매',line:'새 제품을 먼저 써 보며 검증'},
+  urgent:{name:'긴급 조달 조치',line:'급할 땐 절차를 줄여 서두르기(한시 조치)'},
+  stock:{name:'비축물자 방출',line:'위기 전에 미리 쌓아 둔 비철금속'}
+};
+var SRC='출처: 조달청 누리집(pps.go.kr)과 정책브리핑(korea.kr) 공개 자료, 2026-11-05 확인.';
+
+/* ---------- 데이터: 장면 ---------- */
+function ground(c1,c2){return '<rect y="380" width="800" height="80" fill="'+c1+'"/><rect y="372" width="800" height="10" fill="'+c2+'"/>';}
+
+var SCENES=[
+{ key:'s1', kicker:'아침 · 학교',
+  situation:'교실 책상이 20개 모자랍니다. 규격이 정해진 흔한 물건이에요. 어떤 길로 도착시킬까요?',
+  bg:'<rect width="800" height="460" fill="#F3E5C2"/>'+ground('#C9A877','#B8935F')+
+     '<rect x="40" y="70" width="150" height="170" rx="6" fill="#8CC7E8" stroke="#FFF6E0" stroke-width="8"/><path d="M115 70V240M40 155H190" stroke="#FFF6E0" stroke-width="6"/><circle cx="150" cy="112" r="14" fill="#FFE08A"/>'+
+     '<path d="M0 410H800M0 440H800" stroke="#B8935F" stroke-width="2" opacity=".6"/>',
+  objs:[
+   {label:'책상', box:[130,262,235,125], svg:[0,125].map(function(dx){return '<rect x="'+(150+dx)+'" y="268" width="70" height="46" rx="8" fill="#3E7CB1"/><rect x="'+(135+dx)+'" y="312" width="100" height="14" rx="4" fill="#C99A5B"/><rect x="'+(145+dx)+'" y="326" width="7" height="58" fill="#7A5A3A"/><rect x="'+(218+dx)+'" y="326" width="7" height="58" fill="#7A5A3A"/><rect x="'+(150+dx)+'" y="352" width="70" height="10" rx="4" fill="#2F6A99"/>';}).join('')},
+   {label:'칠판', box:[245,65,310,160], svg:'<rect x="250" y="70" width="300" height="150" rx="6" fill="#A87B4A"/><rect x="260" y="80" width="280" height="120" rx="3" fill="#2F6B57"/><path d="M285 120q18-22 36 0t36 0M300 165h120" stroke="#F4F1E4" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M470 110l8 18 18 2-14 12 4 18-16-9-16 9 4-18-14-12 18-2z" fill="#FFE08A"/><rect x="260" y="203" width="280" height="10" fill="#8A6439"/><rect x="290" y="198" width="22" height="6" rx="2" fill="#F4F1E4"/><rect x="320" y="198" width="22" height="6" rx="2" fill="#E8604C"/>'},
+   {label:'벽시계', box:[596,46,108,108], svg:'<circle cx="650" cy="100" r="46" fill="#E8604C"/><circle cx="650" cy="100" r="38" fill="#FFF6E0"/><path d="M650 100V72M650 100l20 12" stroke="#2B3340" stroke-width="5" stroke-linecap="round"/><circle cx="650" cy="100" r="5" fill="#2B3340"/><path d="M650 66v6M650 128v6M616 100h6M678 100h6" stroke="#2B3340" stroke-width="3"/>'}
+  ],
+  options:['bid','mall','innov'], answer:'mall',
+  hints:{bid:'공정한 경쟁도 좋은 방법이에요. 하지만 이미 계약된 흔한 물건이라면 더 빠른 길이 있어요.', innov:'아직 검증이 필요한 새 제품이 아니에요. 흔한 책상이에요.'},
+  fact:'조달청이 여러 업체와 미리 맺어 둔 계약 상품은 나라장터 종합쇼핑몰에 올라와 있습니다. 학교 같은 수요기관이 상품을 비교해 골라 주문할 수 있습니다. 금액이 큰 경우에는 업체끼리 가격·품질을 한 번 더 겨루는 2단계 경쟁을 거칩니다.',
+  route:'mall'
+},
+{ key:'s2', kicker:'한낮 · 마을 도서관',
+  situation:'도서관 옆에 별관을 새로 짓습니다. 금액이 크고, 도면과 조건이 정해진 공사예요. 맡을 업체를 어떻게 정할까요?',
+  bg:'<rect width="800" height="460" fill="#CFE8F3"/><circle cx="90" cy="70" r="34" fill="#FFE08A"/><path d="M0 330q150-70 300-20t320-30 180 30v90H0z" fill="#BFD8A8"/>'+ground('#E3D7BC','#CFC2A2')+
+     '<rect x="20" y="255" width="150" height="125" fill="#B5543C"/><path d="M10 255l85-45 85 45z" fill="#7A3A2B"/><rect x="48" y="285" width="26" height="30" fill="#FFF1B8"/><rect x="112" y="285" width="26" height="30" fill="#FFF1B8"/><rect x="80" y="330" width="30" height="50" fill="#5A4630"/>',
+  objs:[
+   {label:'건물 골조', box:[296,166,238,218], svg:'<rect x="300" y="362" width="230" height="18" fill="#9A968E"/>'+[322,410,494].map(function(x){return '<rect x="'+x+'" y="200" width="16" height="164" fill="#C9C3B8"/>';}).join('')+'<rect x="300" y="196" width="230" height="14" fill="#E58A3A"/><rect x="300" y="278" width="230" height="14" fill="#E58A3A"/><path d="M338 210L410 278M410 210L338 278M426 210L494 278M494 210L426 278" stroke="#E58A3A" stroke-width="5"/><path d="M300 196h230" stroke="#FFF1B8" stroke-width="3" stroke-dasharray="10 12"/>'},
+   {label:'크레인', box:[556,36,210,348], svg:'<rect x="640" y="90" width="22" height="290" fill="#F2B632"/><path d="M640 120l22 30-22 30 22 30-22 30 22 30-22 30M662 120l-22 30 22 30-22 30 22 30-22 30 22 30" stroke="#D99A1E" stroke-width="3" fill="none"/><rect x="560" y="60" width="200" height="16" fill="#F2B632"/><rect x="725" y="76" width="34" height="28" fill="#8E8E8E"/><path d="M650 40l-90 20M650 40l100 20" stroke="#D99A1E" stroke-width="3"/><path d="M590 76V170" stroke="#2B3340" stroke-width="3"/><rect x="570" y="170" width="44" height="30" fill="#6DB36B"/><rect x="624" y="376" width="54" height="8" fill="#8E8E8E"/>'},
+   {label:'안전모', box:[184,322,112,66], svg:'<path d="M200 372a40 40 0 0 1 80 0z" fill="#F2B632"/><rect x="190" y="368" width="100" height="12" rx="6" fill="#D99A1E"/><rect x="236" y="334" width="8" height="36" fill="#FFE08A"/>'}
+  ],
+  options:['mall','bid','urgent'], answer:'bid',
+  hints:{mall:'쇼핑몰은 정해진 상품을 고르는 방식이에요. 건마다 조건이 다른 공사와는 맞지 않아요.', urgent:'서둘러야 할 사정이 없는 일이에요. 긴급 조치는 급한 사정이 있을 때 쓰는 길이에요.'},
+  fact:'공사나 큰 용역은 나라장터에 입찰 공고를 올리고, 자격을 갖춘 업체가 전자입찰로 경쟁합니다. 공고부터 계약, 대금 지급까지 온라인으로 처리하는 나라장터는 2002년에 구축되었습니다.',
+  route:'bid'
+},
+{ key:'s3', kicker:'오후 · 소방서',
+  situation:'새로 개발된 소방 드론이 있습니다. 상용화 직전이라 쓰는 기관이 아직 거의 없어요. 현장에서 직접 써 보며 성능을 확인하고 싶습니다.',
+  bg:'<rect width="800" height="460" fill="#CFE8F3"/><path d="M0 330q200-60 400-10t400-20v140H0z" fill="#BFD8A8"/>'+ground('#D7CDB5','#C4B999')+
+     '<rect x="40" y="150" width="720" height="232" fill="#E4C9C0"/><rect x="40" y="132" width="720" height="22" fill="#B5543C"/><rect x="70" y="190" width="660" height="190" fill="#D2B3A8"/><path d="M70 220H730M70 250H730M70 280H730M70 310H730M70 340H730" stroke="#C4A196" stroke-width="3"/>',
+  objs:[
+   {label:'구급차', box:[84,286,272,114], svg:'<rect x="90" y="300" width="200" height="80" rx="10" fill="#FFFFFF" stroke="#CBD3DA" stroke-width="3"/><path d="M290 320h38l22 28v32h-60z" fill="#FFFFFF" stroke="#CBD3DA" stroke-width="3"/><path d="M300 328h26l14 18h-40z" fill="#8CC7E8"/><rect x="90" y="352" width="260" height="12" fill="#E8604C"/><rect x="144" y="308" width="12" height="30" fill="#E8604C"/><rect x="135" y="317" width="30" height="12" fill="#E8604C"/><rect x="170" y="290" width="44" height="10" rx="4" fill="#E8604C"/><circle cx="140" cy="384" r="16" fill="#2B3340"/><circle cx="310" cy="384" r="16" fill="#2B3340"/><circle cx="140" cy="384" r="6" fill="#C9D6DF"/><circle cx="310" cy="384" r="6" fill="#C9D6DF"/>'},
+   {label:'소방 드론', box:[426,112,178,100], svg:'<path d="M470 168L450 150M560 168L580 150" stroke="#2B3340" stroke-width="5"/><ellipse cx="445" cy="146" rx="30" ry="6" fill="#C9D6DF"/><ellipse cx="585" cy="146" rx="30" ry="6" fill="#C9D6DF"/><ellipse cx="515" cy="172" rx="48" ry="18" fill="#2E8F8A"/><rect x="490" y="160" width="50" height="8" rx="4" fill="#6FC4BF"/><circle cx="515" cy="192" r="9" fill="#2B3340"/><circle cx="515" cy="192" r="3" fill="#8CC7E8"/><path d="M485 190l-10 14M545 190l10 14" stroke="#2B3340" stroke-width="4"/><circle cx="515" cy="172" r="5" fill="#E8604C"/>'},
+   {label:'구급 가방', box:[614,284,120,104], svg:'<path d="M655 322v-14h30v14" stroke="#2B3340" stroke-width="6" fill="none"/><rect x="630" y="322" width="90" height="60" rx="10" fill="#E8604C"/><rect x="668" y="334" width="14" height="36" fill="#fff"/><rect x="657" y="345" width="36" height="14" fill="#fff"/>'}
+  ],
+  options:['mall','bid','innov'], answer:'innov',
+  hints:{mall:'쇼핑몰에는 계약된 상품이 있어야 해요. 이 드론은 아직 쓰는 곳이 거의 없는 새 제품이에요.', bid:'경쟁 입찰도 가능하지만, 이 상황의 핵심은 "현장에서 써 보며 검증"하는 거예요.'},
+  fact:'혁신제품 시범구매는 조달청이 상용화 직전 제품의 첫 구매자가 되어 각 기관에 제공하고, 기관이 시범 사용으로 품질과 성능을 검증하는 제도입니다.',
+  route:'innov'
+},
+{ key:'s4', kicker:'저녁 · 임시 대피소',
+  situation:'산불로 대피한 많은 주민이 오늘 밤 쓸 담요와 생수가 필요합니다. 하루가 급해요. 어떻게 서둘러 도착시킬까요?',
+  bg:'<rect width="800" height="460" fill="#F7D2A8"/><circle cx="640" cy="110" r="50" fill="#E8604C" opacity=".85"/><ellipse cx="180" cy="90" rx="90" ry="26" fill="#C9B8A6"/><ellipse cx="260" cy="110" rx="70" ry="20" fill="#C9B8A6"/><path d="M0 300q160-80 320-30t300-20 180 30v180H0z" fill="#9C7A5E"/>'+ground('#CDB88F','#B9A27A')+
+     '<path d="M40 380V210q360-90 720 0v170z" fill="#E4D8BC"/><path d="M40 210q360-90 720 0" stroke="#B5543C" stroke-width="10" fill="none"/>',
+  objs:[
+   {label:'담요', box:[96,290,208,92], svg:'<rect x="110" y="350" width="180" height="26" rx="8" fill="#E8604C"/><rect x="120" y="324" width="160" height="26" rx="8" fill="#F2B632"/><rect x="130" y="298" width="140" height="26" rx="8" fill="#2E8F8A"/><path d="M130 362h160M140 336h140M150 310h120" stroke="#FFF6E0" stroke-width="3" stroke-dasharray="12 10"/>'},
+   {label:'생수', box:[340,252,196,144], svg:'<rect x="350" y="382" width="176" height="12" fill="#B98A54"/>'+[0,1,2,3,4,5].map(function(i){return '<rect x="'+(356+i*28)+'" y="330" width="22" height="52" rx="7" fill="#8CC7E8"/><rect x="'+(360+i*28)+'" y="324" width="14" height="8" rx="3" fill="#2E8F8A"/>';}).join('')+[0,1,2,3,4].map(function(i){return '<rect x="'+(370+i*28)+'" y="272" width="22" height="52" rx="7" fill="#8CC7E8"/><rect x="'+(374+i*28)+'" y="266" width="14" height="8" rx="3" fill="#2E8F8A"/>';}).join('')},
+   {label:'간이침대', box:[566,296,184,92], svg:'<rect x="580" y="346" width="160" height="10" fill="#7A5A3A"/><rect x="590" y="354" width="8" height="30" fill="#7A5A3A"/><rect x="722" y="354" width="8" height="30" fill="#7A5A3A"/><rect x="585" y="324" width="150" height="24" rx="9" fill="#6DB36B"/><rect x="592" y="310" width="42" height="16" rx="7" fill="#FFF6E0"/>'}
+  ],
+  options:['innov','urgent','bid'], answer:'urgent',
+  hints:{innov:'검증보다 시간이 중요한 상황이에요. 새 제품을 시험해 볼 때가 아니에요.', bid:'일반 입찰은 공고 기간이 필요해요. 지금은 하루가 급해요.'},
+  fact:'2025년 산불 때 조달청은 3월 24일부터 6월 30일까지 긴급조달지침을 시행했습니다. 긴급입찰로 공고 기간을 5일로 줄이고, 종합쇼핑몰에서는 2단계 경쟁 없이 바로 구매하게 했으며, 납품검사도 한시 면제했습니다. 정해진 기간의 조치였고, 지금도 같은 방식이 적용된다는 뜻은 아닙니다.',
+  route:'urgent'
+},
+{ key:'s5', kicker:'밤 · 공장 마을', resist:true,
+  situation:'갑자기 공급이 막혀 공장에 쓸 구리를 시장에서 구할 수 없게 됐어요. 문질러도 색이 오래 가지 않습니다.',
+  bg:'<rect width="800" height="460" fill="#5B7A99"/><circle cx="700" cy="70" r="28" fill="#F4EBC8"/><path d="M0 330q200-50 400-10t400-20v140H0z" fill="#4C6A55"/>'+ground('#8C8F96','#767A82')+'<path d="M0 410H800" stroke="#FFF6E0" stroke-width="3" stroke-dasharray="26 22" opacity=".6"/>',
+  objs:[
+   {label:'비축 창고', free:true, box:[8,226,168,176],
+    svg:'<clipPath id="whClip"><rect x="55" y="305" width="70" height="92"/></clipPath><rect x="20" y="270" width="140" height="125" fill="#6F8FA8"/><path d="M10 272L90 232L170 272z" fill="#E8604C"/>'+
+        '<rect x="55" y="305" width="70" height="92" fill="#FFE9B0"/>'+
+        '<rect x="60" y="312" width="28" height="12" fill="#C9D6DF"/><rect x="92" y="312" width="28" height="12" fill="#C97B4A"/><rect x="60" y="327" width="28" height="12" fill="#7C8791"/><rect x="92" y="327" width="28" height="12" fill="#9DB1BE"/><rect x="60" y="342" width="28" height="12" fill="#E6EEF2"/><rect x="92" y="342" width="28" height="12" fill="#D9C27A"/>'+
+        '<g clip-path="url(#whClip)"><g id="whDoor" class="whdoor"><rect x="55" y="305" width="70" height="92" fill="#3B4A58"/><path d="M55 320h70M55 335h70M55 350h70M55 365h70M55 380h70" stroke="#5A6B7A" stroke-width="3"/></g></g>'},
+   {label:'공장', box:[188,126,254,262], svg:'<rect x="200" y="250" width="230" height="130" fill="#E0A458"/><path d="M200 250V215l50 35V215l50 35V215l50 35V215l30 35z" fill="#B5543C"/><rect x="396" y="150" width="28" height="100" fill="#8E5B45"/><rect x="392" y="146" width="36" height="10" fill="#6F4333"/><circle cx="410" cy="132" r="14" fill="#E6E6E6"/><circle cx="426" cy="112" r="11" fill="#EEEEEE"/><rect x="215" y="282" width="36" height="30" fill="#FFF1B8"/><rect x="265" y="282" width="36" height="30" fill="#FFF1B8"/><rect x="315" y="282" width="36" height="30" fill="#FFF1B8"/><rect x="370" y="330" width="40" height="50" fill="#5A4630"/>'},
+   {label:'전선 릴', box:[456,276,128,116], svg:'<rect x="496" y="340" width="48" height="10" fill="#8A6439"/><circle cx="520" cy="335" r="48" fill="#B98A54"/><circle cx="520" cy="335" r="36" fill="#C97B4A"/><circle cx="520" cy="335" r="22" fill="#D99262"/><circle cx="520" cy="335" r="9" fill="#8A6439"/><path d="M568 335q14 0 14 24t-30 22" stroke="#C97B4A" stroke-width="6" fill="none"/>'},
+   {label:'구리 파이프', box:[600,254,168,126], svg:'<rect x="640" y="262" width="8" height="112" fill="#6B5A4A"/><rect x="740" y="262" width="8" height="112" fill="#6B5A4A"/><rect x="615" y="270" width="140" height="20" rx="10" fill="#C97B4A"/><rect x="625" y="296" width="140" height="20" rx="10" fill="#C97B4A"/><rect x="610" y="322" width="140" height="20" rx="10" fill="#C97B4A"/><path d="M630 276h110M640 302h110M625 328h110" stroke="#E5A57E" stroke-width="3" stroke-linecap="round"/>'}
+  ],
+  fact:'조달청은 알루미늄·구리·납·아연·주석·니켈 6종의 비철금속을 비축하고, 실수요 제조업체와 중소기업 단체에 판매합니다. 되파는 전매는 금지되며 확인되면 차익 환수, 위약금, 등록 말소가 따릅니다. 업체별 주간 판매 한도가 있고, 재고를 채우는 동안에는 방출 중단을 공지합니다.',
+  route:'stock'
+}
+];
+
+/* ---------- 오프닝/엔딩 그림 ---------- */
+var TOWN_BG=
+ '<rect x="90" y="96" width="620" height="304" rx="30" fill="#F0E6CF"/><rect x="110" y="116" width="580" height="200" rx="20" fill="#CFE8F3"/><circle cx="640" cy="160" r="24" fill="#FFE08A"/><ellipse cx="250" cy="150" rx="46" ry="14" fill="#fff"/><ellipse cx="290" cy="158" rx="34" ry="11" fill="#fff"/>'+
+ '<rect x="110" y="316" width="580" height="64" rx="12" fill="#9ACB8F"/><rect x="110" y="344" width="580" height="28" fill="#8C93A0"/><path d="M130 358h60M230 358h60M330 358h60M430 358h60M530 358h60M630 358h50" stroke="#FFF6E0" stroke-width="4"/>'+
+ '<rect x="150" y="236" width="112" height="84" fill="#F4C7A0"/><path d="M140 238L206 184L272 238z" fill="#E8604C"/><rect x="196" y="274" width="30" height="46" fill="#7A5A3A"/><rect x="164" y="252" width="26" height="22" fill="#FFF1B8"/><rect x="232" y="252" width="22" height="22" fill="#FFF1B8"/>'+
+ '<rect x="292" y="256" width="92" height="64" fill="#BFD9E8"/><path d="M284 258L338 212L392 258z" fill="#3E7CB1"/><rect x="326" y="284" width="24" height="36" fill="#5A4630"/>'+
+ '<rect x="486" y="262" width="96" height="8" rx="3" fill="#2E8F8A"/><rect x="492" y="270" width="6" height="50" fill="#4A5560"/><rect x="574" y="270" width="6" height="50" fill="#4A5560"/><rect x="500" y="300" width="72" height="8" rx="3" fill="#B98A54"/>';
+var TOWN_OBJS=[
+ {label:'가로등', box:[392,160,92,200], svg:'<circle id="lampGlow" cx="437" cy="204" r="46" fill="#FFD76A" opacity=".55"/><rect x="432" y="196" width="10" height="160" fill="#4A5560"/><rect x="420" y="182" width="34" height="18" rx="7" fill="#4A5560"/><circle cx="437" cy="204" r="9" fill="#FFE08A"/>'},
+ {label:'나무', box:[556,196,138,160], svg:'<rect x="615" y="270" width="16" height="86" fill="#8A6439"/><circle cx="623" cy="250" r="42" fill="#6DB36B"/><circle cx="593" cy="272" r="28" fill="#7CC37A"/><circle cx="652" cy="274" r="28" fill="#5FA35E"/>'}
+];
+
+/* ---------- 상태 ---------- */
+var svg=document.getElementById('svg'), panel=document.getElementById('panel'), qEl=document.getElementById('q'),
+    capEl=document.getElementById('cap'), liveEl=document.getElementById('live'), stepsEl=document.getElementById('steps');
+var NS='http://www.w3.org/2000/svg';
+var reduce=false; try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+var stage='intro', sceneIdx=-1, objs=[], P=[], DONE=[], cur=null;
+var firstTry=0, wrongInScene=0, collected=[];
+var lastAct=0, sceneStart=0, rubDist=0, resistRub=0, userTouched=false, introT0=0, lastRubAt=0, glowEl=null, bgIsTown=false;
+var soundOn=true, AC=null;
+
+function $(s){return document.querySelector(s);}
+function say(t){liveEl.textContent=''; setTimeout(function(){liveEl.textContent=t;},30);}
+function caption(t){var s=capEl.firstChild; if(t){s.textContent=t; capEl.className='on';}else{capEl.className='';}}
+function bigQ(html,extra){ if(html){qEl.innerHTML=html; qEl.className='on'+(extra?' '+extra:'');}else{qEl.className='';} }
+
+/* ---------- 소리(코드로 합성, 선택 사항) ---------- */
+function unlockAudio(){
+  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=null; } }
+  if(AC && AC.state==='suspended'){ try{AC.resume();}catch(e){} }
+}
+function tone(f,d,delay,vol,type){
+  if(!AC||!soundOn) return;
+  try{
+    var t0=AC.currentTime+(delay||0), o=AC.createOscillator(), g=AC.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(f,t0);
+    g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(vol||0.12,t0+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t0+d);
+    o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0+d+0.05);
+  }catch(e){}
+}
+function chime(n){ var base=[523,587,659,784][n%4]; tone(base,0.45,0,0.12); tone(base*1.5,0.5,0.08,0.07); }
+function thud(){ tone(110,0.18,0,0.2,'triangle'); }
+function buzz(){ tone(170,0.2,0,0.08,'triangle'); }
+function fanfare(){ [523,659,784,1047].forEach(function(f,i){tone(f,0.5,i*0.12,0.1);}); }
+
+/* ---------- 그리기 ---------- */
+function mk(objList,bgMarkup,extra){
+  var defs='<defs><radialGradient id="gl"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD76A" stop-opacity="0"/></radialGradient>'+
+   '<filter id="fbg" color-interpolation-filters="sRGB"><feColorMatrix id="mbg" type="saturate" values="0.12"/></filter>';
+  objList.forEach(function(o,i){ defs+='<filter id="fo'+i+'" color-interpolation-filters="sRGB"><feColorMatrix id="mo'+i+'" type="saturate" values="0"/></filter>'; });
+  defs+='</defs>';
+  var h=defs+'<rect width="800" height="460" fill="#14202B"/>'+'<g filter="url(#fbg)">'+bgMarkup+'</g>';
+  objList.forEach(function(o,i){
+    h+='<g class="obj" id="o'+i+'" tabindex="0" role="button" aria-label="'+o.label+' (문지르거나 Enter 키로 색 되돌리기)" filter="url(#fo'+i+')">'+o.svg+'</g>';
+  });
+  h+='<g id="fx"></g><circle id="glow" r="38" fill="url(#gl)" opacity="0" pointer-events="none"/>';
+  svg.innerHTML=h;
+  glowEl=document.getElementById('glow');
+  objs=objList; P=objList.map(function(){return 0;}); DONE=objList.map(function(){return false;});
+  objList.forEach(function(o,i){
+    var g=document.getElementById('o'+i);
+    g.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){ e.preventDefault(); unlockAudio(); userTouched=true; activity(); addProg(i,0.5,true); }
+    });
+    g.addEventListener('focus',function(){ showFocus(i); });
+    g.addEventListener('blur',function(){ clearFocus(); });
+  });
+  applyBg();
+}
+function svgEl(name,attrs){ var e=document.createElementNS(NS,name); for(var k in attrs){e.setAttribute(k,attrs[k]);} return e; }
+function fx(){ return document.getElementById('fx'); }
+function showFocus(i){
+  clearFocus(); var b=objs[i].box;
+  fx().appendChild(svgEl('rect',{'class':'ring',id:'focusRing',x:b[0]-4,y:b[1]-4,width:b[2]+8,height:b[3]+8,rx:12}));
+}
+function clearFocus(){ var r=document.getElementById('focusRing'); if(r&&r.parentNode) r.parentNode.removeChild(r); }
+function applyOne(i){ var m=document.getElementById('mo'+i); if(m) m.setAttribute('values',String(Math.max(0,Math.min(1,P[i])))); }
+function applyBg(){
+  var n=0,s=0; for(var i=0;i<objs.length;i++){ n++; s+=P[i]; }
+  var avg=n?s/n:0; var v=bgIsTown?0.12:(0.12+0.88*avg);
+  var m=document.getElementById('mbg'); if(m) m.setAttribute('values',String(v));
+}
+function pt(e){
+  var r=svg.getBoundingClientRect(); var k=800/r.width;
+  return {x:(e.clientX-r.left)*k, y:(e.clientY-r.top)*k};
+}
+function inBox(p,b,pad){ return p.x>=b[0]-pad && p.x<=b[0]+b[2]+pad && p.y>=b[1]-pad && p.y<=b[1]+b[3]+pad; }
+function objAt(p){ for(var i=objs.length-1;i>=0;i--){ if(!DONE[i] && inBox(p,objs[i].box,8)) return i; } return -1; }
+function sparkle(i){
+  var b=objs[i].box, cx=b[0]+b[2]/2, cy=b[1]+b[3]/2, g=fx();
+  if(reduce) return;
+  for(var k=0;k<10;k++){
+    var a=k/10*Math.PI*2, d=40+Math.random()*40;
+    var c=svgEl('circle',{'class':'spark',cx:cx,cy:cy,r:5+Math.random()*4});
+    c.style.setProperty('--dx',Math.cos(a)*d+'px'); c.style.setProperty('--dy',Math.sin(a)*d+'px');
+    g.appendChild(c); (function(n){ setTimeout(function(){ if(n.parentNode) n.parentNode.removeChild(n); },900); })(c);
+  }
+}
+function clearRings(){ var g=fx(); if(!g) return; var rs=g.querySelectorAll('.hintring'); for(var i=0;i<rs.length;i++){ g.removeChild(rs[i]); } }
+function ringsFor(list){
+  clearRings(); var g=fx();
+  list.forEach(function(i){ var b=objs[i].box; g.appendChild(svgEl('rect',{'class':'ring hintring',x:b[0]-4,y:b[1]-4,width:b[2]+8,height:b[3]+8,rx:12})); });
+}
+var keepRing=false;
+function activity(){ lastAct=performance.now(); if(!keepRing) clearRings(); }
+
+/* ---------- 진행도 ---------- */
+function addProg(i,amt,fromKey){
+  if(DONE[i]) return;
+  var o=objs[i], cap=1;
+  if(cur && cur.resist && !o.free && stage==='rub'){ cap=0.55; }
+  var before=P[i];
+  P[i]=Math.min(cap,P[i]+amt); applyOne(i); applyBg();
+  if(cur && cur.resist && !o.free){ resistRub+=amt*300; lastRubAt=performance.now(); }
+  if(P[i]>=0.999) completeObj(i);
+  else if(fromKey && P[i]===before){ /* no-op */ }
+}
+function completeObj(i){
+  if(DONE[i]) return;
+  DONE[i]=true; P[i]=1; applyOne(i); applyBg(); sparkle(i);
+  if(stage==='intro'){ chime(0); userTouched=true; setTimeout(function(){ if(stage==='intro') startGame(); },900); return; }
+  var n=DONE.filter(Boolean).length;
+  chime(n-1); say(objs[i].label+' 색이 돌아왔어요.');
+  if(cur && cur.resist){ if(objs[i].free){ openWarehouse(); } return; }
+  updateMeter();
+  if(n===objs.length){ stage='wait'; clearRings(); setTimeout(showChoose,800); }
+}
+function updateMeter(){
+  var m=$('#meter'); if(!m) return;
+  var n=DONE.filter(Boolean).length, h='';
+  for(var k=0;k<objs.length;k++){ h+='<b class="'+(k<n?'on':'')+'"></b>'; }
+  m.innerHTML='<span>색 되돌리기</span>'+h+'<span>'+n+'/'+objs.length+'</span>';
+}
+
+/* ---------- 입력 ---------- */
+var pressed=false,lastP=null,downP=null,moved=0;
+svg.addEventListener('pointerdown',function(e){
+  if(stage==='wait'||stage==='choose'||stage==='explain'||stage==='flood'||stage==='end') return;
+  unlockAudio(); activity(); pressed=true; try{svg.setPointerCapture(e.pointerId);}catch(_){}
+  lastP=pt(e); downP=lastP; moved=0; userTouched=true; moveGlow(lastP,true);
+});
+svg.addEventListener('pointermove',function(e){
+  var p=pt(e); moveGlow(p,pressed||e.pointerType==='mouse');
+  if(!pressed) return;
+  var d=Math.hypot(p.x-lastP.x,p.y-lastP.y); moved+=d; activity();
+  for(var i=0;i<objs.length;i++){
+    if(!DONE[i] && inBox(p,objs[i].box,4)){
+      var b=objs[i].box, diag=Math.hypot(b[2],b[3]);
+      addProg(i,d/(diag*1.1));
+    }
+  }
+  lastP=p;
+});
+function endPress(e){
+  if(!pressed) return; pressed=false;
+  if(moved<8 && downP){ var i=objAt(downP); if(i>=0) addProg(i,0.5); }
+  if(e && e.pointerType!=='mouse') hideGlow();
+}
+svg.addEventListener('pointerup',endPress);
+svg.addEventListener('pointercancel',endPress);
+svg.addEventListener('pointerleave',function(){ hideGlow(); });
+function moveGlow(p,show){ if(!glowEl) return; glowEl.setAttribute('cx',p.x); glowEl.setAttribute('cy',p.y); glowEl.setAttribute('opacity',show?'1':'0'); }
+function hideGlow(){ if(glowEl) glowEl.setAttribute('opacity','0'); }
+
+document.addEventListener('keydown',function(e){
+  if(stage==='choose'){
+    var n=parseInt(e.key,10);
+    if(n>=1 && n<=3){ var b=document.querySelectorAll('.stamp')[n-1]; if(b && !b.disabled){ b.click(); } }
+  }
+});
+
+/* ---------- 헤더 ---------- */
+function renderSteps(){
+  var h=''; for(var i=0;i<SCENES.length;i++){ h+='<i class="'+(i<sceneIdx?'ok':(i===sceneIdx?'cur':''))+'"></i>'; }
+  stepsEl.innerHTML=h;
+}
+$('#snd').addEventListener('click',function(){
+  soundOn=!soundOn; this.textContent=soundOn?'소리 켜짐':'소리 꺼짐'; unlockAudio(); if(soundOn) chime(1);
+});
+$('#restart').addEventListener('click',function(){ startIntro(); });
+
+/* ---------- 오프닝 ---------- */
+function startIntro(){
+  stage='intro'; sceneIdx=-1; cur=null; firstTry=0; collected=[]; userTouched=false; bgIsTown=true;
+  mk(TOWN_OBJS,TOWN_BG); renderSteps();
+  introT0=performance.now(); lastAct=introT0;
+  bigQ('이 동네는 왜 회색일까요?'); caption('가로등이나 나무를 문질러 보세요');
+  panel.innerHTML=
+   '<p class="kicker">2분 · 마우스, 터치, 키보드(Tab, Enter)</p>'+
+   '<h1>미리도착한하루</h1>'+
+   '<p class="sit">회색으로 멈춘 하루의 물건을 문질러 색을 되돌리고, 필요한 물건이 어떤 길로 도착했는지 골라 보세요. 틀려도 점수가 깎이지 않아요.</p>'+
+   '<div class="row"><button class="primary" id="go" type="button">시작하기</button></div>'+
+   '<p class="small" style="margin-top:12px">게임 속 상황, 장소, 물건은 모두 가상입니다. 제도 설명은 조달청 공개 자료를 바탕으로 썼습니다.</p>';
+  $('#go').addEventListener('click',function(){ unlockAudio(); startGame(); });
+  say('이 동네는 왜 회색일까요? 가로등이나 나무를 문질러 보세요. 시작하기 버튼으로 바로 시작할 수도 있습니다.');
+}
+function introAuto(ts){
+  if(stage!=='intro' || userTouched) return;
+  var t=((ts-introT0)/1000)%8.5;
+  function sm(x){ x=Math.max(0,Math.min(1,x)); return x*x*(3-2*x); }
+  var a, b;
+  if(reduce){ a=1; b=1; }
+  else{
+    var fade=1-sm((t-7.0)/1.2);
+    a=sm((t-0.35)/1.9)*fade; b=sm((t-2.5)/1.9)*fade;
+  }
+  P[0]=a; P[1]=b; applyOne(0); applyOne(1);
+  if(!reduce){
+    if(t>0.35 && t<2.3){ var u=(t-0.35)/1.95; moveGlow({x:437+Math.sin(u*14)*30,y:170+u*170},true); }
+    else if(t>=2.5 && t<4.5){ var v=(t-2.5)/2; moveGlow({x:560+v*130,y:240+Math.sin(v*14)*30},true); }
+    else hideGlow();
+  }
+}
+
+/* ---------- 게임 진행 ---------- */
+function startGame(){ bigQ(''); caption(''); loadScene(0); }
+function loadScene(n){
+  sceneIdx=n; cur=SCENES[n]; bgIsTown=false; keepRing=false; wrongInScene=0; rubDist=0; resistRub=0; lastRubAt=0;
+  mk(cur.objs,cur.bg); renderSteps();
+  stage='rub'; sceneStart=performance.now(); lastAct=sceneStart; hideGlow();
+  caption(cur.resist?'문질러도 색이 오래 가지 않아요…':'회색 물건을 문질러 색을 되돌려 보세요');
+  var free=cur.objs.filter(function(o){return !o.free;}).length;
+  panel.innerHTML=
+   '<p class="kicker">'+(n+1)+' / '+SCENES.length+' · '+cur.kicker+'</p>'+
+   '<span class="fiction">가상 상황</span>'+
+   '<p class="sit">'+cur.situation+'</p>'+
+   (cur.resist?'<div id="hint2" class="hintline" style="display:none"></div>':'<div class="meter" id="meter"></div>');
+  if(!cur.resist) updateMeter();
+  say(cur.kicker+'. '+cur.situation+' 회색 물건 '+free+'개를 문질러 보세요.');
+}
+function showChoose(){
+  stage='choose'; caption('도착 방법을 골라 주세요 (키보드 1, 2, 3)');
+  var h='<p class="kicker">'+(sceneIdx+1)+' / '+SCENES.length+' · '+cur.kicker+'</p><span class="fiction">가상 상황</span><p class="sit">'+cur.situation+'</p><div class="stamps" id="stamps">';
+  cur.options.forEach(function(k,i){ h+='<button class="stamp" type="button" data-k="'+k+'"><span class="sn">'+(i+1)+'</span><span>'+ROUTES[k].name+'</span></button>'; });
+  h+='</div><div id="after"></div>';
+  panel.innerHTML=h; say('도착 방법을 고르세요. 선택지는 세 가지입니다.');
+  var bs=panel.querySelectorAll('.stamp');
+  for(var i=0;i<bs.length;i++){ bs[i].addEventListener('click',onStamp); }
+  if(bs[0]) bs[0].focus();
+}
+function onStamp(e){
+  var b=e.currentTarget, k=b.getAttribute('data-k'), after=$('#after');
+  unlockAudio();
+  if(k===cur.answer){
+    thud(); setTimeout(function(){chime(3);},160);
+    b.className='stamp right'; b.querySelector('.sn').textContent='✔';
+    var all=panel.querySelectorAll('.stamp'); for(var i=0;i<all.length;i++){ all[i].disabled=true; }
+    if(wrongInScene===0) firstTry++;
+    collected.push(cur.route); stage='explain'; caption('');
+    after.innerHTML='<div class="fact"><span class="tag">실제 제도 · '+ROUTES[k].name+'</span><br>'+cur.fact+'<span class="src">'+SRC+'</span></div>'+
+      '<div class="row"><button class="primary" id="next" type="button">'+(sceneIdx<SCENES.length-1?'다음 장면 ▶':'결과 보기 ▶')+'</button></div>';
+    say('맞아요. '+ROUTES[k].name+'. '+cur.fact);
+    $('#next').addEventListener('click',function(){ nextScene(); }); $('#next').focus();
+  }else{
+    wrongInScene++; buzz(); b.className='stamp wrong'; b.disabled=true;
+    after.innerHTML='<div class="hintline">'+cur.hints[k]+'</div>'; say(cur.hints[k]);
+  }
+}
+function nextScene(){ if(sceneIdx<SCENES.length-1) loadScene(sceneIdx+1); else openWarehouseDone(); }
+
+/* 5장면: 창고 반전 */
+function openWarehouse(){
+  stage='flood'; keepRing=false; caption('미리 쌓아 둔 것이 있었어요'); clearRings();
+  var d=document.getElementById('whDoor'); if(d){ d.style.transform='translateY(-96px)'; }
+  tone(98,0.6,0,0.16,'triangle');
+  var t0=performance.now(), from=P.slice();
+  function step(ts){
+    var u=Math.min(1,(ts-t0-900)/1400); if(u<0){ requestAnimationFrame(step); return; }
+    for(var i=0;i<objs.length;i++){ P[i]=from[i]+(1-from[i])*u; applyOne(i); }
+    applyBg();
+    if(u<1) requestAnimationFrame(step); else floodDone();
+  }
+  requestAnimationFrame(step);
+}
+function floodDone(){
+  for(var i=0;i<objs.length;i++){ DONE[i]=true; P[i]=1; applyOne(i); } applyBg();
+  fanfare(); collected.push('stock'); stage='explain';
+  panel.innerHTML=
+   '<p class="kicker">5 / 5 · '+cur.kicker+'</p><h2>미리 도착해 있었습니다</h2>'+
+   '<p class="sit">시장에서는 구할 수 없던 구리가, 창고에는 이미 있었어요.</p>'+
+   '<div class="fact"><span class="tag">실제 제도 · '+ROUTES.stock.name+'</span><br>'+cur.fact+'<span class="src">'+SRC+'</span></div>'+
+   '<div class="row"><button class="primary" id="next" type="button">결과 보기 ▶</button></div>';
+  $('#next').addEventListener('click',function(){ nextScene(); }); $('#next').focus();
+  say('미리 도착해 있었습니다. '+cur.fact);
+}
+
+/* ---------- 엔딩 ---------- */
+function openWarehouseDone(){
+  stage='end'; sceneIdx=SCENES.length; cur=null; bgIsTown=false;
+  mk(TOWN_OBJS,TOWN_BG); renderSteps();
+  for(var i=0;i<objs.length;i++){ DONE[i]=true; P[i]=1; applyOne(i); } applyBg();
+  bigQ('오늘 하루도, 미리 도착해 있었습니다.<small>처음의 가로등과 나무에도 색이 돌아왔어요.</small>','end'); caption('');
+  var h='<p class="kicker">오늘의 도착표</p><h2>다섯 가지 도착 방법</h2><ul class="list">';
+  ['mall','bid','innov','urgent','stock'].forEach(function(k,i){ h+='<li><b>'+(i+1)+'</b><span><strong>'+ROUTES[k].name+'</strong> · '+ROUTES[k].line+'</span></li>'; });
+  h+='</ul><p class="score">처음 고른 답이 맞은 장면: '+firstTry+' / 4</p>'+
+     '<div class="row"><button class="primary" id="save" type="button">도착표 카드 저장</button><button class="second" id="again" type="button">처음부터 다시</button></div>'+
+     '<p class="small" style="margin-top:12px">게임 속 상황은 이해를 돕기 위해 단순화한 가상 사례입니다. 실제로 어떤 방식으로 구매하는지는 물품의 종류, 금액, 상황에 따라 다릅니다.</p>';
+  panel.innerHTML=h;
+  $('#save').addEventListener('click',saveCard); $('#again').addEventListener('click',startIntro);
+  fanfare(); say('끝났어요. 오늘 하루도, 미리 도착해 있었습니다. 처음 고른 답이 맞은 장면은 4장면 중 '+firstTry+'장면입니다.');
+}
+function saveCard(){
+  try{
+    var c=document.createElement('canvas'); c.width=1080; c.height=1350; var x=c.getContext('2d');
+    var F='"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif';
+    x.fillStyle='#FBF4E4'; x.fillRect(0,0,1080,1350);
+    x.fillStyle='#14202B'; x.fillRect(0,0,1080,250);
+    x.fillStyle='#FFF6E0'; x.font='800 76px '+F; x.textAlign='center'; x.fillText('미리도착한하루',540,120);
+    x.fillStyle='#F4D98B'; x.font='600 38px '+F; x.fillText('오늘 하루도, 미리 도착해 있었습니다.',540,200);
+    var keys=['mall','bid','innov','urgent','stock'], y=300;
+    keys.forEach(function(k,i){
+      x.fillStyle='#fff'; rr(x,70,y,940,168,24); x.fill();
+      x.fillStyle='#2E8F8A'; x.beginPath(); x.arc(150,y+84,44,0,Math.PI*2); x.fill();
+      x.fillStyle='#fff'; x.font='800 48px '+F; x.textAlign='center'; x.fillText(String(i+1),150,y+101);
+      x.fillStyle='#2B3340'; x.textAlign='left'; x.font='800 46px '+F; x.fillText(ROUTES[k].name,225,y+74);
+      x.font='600 32px '+F; x.fillStyle='#5A5A52'; x.fillText(ROUTES[k].line,225,y+126);
+      y+=190;
+    });
+    x.fillStyle='#6B6657'; x.textAlign='center'; x.font='500 28px '+F;
+    x.fillText('가상 상황으로 단순화한 게임입니다. 실제 구매 방식은 물품과 상황에 따라 다릅니다.',540,1290);
+    var a=document.createElement('a'); a.download='미리도착한하루_도착표.png'; a.href=c.toDataURL('image/png');
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }catch(e){ say('카드를 저장하지 못했습니다. 화면을 캡처해 주세요.'); }
+}
+function rr(x,a,b,w,h,r){ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r); x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.closePath(); }
+
+/* ---------- 반복 처리 ---------- */
+function loop(ts){
+  if(stage==='intro') introAuto(ts);
+  if(stage==='rub' && cur){
+    if(cur.resist){
+      /* 색이 오래 가지 않는다: 문지르지 않으면 서서히 돌아간다 */
+      var dt=1/60;
+      for(var i=0;i<objs.length;i++){
+        if(!objs[i].free && !DONE[i] && ts-lastRubAt>200 && P[i]>0){ P[i]=Math.max(0,P[i]-dt*0.45); applyOne(i); }
+      }
+      applyBg();
+      var hint=$('#hint2');
+      if(hint && hint.style.display==='none' && (resistRub>500 || ts-sceneStart>9000)){
+        hint.style.display='block'; hint.textContent='색이 오래 가지 않아요. 그런데 왼쪽 창고는 왠지 닫혀 있네요.';
+        caption('왼쪽 창고를 문질러 보세요'); ringsFor([0]); keepRing=true; say('색이 오래 가지 않아요. 왼쪽의 비축 창고를 문질러 보세요.');
+      }
+    }else if(ts-lastAct>5000 && !document.querySelector('.hintring')){
+      var un=[]; for(var j=0;j<objs.length;j++){ if(!DONE[j]) un.push(j); } if(un.length) ringsFor(un);
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+startIntro();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

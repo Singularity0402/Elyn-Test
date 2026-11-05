@@ -1,0 +1,1385 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>주석의 울음 - 서해 비축기지 배정 일지</title>
+<style>
+:root{
+  --bg:#0f1318; --panel:#1a2028; --panel2:#232b35; --line:#3a4654; --ink:#f1f4f6; --sub:#b4c0cb;
+  --steel:#cdd5db; --amber:#f2b84b; --paper:#ead9b5; --teal:#6fd3c8; --red:#f0766a; --green:#86dc98;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#07090c;overflow:hidden;color:var(--ink);
+  font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;transform-origin:center center;
+  background:var(--bg);overflow:hidden;user-select:none;-webkit-user-select:none}
+#screen,#modal{position:absolute;inset:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:disabled{cursor:default}
+svg{display:block}
+
+/* ---------- 공통 ---------- */
+.btn{background:var(--panel2);border:1.5px solid var(--line);border-radius:10px;padding:10px 18px;font-size:17px;font-weight:700;color:var(--ink);transition:transform .08s,background .15s,border-color .15s}
+.btn:hover:not(:disabled){background:#2d3744;border-color:#5b6b7d}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn.pri{background:var(--amber);border-color:var(--amber);color:#241a05}
+.btn.pri:hover:not(:disabled){background:#ffc965;border-color:#ffc965}
+.btn.big{font-size:22px;padding:14px 30px;border-radius:12px}
+.btn.sm{font-size:14px;padding:6px 12px;border-radius:8px}
+.btn:disabled{opacity:.42}
+.tg{display:inline-block;font-size:13px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:5px;border:1px solid transparent;line-height:1.4}
+.tg.amber{color:#ffd88a;background:rgba(242,184,75,.14);border-color:rgba(242,184,75,.45)}
+.tg.teal{color:#a8ece4;background:rgba(111,211,200,.12);border-color:rgba(111,211,200,.45)}
+.tg.red{color:#ffb0a8;background:rgba(240,118,106,.14);border-color:rgba(240,118,106,.5)}
+.tg.gray{color:#b9c2cb;background:rgba(160,170,180,.14);border-color:rgba(160,170,180,.4)}
+.tg.green{color:#b8f0c4;background:rgba(134,220,152,.12);border-color:rgba(134,220,152,.45)}
+#toast{position:absolute;left:50%;bottom:104px;transform:translateX(-50%);background:#0b0f13;border:1.5px solid var(--amber);color:var(--ink);
+  padding:12px 22px;border-radius:12px;font-size:18px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:900px;text-align:center}
+#toast.show{opacity:1}
+#hud{position:absolute;right:14px;top:12px;z-index:40;display:flex;gap:8px}
+#hud .btn{background:rgba(26,32,40,.82)}
+
+/* ---------- 첫 화면 ---------- */
+.title{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 46%,#1c2530 0%,#0f1318 62%)}
+.title .q{font-size:26px;color:var(--sub);letter-spacing:.02em;margin-top:-6px;opacity:0;animation:fadein 1.2s .35s forwards}
+.title .strip{width:760px;height:282px;margin-top:6px;touch-action:none;cursor:grab}
+.title .strip:active{cursor:grabbing}
+.title h1{margin:0;font-size:104px;line-height:1.05;font-weight:900;letter-spacing:.04em;color:#f5f7f8;
+  text-shadow:0 0 26px rgba(111,211,200,.28);opacity:0;transform:translateY(8px);transition:opacity .9s,transform .9s}
+.title h1.on{opacity:1;transform:none}
+.title .a{font-size:30px;color:var(--amber);height:42px;margin-top:6px;opacity:0;transition:opacity 1s}
+.title .a.on{opacity:1}
+.title .sub{font-size:17px;color:var(--sub);margin-top:2px}
+.title .go{height:76px;display:flex;align-items:center;margin-top:14px}
+.title .hintline{position:absolute;bottom:28px;font-size:17px;color:var(--sub);opacity:.9}
+@keyframes fadein{to{opacity:1}}
+
+/* ---------- 모달 ---------- */
+.modal{display:none;background:rgba(5,8,11,.72);z-index:30;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.mcard{background:var(--panel);border:1.5px solid var(--line);border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.55);
+  max-width:1160px;max-height:672px;overflow:auto;padding:26px 30px;position:relative;animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
+.mcard h2{margin:0 0 6px;font-size:28px}
+.mcard h3{margin:0 0 8px;font-size:21px}
+.mcard p{margin:6px 0;font-size:19px;line-height:1.6;color:#dfe6ec}
+.mcard .sm{font-size:15px;color:var(--sub)}
+.mfoot{display:flex;justify-content:flex-end;gap:12px;margin-top:18px}
+
+/* 장면 */
+.scene{width:1000px}
+.scene .place{font-size:16px;color:var(--sub);margin-bottom:8px;letter-spacing:.04em}
+.scene .stagev{display:flex;justify-content:space-between;align-items:flex-end;height:176px;padding:0 40px;border-bottom:1px solid var(--line)}
+.scene .pl{width:150px;height:170px;opacity:.38;transition:opacity .15s,transform .15s;transform:translateY(6px)}
+.scene .pl.on{opacity:1;transform:none}
+.scene .pl svg{width:150px;height:170px}
+.scene .mid{flex:1;text-align:center;font-size:15px;color:var(--sub);padding-bottom:10px}
+.scene .box{min-height:132px;padding:16px 8px 6px}
+.scene .who{font-size:17px;font-weight:800;color:var(--amber);margin-bottom:6px}
+.scene .txt{font-size:25px;line-height:1.55;min-height:78px}
+.scene .txt.narr{color:#cfd8e0;font-style:italic}
+.scene .txt.sys{color:#bfe9e4;border-left:4px solid var(--teal);padding-left:14px;font-style:normal}
+
+/* ---------- 본 화면 ---------- */
+.main{position:absolute;inset:0;display:flex;flex-direction:column}
+.top{height:52px;flex:none;display:flex;align-items:center;gap:18px;padding:0 150px 0 18px;background:#141a21;border-bottom:1px solid var(--line)}
+.brand{font-size:16px;color:var(--sub);white-space:nowrap}
+.brand b{color:var(--ink);font-size:18px}
+.tl{display:flex;gap:6px;flex:1;min-width:0}
+.chip{font-size:14px;font-weight:700;padding:5px 10px;border-radius:8px;border:1px solid var(--line);color:var(--sub);white-space:nowrap}
+.chip.now{background:var(--amber);border-color:var(--amber);color:#241a05}
+.chip.past{opacity:.45}
+.chip.halt{border-color:rgba(240,118,106,.7);color:#ffb0a8}
+.chip.halt.now{background:var(--red);color:#2a0c08;border-color:var(--red)}
+.body{flex:1;display:flex;min-height:0}
+.lots{width:300px;flex:none;overflow:auto;background:#151b22;border-right:1px solid var(--line);padding:12px 12px 8px;display:flex;flex-direction:column;gap:6px}
+.lots h3{margin:0 0 2px;font-size:18px}
+.lots .help{font-size:13px;color:var(--sub);line-height:1.45;margin-bottom:2px}
+.lot{display:flex;align-items:center;gap:8px;background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:5px 8px;min-height:46px}
+.lot.clear{border-color:rgba(111,211,200,.65)}
+.lot.murky{border-color:rgba(160,170,180,.55)}
+.lot.fresh{box-shadow:0 0 0 1px rgba(242,184,75,.4)}
+.lot .ic{flex:none;width:34px;height:24px}
+.lot .nm{flex:1;min-width:0;line-height:1.25}
+.lot .nm b{font-size:14.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lot .nm small{font-size:12.5px;color:var(--sub)}
+.lot .btn{padding:5px 9px;font-size:13px;flex:none}
+.lot.need .btn{background:var(--amber);border-color:var(--amber);color:#241a05;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(242,184,75,.55)}50%{box-shadow:0 0 0 7px rgba(242,184,75,0)}}
+.lots .grow{flex:1}
+.trips{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;color:var(--sub)}
+.trips b{color:var(--ink);font-size:16px}
+.dot{display:inline-block;width:13px;height:13px;border-radius:50%;background:var(--amber);margin-right:4px;vertical-align:-2px}
+.dot.off{background:transparent;border:2px solid var(--line)}
+.center{flex:1;min-width:0;padding:10px 16px 6px;display:flex;flex-direction:column;gap:7px}
+.banner{background:rgba(242,184,75,.1);border:1px solid rgba(242,184,75,.4);border-radius:10px;padding:8px 14px;font-size:16.5px;line-height:1.45;color:#ffe3ad}
+.banner.warn{background:rgba(240,118,106,.12);border-color:rgba(240,118,106,.55);color:#ffcfc9}
+.rows{display:flex;flex-direction:column;gap:7px;flex:1;min-height:0}
+.row{flex:1;display:flex;align-items:center;gap:12px;background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:6px 12px;min-height:0}
+.row.dead{opacity:.5}
+.row.hold{border-color:rgba(240,118,106,.6)}
+.row .ico{width:52px;height:52px;flex:none;color:#aeb9c3}
+.row .nmb{width:214px;flex:none;line-height:1.3}
+.row .nmb b{font-size:17.5px;display:block;margin-bottom:2px}
+.row .nmb .tags{min-height:22px}
+.row .nmb small{display:block;font-size:13px;color:var(--sub);margin-top:2px}
+.row .mid{flex:1;min-width:0}
+.row .ai{font-size:14px;color:var(--sub);margin-bottom:4px;line-height:1.35}
+.row .ai b{color:var(--amber)}
+.row .ai .lowd{color:var(--red);font-weight:700}
+.slots{display:flex;gap:4px;align-items:flex-end}
+.slot{width:30px;height:30px;border-radius:7px;border:2px dashed #52606f;background:transparent;position:relative;padding:0}
+.slot.on{border:2px solid #dbe3e8;background:linear-gradient(#f6f9fa,#aeb9c1);box-shadow:inset 0 -4px 0 rgba(0,0,0,.18)}
+.slot.dis{opacity:.25;cursor:default}
+.slot.aim::after{content:"";position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:8px solid var(--amber)}
+.row .fact{font-size:13px;line-height:1.3;color:var(--sub);margin-top:6px}
+.row .fact.ok{color:var(--green)}
+.stepper{display:flex;align-items:center;gap:6px;flex:none}
+.stepper .n{width:34px;text-align:center;font-size:26px;font-weight:900}
+.stepper button{width:36px;height:36px;border-radius:9px;border:1.5px solid var(--line);background:var(--panel2);font-size:22px;font-weight:900;padding:0;line-height:1}
+.stepper button:disabled{opacity:.3}
+.rowact{width:104px;flex:none;text-align:center}
+.bot{height:70px;flex:none;display:flex;align-items:center;gap:14px;padding:0 18px;background:#141a21;border-top:1px solid var(--line)}
+.bot .pool{flex:1;font-size:16px;color:var(--sub);line-height:1.5}
+.bot .pool b{color:var(--ink)}
+.bot .pool .cl{color:#a8ece4}
+.bot .pool .mu{color:#c8d0d7}
+.bot .pool .un{color:var(--amber)}
+.halt{flex:1;display:flex;flex-direction:column;gap:9px;min-height:0}
+.haltbox{background:rgba(240,118,106,.1);border:1.5px solid rgba(240,118,106,.55);border-radius:14px;padding:14px 20px}
+.haltbox h2{margin:0 0 4px;font-size:28px;color:#ffc0b9}
+.haltbox p{margin:3px 0;font-size:18px;line-height:1.55;color:#f1dad7}
+.mini{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.mini .c{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;color:var(--sub);line-height:1.4}
+.mini .c b{display:block;color:var(--ink);font-size:15.5px;margin-bottom:2px}
+
+/* 시편 휘기 */
+.bendcard{width:1040px}
+.bendwrap{display:flex;gap:18px;align-items:stretch}
+.bendleft{flex:1;min-width:0}
+.bendsvg{width:100%;height:auto;background:#10161c;border:1.5px solid var(--line);border-radius:14px;touch-action:none;cursor:grab}
+.bendsvg:active{cursor:grabbing}
+.bendside{width:250px;flex:none;display:flex;flex-direction:column;align-items:center}
+.bendside .av{width:130px;height:150px}
+.bubble{margin-top:8px;background:#fff;color:#161b20;border-radius:14px;padding:10px 14px;font-size:20px;font-weight:700;min-height:48px;width:100%;text-align:center;opacity:0;transition:opacity .3s;position:relative}
+.bubble.on{opacity:1}
+.bubble::before{content:"";position:absolute;top:-9px;left:50%;margin-left:-9px;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:10px solid #fff}
+.bendsvg .mt{fill:#8da0b1;font-size:13px}
+.rip{fill:none;stroke:#6fd3c8;stroke-width:2.6;transform-box:fill-box;transform-origin:center;animation:rip .85s ease-out forwards}
+@keyframes rip{from{transform:scale(.2);opacity:.95}to{transform:scale(3.4);opacity:0}}
+.cap{fill:#d4f3ee;font-size:19px;font-weight:700;animation:capup .95s ease-out forwards}
+@keyframes capup{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-24px)}}
+.dst{fill:#7d837d;animation:fall .9s ease-in forwards}
+@keyframes fall{from{opacity:.9;transform:translateY(0)}to{opacity:0;transform:translateY(46px)}}
+.spk{fill:#fff6d8;animation:spark .5s ease-out forwards}
+@keyframes spark{from{opacity:1;transform:translate(0,0)}to{opacity:0;transform:translate(var(--dx),var(--dy))}}
+.verdict{display:flex;gap:14px;justify-content:center;margin-top:14px;min-height:56px}
+.bendmsg{font-size:17px;color:var(--sub);text-align:center;margin-top:10px;min-height:26px}
+
+/* 현장 확인 */
+.fieldcard{width:1020px}
+.fhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.shelf{display:flex;gap:8px;align-items:flex-end;height:96px;padding:10px 14px;background:#10161c;border:1.5px solid var(--line);border-radius:12px;margin:12px 0}
+.shelf .blk{width:46px;height:34px;border-radius:7px;background:linear-gradient(#f6f9fa,#aeb9c1);border:2px solid #dbe3e8}
+.shelf .emptyt{color:var(--sub);font-size:18px;align-self:center}
+.ledger{display:flex;gap:16px;margin-top:10px}
+.listing{width:270px;flex:none;background:#10161c;border:1.5px solid var(--line);border-radius:12px;padding:14px 16px;font-size:16px;line-height:1.55}
+.listing .no{font-size:30px;font-weight:900;color:var(--amber);letter-spacing:.04em;margin:4px 0}
+.tags2{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tagc{background:var(--paper);color:#2a2112;border-radius:8px 14px 14px 8px;padding:12px 16px 12px 26px;position:relative;border:0;text-align:left;font-size:16px;min-height:104px;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.tagc::before{content:"";position:absolute;left:9px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:#2a2112;opacity:.7}
+.tagc b{display:block;font-size:22px;letter-spacing:.03em}
+.tagc .res{display:block;margin-top:6px;font-size:15.5px;font-weight:700}
+.tagc.open.used{background:#cfe9c8}
+.tagc.open.none{background:#f0c9c3}
+.tagc .same{display:inline-block;background:#b3261e;color:#fff;border-radius:6px;padding:1px 7px;font-size:13px;margin-left:6px;vertical-align:2px}
+.tagc:not(.open):hover{transform:translateY(-2px)}
+.fnote{font-size:16px;color:var(--sub);margin-top:10px;line-height:1.5}
+
+/* 결과 */
+.restab{width:100%;border-collapse:collapse;margin-top:8px}
+.restab td{padding:8px 8px;border-bottom:1px solid var(--line);font-size:17px;vertical-align:middle}
+.restab .nm{width:300px;font-weight:700}
+.bar{height:16px;border-radius:8px;background:#10161c;border:1px solid var(--line);overflow:hidden;width:200px}
+.bar i{display:block;height:100%;background:var(--teal)}
+.bar i.cut{background:var(--amber)}
+.bar i.stop{background:var(--red)}
+.st{font-weight:800}
+.st.ok{color:var(--green)}.st.cut{color:var(--amber)}.st.stop,.st.closing,.st.closed,.st.revoked{color:var(--red)}
+.note{font-size:15px;color:#e8c9c5}
+.news{margin:10px 0 0;padding:10px 14px;border-left:4px solid var(--red);background:rgba(240,118,106,.1);font-size:17px;line-height:1.55}
+.grade{display:inline-flex;align-items:center;justify-content:center;width:112px;height:112px;border-radius:50%;border:5px double var(--amber);color:var(--amber);font-size:64px;font-weight:900;transform:rotate(-8deg)}
+.scorebox{display:flex;gap:28px;align-items:center}
+.scorebox table td{padding:3px 12px 3px 0;font-size:18px}
+.rulegrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px}
+.rg{background:var(--panel2);border:1.5px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center}
+.rg svg{margin:0 auto 6px;width:54px;height:54px;color:var(--teal)}
+.rg b{display:block;font-size:17px;margin-bottom:4px}
+.rg span{font-size:14.5px;line-height:1.5;color:var(--sub);display:block}
+.steps3{display:flex;gap:14px;margin-top:12px}
+.steps3 .s{flex:1;background:var(--panel2);border:1.5px solid var(--line);border-radius:12px;padding:14px 16px}
+.steps3 .s b{display:block;font-size:20px;margin-bottom:4px;color:var(--amber)}
+.steps3 .s span{font-size:16.5px;line-height:1.55;color:#dbe3ea}
+.final{width:1060px;text-align:center}
+.final .fs{width:470px;margin:6px auto 0}.final .fs svg{width:100%;height:auto;cursor:default;touch-action:auto}
+.final .big{font-size:44px;font-weight:900;margin:6px 0;line-height:1.25}
+.final .tagl{font-size:28px;color:var(--amber);margin:10px 0}
+.facts{text-align:left;font-size:15.5px;line-height:1.6;color:#d8e0e7;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 18px;margin-top:10px}
+.facts b{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="screen"></div>
+  <div id="modal" class="modal"></div>
+  <div id="toast"></div>
+  <div id="hud"><button class="btn sm" id="muteBtn" type="button">소리 켜짐</button></div>
+</div>
+<script>
+
+(function(){
+'use strict';
+
+
+/* ===== 규칙 엔진: 화면과 분리된 순수 함수. 게임 속 수치는 모두 가상이다. ===== */
+var FACT = [
+  { id:'e1', name:'대형 수출업체 1', kind:'big',  precision:false, need:4, cap:7, inv0:8, ai:5, data:5, icon:'big',
+    people:'협력사까지 약 3,000명', exporter:true },
+  { id:'e2', name:'대형 수출업체 2', kind:'big',  precision:false, need:4, cap:7, inv0:0, ai:5, data:5, icon:'big',
+    people:'협력사까지 약 3,000명', exporter:true },
+  { id:'co', name:'대구 전자부품 조합', kind:'small', precision:true, need:3, cap:4, inv0:1, ai:2, data:1, icon:'co',
+    people:'소공장 9곳 · 직원 약 90명' },
+  { id:'jn', name:'북구 보청기 기판 공장', kind:'small', precision:true, need:2, cap:3, inv0:0, ai:1, data:1, icon:'ear', hold:true,
+    people:'직원 12명 · 대표 서진아' },
+  { id:'bs', name:'부산 센서 공장', kind:'mid', precision:false, need:3, cap:4, inv0:2, ai:4, data:4, icon:'sensor', resale:true,
+    people:'직원 약 40명' }
+];
+var WEEKS = [
+  { rel:true,  date:'7월 14일', ban:23, label:'1주차' },
+  { rel:true,  date:'7월 21일', ban:30, label:'2주차' },
+  { rel:false, date:'7월 28일', ban:37, label:'3주차' },
+  { rel:true,  date:'8월 4일',  ban:44, label:'4주차' }
+];
+var TRIPS = [2, 2, 0, 1];
+var HOLD_UNTIL_WEEK = 2;        /* 자동 보류는 3주차(인덱스 2)에 풀린다. 3주차는 방출 중단이라 사실상 4주차까지 막힌다. */
+var CLOSE_STREAK = 2;           /* 가동 50% 미만이 연속 2주면 문을 닫는다 */
+
+function factOf(id){ for (var i=0;i<FACT.length;i++) if (FACT[i].id===id) return FACT[i]; return null; }
+
+function initLots(){
+  var base = [
+    ['L1','2026 입고 · 012','clear'],
+    ['L2','2031 입고','clear'],
+    ['L3','2038 입고','murky'],
+    ['L4','2044 입고','clear'],
+    
+    ['L6','2049 입고 · 가','murky'],
+    ['L7','2049 입고 · 나','clear'],
+    ['N1','2050 입고 · 가','clear'],
+    ['N2','2050 입고 · 나','murky'],
+    ['N3','2050 입고 · 다','clear']
+  ];
+  return base.map(function(b, i){
+    return { id:b[0], tag:b[1], size:4, rem:4, truth:b[2], label:null, labelBy:null, tests:0,
+             avail: i < 6, fresh: i >= 6 };
+  });
+}
+
+function newState(){
+  var f = {};
+  FACT.forEach(function(x){
+    f[x.id] = { inv:x.inv0, closed:false, low:0, hold:!!x.hold, revoked:false, known:false,
+                outs:[], recv:[], defects:0, resold:0, evidence:false, cleared:false };
+  });
+  return {
+    w:0, lots:initLots(), f:f, trips:TRIPS[0], interview:false, mislabel:0,
+    viol:{ resale:0, illegal:0, wrongRevoke:0 }, history:[], done:false, caught:false
+  };
+}
+
+function lotById(st, id){ for (var i=0;i<st.lots.length;i++) if (st.lots[i].id===id) return st.lots[i]; return null; }
+
+function pools(st){
+  var c=0, m=0, u=0;
+  st.lots.forEach(function(l){
+    if (!l.avail || l.rem<=0) return;
+    if (l.label==='clear') c+=l.rem; else if (l.label==='murky') m+=l.rem; else u+=l.rem;
+  });
+  return { clear:c, murky:m, unk:u };
+}
+
+function maxFor(st, id){
+  var x = factOf(id), s = st.f[id];
+  if (!WEEKS[st.w].rel) return 0;
+  if (s.closed || s.revoked || s.hold) return 0;
+  return x.cap;
+}
+
+function feasible(st, alloc){
+  var p = pools(st), P=0, T=0;
+  FACT.forEach(function(x){ var n = alloc[x.id]||0; T+=n; if (x.precision) P+=n; });
+  return P <= p.clear && T <= p.clear + p.murky;
+}
+
+function totalAlloc(alloc){ var t=0; for (var k in alloc) t += alloc[k]||0; return t; }
+
+/* AI 안: 예측치를 한도 안에서 그대로 따르되, 시편 확인이 끝난 묶음만큼만 */
+function aiPlan(st){
+  var a = {};
+  FACT.forEach(function(x){ a[x.id] = Math.min(maxFor(st, x.id), x.ai); });
+  var guard = 200;
+  while (!feasible(st, a) && guard-- > 0){
+    var best=null;
+    FACT.forEach(function(x){ if ((a[x.id]||0) > 0 && (best===null || a[x.id] >= a[best])) best = x.id; });
+    if (best===null) break;
+    a[best]--;
+  }
+  return a;
+}
+
+/* 한 주를 마감한다. alloc은 {id:묶음수}. 반환: 보고서 */
+function resolveWeek(st, alloc){
+  var w = st.w, rep = { w:w, rows:[], notes:[], recvTotal:0 };
+  var order = function(prec){
+    var cl = st.lots.filter(function(l){ return l.avail && l.rem>0 && l.label==='clear'; });
+    var mu = st.lots.filter(function(l){ return l.avail && l.rem>0 && l.label==='murky'; });
+    return prec ? cl : mu.concat(cl);
+  };
+  var take = function(n, prec){
+    var good=0, bad=0, lots = order(prec);
+    for (var i=0;i<lots.length && n>0;i++){
+      var l = lots[i], t = Math.min(n, l.rem);
+      l.rem -= t; n -= t;
+      if (l.truth==='clear') good += t; else bad += t;
+    }
+    return { good:good, bad:bad };
+  };
+  FACT.forEach(function(x){
+    var s = st.f[x.id], n = alloc[x.id]||0, eff = 0, rec = { n:n, eff:0, bad:0, resold:0 };
+    if (n>0 && WEEKS[w].rel && maxFor(st, x.id) >= n){
+      var r = take(n, x.precision);
+      rep.recvTotal += n;
+      if (x.resale && !s.revoked){ rec.resold = n; s.resold += n; eff = 0; }
+      else if (x.precision){ eff = r.good; rec.bad = r.bad; s.defects += r.bad; }
+      else eff = n;
+      rec.eff = eff; s.inv += eff;
+    }
+    s.recv.push(rec);
+  });
+  FACT.forEach(function(x){
+    var s = st.f[x.id], row = { id:x.id, out:0, state:'', rec:s.recv[s.recv.length-1], inv:0 };
+    if (s.closed){ row.state='closed'; s.outs.push(0); rep.rows.push(row); return; }
+    if (s.revoked){ row.state='revoked'; s.outs.push(0); rep.rows.push(row); return; }
+    var have = s.inv, out = Math.min(1, have / x.need);
+    s.inv = Math.max(0, have - x.need);
+    s.outs.push(out); row.out = out; row.inv = s.inv;
+    if (out < 0.5) s.low++; else s.low = 0;
+    if (s.low >= CLOSE_STREAK){ s.closed = true; row.state='closing'; }
+    else row.state = out >= 0.95 ? 'ok' : (out >= 0.5 ? 'cut' : 'stop');
+    rep.rows.push(row);
+  });
+  /* 3주차 마감 뒤: 전매가 시장에 드러난다 */
+  if (w >= 2){
+    var b = st.f.bs;
+    if (b.resold > 0 && !b.revoked){ b.revoked = true; st.viol.resale = 1; rep.notes.push('resale'); }
+  }
+  st.history.push(rep);
+  return rep;
+}
+
+function advanceWeek(st){
+  st.w++;
+  if (st.w >= WEEKS.length){ st.done = true; return; }
+  st.trips = st.interview && st.w === 3 ? 0 : TRIPS[st.w];
+  if (st.w === HOLD_UNTIL_WEEK){ st.f.jn.hold = false; }
+  if (st.w === 2){ /* 보충 입고분이 도착한다 */
+    st.lots.forEach(function(l){ if (l.fresh) l.avail = true; });
+  }
+}
+
+/* 현장 확인 판정 */
+function applyVerdict(st, id, verdict){
+  var s = st.f[id], x = factOf(id), res = { ok:true, kind:'' };
+  s.known = true; s.evidence = true;
+  if (verdict === 'innocent'){
+    if (x.resale){ res.kind = 'missed'; s.cleared = true; }              /* 진짜 전매를 풀어 줌 */
+    else { s.hold = false; s.cleared = true; res.kind = 'cleared'; }
+  } else if (verdict === 'revoke'){
+    if (x.resale){ s.revoked = true; res.kind = 'caught'; st.caught = true; }
+    else { s.revoked = true; s.closed = true; st.viol.wrongRevoke = 1; res.kind = 'wrong'; }
+  }
+  return res;
+}
+
+function score(st){
+  var parts = {}, closed = 0, sumOut = 0, legit = ['e1','e2','co','jn'];
+  legit.forEach(function(id){
+    var s = st.f[id], avg = 0;
+    s.outs.forEach(function(o){ avg += o; });
+    avg = s.outs.length ? avg / WEEKS.length : 0;
+    sumOut += avg;
+    if (s.closed) closed++;
+  });
+  parts.factory = Math.max(0, Math.round(sumOut / legit.length * 60 - closed * 6));
+  var rule = 25;
+  if (st.viol.resale) rule -= 10;
+  if (st.viol.illegal) rule -= 8;
+  if (st.viol.wrongRevoke) rule -= 15;
+  parts.rule = Math.max(0, rule);
+  var mis = st.lots.filter(function(l){ return l.label && l.label !== l.truth; }).length;
+  st.mislabel = mis;
+  parts.lots = Math.max(0, 15 - mis * 5);
+  parts.total = parts.factory + parts.rule + parts.lots;
+  parts.closed = closed;
+  var g = 'C';
+  if (parts.total >= 88 && closed === 0) g = 'S';
+  else if (parts.total >= 72 && closed === 0) g = 'A';
+  else if (parts.total >= 52) g = 'B';
+  parts.grade = g;
+  return parts;
+}
+
+
+/* ===================== 공통 도우미 ===================== */
+var $ = function(s, r){ return (r||document).querySelector(s); };
+var $$ = function(s, r){ return Array.prototype.slice.call((r||document).querySelectorAll(s)); };
+var clamp = function(v,a,b){ return Math.max(a, Math.min(b, v)); };
+var sleep = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
+var SVGNS = 'http://www.w3.org/2000/svg';
+var stage = $('#stage'), screenEl = $('#screen'), modalEl = $('#modal'), toastEl = $('#toast');
+
+function fit(){
+  var s = Math.min(window.innerWidth/1280, window.innerHeight/720);
+  if (!(s > 0.05)) s = 0.05;
+  stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+}
+window.addEventListener('resize', fit); fit();
+
+var toastTimer = null;
+function toast(msg){
+  toastEl.textContent = msg; toastEl.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2600);
+}
+
+/* ===================== 소리 (WebAudio, 외부 파일 없음) ===================== */
+var Snd = {
+  ctx:null, on:true, master:null, nb:null,
+  init:function(){
+    if (this.ctx){ this.resume(); return; }
+    try{
+      var C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      var c = new C(); this.ctx = c; this.master = c.createGain(); this.master.gain.value = 0.85; this.master.connect(c.destination);
+      var len = c.sampleRate, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+      for (var i=0;i<len;i++) d[i] = Math.random()*2-1;
+      this.nb = b;
+    }catch(e){ this.ctx = null; }
+  },
+  resume:function(){ try{ if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); }catch(e){} },
+  ok:function(){ return !!(this.ctx && this.on && this.nb); },
+  grain:function(t, f, q, g, dur){
+    try{
+      var c = this.ctx, s = c.createBufferSource(); s.buffer = this.nb;
+      var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+      var ga = c.createGain(); ga.gain.setValueAtTime(0.0001, t);
+      ga.gain.exponentialRampToValueAtTime(g, t+0.0015); ga.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      s.connect(bp); bp.connect(ga); ga.connect(this.master); s.start(t, Math.random()*0.8); s.stop(t+dur+0.02);
+    }catch(e){}
+  },
+  crackle:function(){
+    if (!this.ok()) return;
+    var t = this.ctx.currentTime, n = 3 + Math.floor(Math.random()*5);
+    for (var i=0;i<n;i++) this.grain(t + Math.random()*0.15, 2200 + Math.random()*5400, 2 + Math.random()*6, 0.4 + Math.random()*0.5, 0.012 + Math.random()*0.03);
+  },
+  tone:function(freq, dur, type, g, delay){
+    if (!this.ok()) return;
+    try{
+      var c = this.ctx, t = c.currentTime + (delay||0), o = c.createOscillator(), ga = c.createGain();
+      o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+      ga.gain.setValueAtTime(0.0001, t); ga.gain.exponentialRampToValueAtTime(g || 0.1, t+0.01); ga.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      o.connect(ga); ga.connect(this.master); o.start(t); o.stop(t+dur+0.03);
+    }catch(e){}
+  },
+  thud:function(){
+    if (!this.ok()) return;
+    try{
+      var c = this.ctx, t = c.currentTime, o = c.createOscillator(), ga = c.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(55, t+0.14);
+      ga.gain.setValueAtTime(0.0001, t); ga.gain.exponentialRampToValueAtTime(0.5, t+0.01); ga.gain.exponentialRampToValueAtTime(0.0001, t+0.18);
+      o.connect(ga); ga.connect(this.master); o.start(t); o.stop(t+0.22);
+    }catch(e){}
+  },
+  click:function(){ this.tone(640, 0.05, 'triangle', 0.07); },
+  stamp:function(){ this.thud(); },
+  chime:function(){ this.tone(523, 0.18, 'sine', 0.1, 0); this.tone(659, 0.18, 'sine', 0.1, 0.12); this.tone(784, 0.3, 'sine', 0.1, 0.24); },
+  warn:function(){ this.tone(196, 0.22, 'square', 0.05, 0); this.tone(165, 0.3, 'square', 0.05, 0.16); }
+};
+function setMuteLabel(){ $('#muteBtn').textContent = Snd.on ? '소리 켜짐' : '소리 꺼짐'; }
+$('#muteBtn').addEventListener('click', function(){ Snd.init(); Snd.on = !Snd.on; setMuteLabel(); if (Snd.on) Snd.click(); });
+document.addEventListener('pointerdown', function(){ Snd.init(); }, true);
+document.addEventListener('click', function(e){
+  var b = e.target.closest && e.target.closest('button');
+  if (b && !b.disabled && b.id !== 'muteBtn') Snd.click();
+}, true);
+
+/* ===================== 그림: 인물, 아이콘 (SVG) ===================== */
+function avatar(kind, o){
+  o = o || {};
+  var P = {
+    doyun:{ skin:'#e8c4a0', hair:'#262b33', cloth:'#2e7176' },
+    seok: { skin:'#d8ae88', hair:'#eef1f3', cloth:'#6b7852' },
+    jin:  { skin:'#e2ba96', hair:'#3a2e2a', cloth:'#b88468' },
+    jung: { skin:'#e6c3a1', hair:'#59606a', cloth:'#465160' }
+  }[kind] || { skin:'#ddd', hair:'#333', cloth:'#556' };
+  var lx = o.look === 'left' ? -3 : (o.look === 'right' ? 3 : 0), ly = o.look === 'down' ? 3 : 0;
+  var eyes = '';
+  [47, 73].forEach(function(cx){
+    eyes += '<ellipse cx="'+cx+'" cy="60" rx="5.4" ry="4.4" fill="#fff"/><circle cx="'+(cx+lx*0.8)+'" cy="'+(60+ly*0.8)+'" r="2.6" fill="#1d2228"/>';
+  });
+  var extra = '';
+  if (kind === 'jung') extra += '<rect x="38" y="53" width="19" height="14" rx="4" fill="none" stroke="#2a2f36" stroke-width="2"/><rect x="63" y="53" width="19" height="14" rx="4" fill="none" stroke="#2a2f36" stroke-width="2"/><path d="M57 59 H63" stroke="#2a2f36" stroke-width="2"/>';
+  if (kind === 'jin') extra += '<circle cx="60" cy="24" r="11" fill="'+P.hair+'"/>';
+  if (kind === 'doyun') extra += '<path d="M40 100 L60 118 L80 100" fill="none" stroke="#1d5256" stroke-width="3"/>';
+  if (kind === 'seok') extra += '<path d="M28 34 C40 18 80 18 92 34 L92 38 L28 38Z" fill="#7a6a3c"/>';
+  var aid = o.aid ? '<path d="M93 54 q9 6 3 18" stroke="#ddc6a6" stroke-width="3.4" fill="none" stroke-linecap="round"/><circle cx="96" cy="73" r="2.8" fill="#6fd3c8"/>' : '';
+  var mouth = o.mouth === 'sad' ? '<path d="M52 82 q8 -5 16 0" stroke="#5a3a2a" stroke-width="2.6" fill="none" stroke-linecap="round"/>' : '<path d="M52 80 q8 5 16 0" stroke="#5a3a2a" stroke-width="2.6" fill="none" stroke-linecap="round"/>';
+  return '<svg viewBox="0 0 120 140" aria-hidden="true">'
+    + '<path d="M8 140 C8 104 34 94 60 94 C86 94 112 104 112 140Z" fill="'+P.cloth+'"/>'
+    + '<rect x="50" y="80" width="20" height="18" fill="'+P.skin+'"/>'
+    + '<circle cx="30" cy="62" r="6.5" fill="'+P.skin+'"/><circle cx="90" cy="62" r="6.5" fill="'+P.skin+'"/>'
+    + '<circle cx="60" cy="58" r="31" fill="'+P.skin+'"/>'
+    + '<path d="M28 56 C24 22 96 18 92 56 C86 40 34 40 28 56Z" fill="'+P.hair+'"/>'
+    + extra + eyes + mouth + aid + '</svg>';
+}
+
+var ICON = {
+  big:'<svg viewBox="0 0 72 72" fill="currentColor"><rect x="8" y="30" width="56" height="34" rx="3"/><rect x="14" y="12" width="9" height="22"/><rect x="30" y="18" width="9" height="16"/><rect x="46" y="8" width="9" height="26"/><g fill="#12161b"><rect x="14" y="40" width="9" height="9"/><rect x="31" y="40" width="9" height="9"/><rect x="48" y="40" width="9" height="9"/><rect x="31" y="53" width="10" height="11"/></g></svg>',
+  co:'<svg viewBox="0 0 72 72" fill="currentColor"><path d="M4 62 V40 L16 30 L28 40 V62Z"/><path d="M26 62 V34 L38 24 L50 34 V62Z"/><path d="M48 62 V42 L60 32 L70 42 V62Z"/><g fill="#12161b"><rect x="11" y="48" width="7" height="8"/><rect x="33" y="42" width="7" height="8"/><rect x="55" y="48" width="7" height="8"/></g></svg>',
+  ear:'<svg viewBox="0 0 72 72" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="14" width="56" height="44" rx="5"/><rect x="18" y="24" width="14" height="12" rx="2" fill="currentColor"/><path d="M40 28 H56 M40 36 H50 M18 46 H30 M38 46 H56"/><circle cx="52" cy="46" r="2.5" fill="currentColor"/></svg>',
+  sensor:'<svg viewBox="0 0 72 72" fill="currentColor"><rect x="10" y="34" width="52" height="30" rx="3"/><rect x="32" y="10" width="5" height="26"/><circle cx="34.5" cy="10" r="6"/><path d="M20 20 A20 20 0 0 1 49 20" fill="none" stroke="currentColor" stroke-width="3"/><g fill="#12161b"><rect x="17" y="42" width="9" height="9"/><rect x="45" y="42" width="9" height="9"/><rect x="31" y="50" width="10" height="14"/></g></svg>',
+  reg:'<svg viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="8" width="30" height="40" rx="4"/><path d="M20 6 h14 v7 h-14z"/><path d="M19 29 l6 6 l11 -12"/></svg>',
+  nores:'<svg viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 24 C12 14 20 8 28 8 C36 8 43 13 45 21"/><path d="M45 8 V21 H32"/><path d="M44 30 C42 40 34 46 26 46 C18 46 11 41 9 33"/><path d="M9 46 V33 H22"/><path d="M20 20 L34 34 M34 20 L20 34" stroke="#f0766a"/></svg>',
+  cap:'<svg viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 44 H46"/><rect x="12" y="26" width="8" height="18"/><rect x="24" y="18" width="8" height="26"/><rect x="36" y="10" width="8" height="34"/><path d="M6 14 H48" stroke="#f2b84b" stroke-dasharray="4 4"/></svg>',
+  halt:'<svg viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="27" cy="27" r="19"/><path d="M21 19 V35 M33 19 V35" stroke-width="5"/></svg>',
+  ai:'<svg viewBox="0 0 54 54" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 44 L8 10"/><path d="M8 44 H46"/><path d="M14 36 L24 26 L31 31 L44 14"/><circle cx="44" cy="14" r="3.5" fill="currentColor"/></svg>'
+};
+function lotIcon(){
+  return '<svg class="ic" viewBox="0 0 34 24"><rect x="2" y="4" width="30" height="16" rx="4" fill="#cfd7dd"/><rect x="2" y="4" width="30" height="5" rx="2.5" fill="#f4f8fa"/><path d="M6 14 H28" stroke="#8b959d" stroke-width="2"/></svg>';
+}
+
+/* ===================== 모달과 장면 ===================== */
+var modalOpen = false;
+function openModal(html, cls, setup){
+  return new Promise(function(resolve){
+    modalOpen = true;
+    modalEl.className = 'modal show';
+    modalEl.innerHTML = '<div class="mcard ' + (cls||'') + '">' + html + '</div>';
+    var card = modalEl.firstChild, cleanup = null, closed = false;
+    var done = function(v){
+      if (closed) return; closed = true;
+      try{ if (cleanup) cleanup(); }catch(e){}
+      modalEl.className = 'modal'; modalEl.innerHTML = ''; modalOpen = false;
+      resolve(v);
+    };
+    cleanup = setup ? setup(card, done) : null;
+  });
+}
+
+var SPEAKER = { doyun:'한도윤', seok:'오석주', jin:'서진아', jung:'마정훈', narr:'', sys:'' };
+function scene(lines, place){
+  var html = '<div class="scene">'
+    + (place ? '<div class="place">' + place + '</div>' : '')
+    + '<div class="stagev"><div class="pl L"></div><div class="mid"></div><div class="pl R"></div></div>'
+    + '<div class="box"><div class="who"></div><div class="txt"></div></div>'
+    + '<div class="mfoot"><button class="btn pri" type="button" data-next>다음 ▶</button></div></div>';
+  return openModal(html, '', function(card, done){
+    var i = 0, other = null, L = $('.L', card), R = $('.R', card), who = $('.who', card), txt = $('.txt', card), nextBtn = $('[data-next]', card);
+    function show(){
+      var ln = lines[i];
+      if (ln.w !== 'doyun' && ln.w !== 'narr' && ln.w !== 'sys') other = ln;
+      if (ln.w === 'doyun' && !other) other = null;
+      var dy = (ln.w === 'doyun') ? ln : { look:'right' };
+      L.innerHTML = avatar('doyun', { look: ln.w === 'doyun' ? (ln.look || 'right') : 'right', mouth: ln.w === 'doyun' ? ln.mouth : null });
+      L.className = 'pl L' + (ln.w === 'doyun' ? ' on' : '');
+      if (other){
+        var oo = (ln.w === 'doyun' || ln.w === 'narr' || ln.w === 'sys') ? other : ln;
+        R.innerHTML = avatar(oo.w, { look: oo.look || 'left', aid: oo.aid, mouth: oo.mouth });
+        R.className = 'pl R' + (ln.w === oo.w ? ' on' : '');
+      } else { R.innerHTML = ''; R.className = 'pl R'; }
+      who.textContent = SPEAKER[ln.w] || '';
+      txt.textContent = ln.t;
+      txt.className = 'txt' + (ln.w === 'narr' ? ' narr' : '') + (ln.w === 'sys' ? ' sys' : '');
+      nextBtn.textContent = (i === lines.length - 1) ? '계속 ▶' : '다음 ▶';
+    }
+    nextBtn.addEventListener('click', function(){ i++; if (i >= lines.length) done(); else show(); });
+    show();
+  });
+}
+
+function notice(title, body, btn, extra){
+  return openModal('<h2>' + title + '</h2>' + body + '<div class="mfoot"><button class="btn pri big" type="button" data-ok>' + (btn || '확인') + '</button></div>', '', function(card, done){
+    $('[data-ok]', card).addEventListener('click', function(){ done(true); });
+    if (extra) extra(card, done);
+  });
+}
+
+function choice(title, body, options){
+  var html = '<h2>' + title + '</h2>' + body + '<div class="mfoot" style="flex-direction:column;align-items:stretch">'
+    + options.map(function(o, i){ return '<button class="btn ' + (o.pri ? 'pri' : '') + '" type="button" data-i="' + i + '" style="text-align:left;font-size:19px;padding:14px 18px">' + o.t + '</button>'; }).join('') + '</div>';
+  return openModal(html, '', function(card, done){
+    $$('[data-i]', card).forEach(function(b){ b.addEventListener('click', function(){ done(+b.getAttribute('data-i')); }); });
+  });
+}
+
+/* ===================== 주석 띠 휘기 (이 게임의 상징 조작) ===================== */
+var uidN = 0;
+function makeBender(svg, o){
+  o = o || {};
+  var uid = ++uidN, clear = o.clear !== false, dy = 0, acc = 0, thr = 9, travel = 0, crack = 0, dull = 0;
+  var ready = false, drag = false, user = false, dead = false, spike = 0, tagOn = false;
+  var wv = []; for (var k=0;k<48;k++) wv.push(0);
+  var timers = [], intervals = [];
+  var X0 = 124, Y0 = 130, LEN = 470;
+  svg.setAttribute('viewBox', '0 0 700 260');
+  svg.innerHTML =
+    '<rect x="0" y="0" width="700" height="260" fill="none"/>'
+    + '<g><rect x="58" y="82" width="68" height="96" rx="9" fill="#3a424b"/><rect x="58" y="82" width="68" height="13" rx="6" fill="#58626c"/>'
+    + '<circle cx="92" cy="106" r="5" fill="#1f262d"/><circle cx="92" cy="154" r="5" fill="#1f262d"/></g>'
+    + '<g class="dust"></g><g class="rips"></g>'
+    + '<path class="sSh" fill="none" stroke="#6f7881" stroke-width="5" stroke-linecap="round"/>'
+    + '<path class="sBa" fill="none" stroke="#b6c0c7" stroke-width="18" stroke-linecap="round"/>'
+    + '<path class="sHi" fill="none" stroke="#f1f6f8" stroke-opacity=".75" stroke-width="5" stroke-linecap="round"/>'
+    + '<g class="tagG"></g>'
+    + '<circle class="grip" r="17" fill="rgba(242,184,75,.12)" stroke="#f2b84b" stroke-width="3" stroke-dasharray="5 4"/>'
+    + '<g class="caps"></g>'
+    + '<text x="150" y="217" class="mt">울음 미터 (소리가 안 들려도 보입니다)</text>'
+    + '<g transform="translate(150,222)"><rect width="400" height="32" rx="7" fill="rgba(255,255,255,.04)" stroke="#34404d"/>'
+    + '<path class="wave" fill="none" stroke="#6fd3c8" stroke-width="2.2"/></g>';
+  var q = function(s){ return svg.querySelector(s); };
+  var sSh = q('.sSh'), sBa = q('.sBa'), sHi = q('.sHi'), grip = q('.grip'), rips = q('.rips'), dustG = q('.dust'), caps = q('.caps'), wave = q('.wave'), tagG = q('.tagG');
+
+  function geo(){
+    var ex = X0 + LEN - Math.abs(dy)*0.32, ey = Y0 + dy;
+    return { ex:ex, ey:ey, c1x:X0+LEN*0.42, c1y:Y0, c2x:X0+LEN*0.72, c2y:Y0+dy*0.5 };
+  }
+  function bez(t){
+    var g = geo(), u = 1 - t;
+    return { x:u*u*u*X0 + 3*u*u*t*g.c1x + 3*u*t*t*g.c2x + t*t*t*g.ex, y:u*u*u*Y0 + 3*u*u*t*g.c1y + 3*u*t*t*g.c2y + t*t*t*g.ey };
+  }
+  function update(){
+    var g = geo(), d = 'M' + X0 + ' ' + Y0 + ' C' + g.c1x + ' ' + g.c1y + ' ' + g.c2x + ' ' + g.c2y + ' ' + g.ex + ' ' + g.ey;
+    sBa.setAttribute('d', d); sHi.setAttribute('d', d); sSh.setAttribute('d', d);
+    sHi.setAttribute('transform', 'translate(0,-4)'); sSh.setAttribute('transform', 'translate(0,5)');
+    grip.setAttribute('cx', g.ex); grip.setAttribute('cy', g.ey);
+    if (tagOn) placeTag();
+  }
+  function mk(name, attrs){ var e = document.createElementNS(SVGNS, name); for (var a in attrs) e.setAttribute(a, attrs[a]); return e; }
+  function later(el, ms){ timers.push(setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, ms)); }
+  var CAPS = ['바삭', '바사삭', '사각', '바삭바삭', '바삭…'];
+  function visual(){
+    var p = bez(0.3 + Math.random()*0.6);
+    var r = mk('circle', { cx:p.x, cy:p.y, r:22, 'class':'rip' }); rips.appendChild(r); later(r, 900);
+    for (var i=0;i<4;i++){
+      var s = mk('circle', { cx:p.x, cy:p.y, r:2.2, 'class':'spk' });
+      s.style.setProperty('--dx', (Math.random()*60-30) + 'px'); s.style.setProperty('--dy', (Math.random()*-46-6) + 'px');
+      caps.appendChild(s); later(s, 600);
+    }
+    var t = mk('text', { x:p.x - 20 + Math.random()*20, y:p.y - 26, 'class':'cap' }); t.textContent = CAPS[Math.floor(Math.random()*CAPS.length)];
+    caps.appendChild(t); later(t, 1000);
+    spike = Math.max(spike, 9 + Math.random()*5);
+  }
+  function dustFx(){
+    var p = bez(0.35 + Math.random()*0.5);
+    for (var i=0;i<3;i++){
+      var c = mk('circle', { cx:p.x + Math.random()*24-12, cy:p.y + 8, r:2 + Math.random()*2, 'class':'dst' });
+      dustG.appendChild(c); later(c, 950);
+    }
+  }
+  function fire(silent){
+    if (clear){
+      if (!silent) crack++;
+      Snd.crackle(); visual();
+      if (!silent && o.onCrackle) o.onCrackle(crack);
+    } else {
+      if (!silent) dull++;
+      if (dull % 5 === 1 || silent) Snd.thud();
+      dustFx();
+    }
+  }
+  function checkReady(){
+    if (ready) return;
+    if ((clear && crack >= 5) || (!clear && travel >= 460)){ ready = true; if (o.onReady) o.onReady(); }
+  }
+  function step(d, silent){
+    if (Math.abs(dy) < 16) return;
+    acc += d; if (!silent) travel += d;
+    if (acc >= thr){ acc = 0; thr = 8 + Math.random()*9; fire(silent); if (!silent) checkReady(); }
+  }
+  function moveTo(ny, silent){
+    if (!isFinite(ny)) return;
+    ny = clamp(ny, -105, 105);
+    var d = Math.abs(ny - dy); dy = ny; update(); step(d, silent);
+  }
+  function ptr(e){
+    var r = svg.getBoundingClientRect(); if (!r.height) return Y0;
+    return (e.clientY - r.top) * (260 / r.height);
+  }
+  svg.addEventListener('pointerdown', function(e){
+    if (dead) return; user = true; drag = true;
+    try{ svg.setPointerCapture(e.pointerId); }catch(er){}
+    moveTo(ptr(e) - Y0);
+  });
+  svg.addEventListener('pointermove', function(e){ if (drag && !dead) moveTo(ptr(e) - Y0); });
+  var up = function(){ drag = false; };
+  svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up); svg.addEventListener('lostpointercapture', up);
+
+  intervals.push(setInterval(function(){
+    var v;
+    if (spike > 0.8){ v = (Math.random() < 0.5 ? -1 : 1) * spike; spike *= 0.55; } else { spike = 0; v = (Math.random() - 0.5) * (clear ? 1.4 : 0.8); }
+    wv.push(v); wv.shift();
+    var d = '';
+    for (var i=0;i<wv.length;i++) d += (i ? 'L' : 'M') + (4 + i * (392/47)).toFixed(1) + ' ' + (16 + clamp(wv[i], -13, 13)).toFixed(1);
+    wave.setAttribute('d', d);
+  }, 60));
+
+  function idleLoop(){
+    if (dead || user) return;
+    var s = 0, N = 26;
+    (function tick(){
+      if (dead || user) return;
+      s++; moveTo(-Math.sin(Math.PI * s / N) * 74, true);
+      if (s < N) timers.push(setTimeout(tick, 28));
+      else { dy = 0; update(); timers.push(setTimeout(idleLoop, 1500)); }
+    })();
+  }
+  function placeTag(){
+    var p = bez(0.56);
+    tagG.innerHTML = '<g transform="translate(' + p.x.toFixed(1) + ',' + (p.y - 62).toFixed(1) + ')">'
+      + '<line x1="0" y1="44" x2="0" y2="60" stroke="#8a8f94" stroke-width="2.5"/>'
+      + '<g transform="rotate(-3 0 22)"><path d="M-74 0 H70 q8 0 8 8 V36 q0 8 -8 8 H-74 Z" fill="#ead9b5" stroke="#b79d6b"/><circle cx="-63" cy="22" r="4" fill="#6e5a30"/>'
+      + '<text x="-51" y="28" font-size="15.5" font-weight="800" fill="#2a2112">2050 입고 · 001</text></g></g>';
+  }
+  update();
+  if (o.idle) timers.push(setTimeout(idleLoop, 700));
+  return {
+    destroy:function(){ dead = true; timers.forEach(clearTimeout); intervals.forEach(clearInterval); },
+    stats:function(){ return { crack:crack, travel:travel, ready:ready }; },
+    showTag:function(){ tagOn = true; placeTag(); }
+  };
+}
+
+/* ===================== 상태 ===================== */
+var ST = null, A = {}, weekResolve = null, busy = false, lastStrip = '';
+
+function stockTotal(){ var t = 0; ST.lots.forEach(function(l){ if (l.avail) t += l.rem; }); return t; }
+function removeStock(n){
+  var order = ST.lots.filter(function(l){ return l.avail && l.rem > 0; }).sort(function(a,b){
+    var r = function(l){ return l.label === 'murky' ? 0 : (l.label ? 2 : 1); }; return r(a) - r(b);
+  });
+  for (var i=0;i<order.length && n>0;i++){ var t = Math.min(n, order[i].rem); order[i].rem -= t; n -= t; }
+}
+function dotsHTML(n){ var s=''; for (var i=0;i<5;i++) s += '<span class="dot' + (i<n ? '' : ' off') + '" style="width:10px;height:10px;margin-right:3px"></span>'; return s; }
+
+/* ===================== 규칙 안내 ===================== */
+var RULES = [
+  { ic:'reg',   t:'등록한 곳에만',   d:'비축이용업체로 등록한 실수요 업체에만 팝니다.' },
+  { ic:'nores', t:'전매 금지',       d:'되팔면 차익 환수, 위약금, 등록 말소가 따릅니다.' },
+  { ic:'cap',   t:'주간 한도',       d:'업체마다 한 주에 살 수 있는 양이 정해져 있습니다. 수출기업은 한시로 높여 줍니다.' },
+  { ic:'halt',  t:'보충 중엔 중단',  d:'창고를 다시 채우는 동안에는 내보내지 않습니다.' },
+  { ic:'ai',    t:'AI 수요예측',     d:'AI가 필요량을 예측합니다. 장부가 얇은 곳은 작게 읽습니다. 확정은 사람이 합니다.' }
+];
+function rulesHTML(){
+  return '<div class="rulegrid">' + RULES.map(function(r){ return '<div class="rg">' + ICON[r.ic] + '<b>' + r.t + '</b><span>' + r.d + '</span></div>'; }).join('') + '</div>';
+}
+var FACTS_HTML =
+  '<div class="facts"><b>실제 제도 (조달청 비축사업 안내, 2026-10-30 확인 기준. 바뀔 수 있습니다)</b><br>'
+  + '· 비철금속 6종(알루미늄·니켈·구리·아연·주석·납)을 비축하고, 비축이용업체로 등록한 실수요 업체에 판매합니다.<br>'
+  + '· 전매는 금지이며, 적발되면 차익 환수, 위약금, 등록 말소가 따릅니다.<br>'
+  + '· 업체별 주간 판매 한도가 있습니다. 주석은 순도 99.85% 이상 주 5톤, 99.90% 이상 주 3톤입니다. 혁신·수출기업은 한도를 한시적으로 올려 줍니다.<br>'
+  + '· 재고를 보충할 때는 방출을 중단한다고 공지합니다.<br>'
+  + '· 2026년 3월 ‘공공조달 AI 전환 기본계획’에 비축물자 AI 수요예측이 들어 있습니다(언론 보도 기준).<br>'
+  + '<b>이 게임에서 지어낸 것</b><br>'
+  + '· 2050년의 사건, 서해 비축기지, 업체와 인물, 묶음·인원 수치, ‘정밀 납땜은 맑은 묶음만’, 자동 보류와 AI 판단, 주석 시편 판정 방식은 이야기를 위한 설정입니다.</div>';
+
+async function showInfo(){
+  await openModal('<h2>비축 제도 안내</h2><p class="sm">이 게임의 규칙은 실제 비축사업의 규칙을 바탕으로 합니다.</p>' + rulesHTML() + FACTS_HTML
+    + '<div class="mfoot"><button class="btn pri" type="button" data-ok>닫기</button></div>', '', function(card, done){
+    $('[data-ok]', card).addEventListener('click', function(){ done(); });
+  });
+}
+
+/* ===================== 첫 화면 ===================== */
+function titleScreen(){
+  return new Promise(function(resolve){
+    screenEl.innerHTML = '<div class="title"><div class="q">“안 쓸 걸, 왜 사요?”</div><svg class="strip" id="tStrip"></svg>'
+      + '<h1 id="tH">주석의 울음</h1><div class="a" id="tA">“안 쓰려고 쌓는 거여.”</div>'
+      + '<div class="sub">서해 비축기지 배정 일지 · 비축 배분 전략 퍼즐</div>'
+      + '<div class="go"><button class="btn pri big" id="tGo" type="button" style="visibility:hidden">시작하기</button></div>'
+      + '<div class="hintline">띠 끝의 노란 원을 잡고 위아래로 휘어 보세요 (마우스 드래그)</div></div>';
+    var tH = $('#tH'), tA = $('#tA'), tGo = $('#tGo'), shown = false;
+    function showAll(){ tH.classList.add('on'); tA.classList.add('on'); tGo.style.visibility = 'visible'; shown = true; }
+    var bender = makeBender($('#tStrip'), { idle:true, clear:true, onCrackle:function(n){
+      if (n >= 2) tH.classList.add('on');
+      if (n >= 4) showAll();
+    }});
+    var t1 = setTimeout(function(){ tH.classList.add('on'); }, 2800);
+    var t2 = setTimeout(showAll, 9000);
+    tGo.addEventListener('click', function(){ clearTimeout(t1); clearTimeout(t2); bender.destroy(); resolve(); });
+  });
+}
+
+async function briefing(){
+  await openModal('<h2>서해 비축기지 주무관이 되었습니다</h2>'
+    + '<p>주요 생산국이 주석 수출을 막았습니다. 창고에는 한정된 묶음만 있고, 새 주석은 4주 뒤에야 들어옵니다. 다섯 공장이 멈추지 않게 나눠 주세요. 아래 다섯 규칙이 그대로 이 게임의 규칙입니다.</p>'
+    + rulesHTML() + '<div class="mfoot"><button class="btn pri big" type="button" data-ok>다음 ▶</button></div>', '', function(card, done){
+    $('[data-ok]', card).addEventListener('click', function(){ done(); });
+  });
+  await openModal('<h2>하는 법 (마우스만 씁니다 · 약 6~8분)</h2><div class="steps3">'
+    + '<div class="s"><b>① 시편 휘기</b><span>묶음에서 자른 얇은 띠를 마우스로 휘어 소리를 듣습니다. 맑게 울면 ‘맑음’, 소리가 죽으면 ‘탁함’입니다. 정밀 납땜 공장에는 맑은 묶음만 줄 수 있습니다.</span></div>'
+    + '<div class="s"><b>② 배정하기</b><span>공장마다 칸을 눌러 몇 묶음을 줄지 정합니다. 노란 삼각형은 AI 예측입니다. 수상한 숫자는 ‘현장 확인’을 나가서 직접 보세요. 출장 횟수는 한정입니다.</span></div>'
+    + '<div class="s"><b>③ 확정하기</b><span>한 주가 지나면 공장이 재고를 쓰고 가동 결과가 나옵니다. 가동이 절반 미만인 주가 두 번 이어지면 그 공장은 문을 닫습니다.</span></div></div>'
+    + '<p class="sm" style="margin-top:14px">소리를 끄거나 들을 수 없어도 ‘울음 미터’와 물결이 같은 정보를 보여 줍니다. 게임 속 수치와 인물은 모두 지어낸 것입니다.</p>'
+    + '<div class="mfoot"><button class="btn pri big" type="button" data-ok>근무 시작</button></div>', '', function(card, done){
+    $('[data-ok]', card).addEventListener('click', function(){ done(); });
+  });
+}
+
+/* ===================== 시편 휘기 창 ===================== */
+function bendModal(lot, ctx){
+  var clearT = lot.truth === 'clear', wk = ctx.week;
+  var delay = [700, 1600, 2800, 2800][wk] || 2800;
+  var said = (lot.id === 'N2') ? true : clearT;       /* 3주차 N2: 주임은 ‘울었다’고 말하지만 사실은 탁하다 */
+  var pool = said ? ['울었네.', '잘 우네. 순한 놈이여.', '울었어.'] : ['…안 울었어. 섞인 게 많어.', '조용허네.', '소리가 죽었어.'];
+  var say = pool[Math.floor(Math.random() * pool.length)];
+  var html = '<h2>시편 확인 · ' + lot.tag + '</h2>'
+    + '<p class="sm" style="margin:2px 0 10px">순수한 주석을 휘면 ‘울음’이라는 바삭거리는 소리가 난다고 알려져 있습니다. 이 게임에서는 그 소리로 묶음의 순도를 가립니다.</p>'
+    + '<div class="bendwrap"><div class="bendleft"><svg class="bendsvg"></svg><div class="bendmsg">띠 끝의 노란 원을 잡고 위아래로 천천히 휘어 보세요.</div></div>'
+    + '<div class="bendside"><div class="av">' + avatar('seok', { look:'down' }) + '</div><div class="bubble"></div><div class="sm" style="margin-top:6px;text-align:center">현장 주임 오석주</div></div></div>'
+    + '<div class="verdict"></div><div class="mfoot" style="margin-top:4px"><button class="btn" type="button" data-cancel>나중에</button></div>';
+  return openModal(html, 'bendcard', function(card, done){
+    var timers = [], msg = $('.bendmsg', card), verdict = $('.verdict', card), bubble = $('.bubble', card), av = $('.av', card);
+    if (lot.label) msg.textContent = '지난 판정: ' + (lot.label === 'clear' ? '맑음' : '탁함') + ' · 다시 휘어 보고 판정을 바꿀 수 있습니다.';
+    var bender = makeBender($('.bendsvg', card), { clear:clearT, onReady:function(){
+      msg.textContent = '충분히 들었습니다. 어떻게 들렸나요?';
+      verdict.innerHTML = '<button class="btn pri big" type="button" data-v="clear">울었다 (맑음)</button><button class="btn big" type="button" data-v="murky">안 울었다 (탁함)</button>';
+      $$('[data-v]', verdict).forEach(function(b){ b.addEventListener('click', function(){ done(b.getAttribute('data-v')); }); });
+      timers.push(setTimeout(function(){
+        bubble.textContent = say; bubble.classList.add('on');
+        av.innerHTML = avatar('seok', { look: wk === 0 ? 'down' : 'left' });
+      }, delay));
+    }});
+    $('[data-cancel]', card).addEventListener('click', function(){ done(null); });
+    return function(){ bender.destroy(); timers.forEach(clearTimeout); };
+  });
+}
+
+/* ===================== 현장 확인 ===================== */
+var LEDGER = {
+  jn:{ listing:'2041-117', ctx:'시장에 올라온 비축 주석 매물의 번호가 이 공장의 지난 입고 번호와 겹쳐 AI가 자동 보류했습니다. 시스템에는 최근 사용 기록이 없습니다.',
+       tags:[ { no:'2041-117', used:'녹여 씀 2049. 3. 11' }, { no:'2044-020', used:'녹여 씀 2049. 9. 2' }, { no:'2047-066', used:'녹여 씀 2050. 1. 20' }, { no:'2049-031', used:'녹여 씀 2050. 5. 7' } ] },
+  bs:{ listing:'2050-208', ctx:'AI는 이 공장의 시스템 기록이 깨끗하다고 봤습니다. 다만 최근 4주 주문량이 평소의 2.5배이고, 시장에 비축 주석 매물이 하나 올라와 있습니다.',
+       tags:[ { no:'2050-208', used:null }, { no:'2049-144', used:null }, { no:'2049-150', used:'녹여 씀 2050. 3. 4' }, { no:'2048-092', used:null } ] }
+};
+var SHELF = {
+  e1:'AI는 큰 곳이라 크게 잡았지만, 자체 창고에 이미 재고를 쌓아 두었습니다.',
+  e2:'라인은 돌고 있습니다.',
+  co:'9곳 중 3곳은 이미 불이 꺼져 있습니다. 장부가 종이 반, 시스템 반이라 AI가 작게 읽었습니다.'
+};
+function coverTxt(inv, need){
+  if (inv >= need) return '자체 재고로 약 ' + Math.floor(inv / need) + '주를 버팁니다. ';
+  return inv > 0 ? '이번 주 필요량도 다 채우지 못합니다. ' : '창고 바닥이 보입니다. ';
+}
+
+function fieldModal(x){
+  var s = ST.f[x.id], L = LEDGER[x.id];
+  if (!L){
+    var inv = s.inv;
+    var blocks = '';
+    for (var i=0;i<inv;i++) blocks += '<div class="blk"></div>';
+    return openModal('<div class="fhead"><h2>현장 확인 · ' + x.name + '</h2><span class="sm">' + x.people + '</span></div>'
+      + '<p>창고 문 앞에 섰습니다. 안을 열어 재고를 세어 봅니다.</p>'
+      + '<div class="shelf" id="shelf"><span class="emptyt">문이 닫혀 있습니다</span></div><div id="fres"></div>'
+      + '<div class="mfoot"><button class="btn pri big" type="button" data-open>창고 문을 연다</button><button class="btn big" type="button" data-ok style="display:none">돌아가기</button></div>', 'fieldcard', function(card, done){
+      $('[data-open]', card).addEventListener('click', function(){
+        s.known = true; s.evidence = true; Snd.stamp();
+        $('#shelf', card).innerHTML = inv > 0 ? blocks : '<span class="emptyt">비어 있습니다</span>';
+        $('#fres', card).innerHTML = '<p><b>재고 ' + inv + '묶음 · 주당 필요 ' + x.need + '묶음.</b> ' + coverTxt(inv, x.need) + SHELF[x.id] + '</p>';
+        $('[data-open]', card).style.display = 'none'; $('[data-ok]', card).style.display = '';
+      });
+      $('[data-ok]', card).addEventListener('click', function(){ done('seen'); });
+    });
+  }
+  var tagHTML = L.tags.map(function(t, i){
+    return '<button class="tagc" type="button" data-i="' + i + '"><b>' + t.no + '</b><span class="res">눌러서 작업일지와 대조</span></button>';
+  }).join('');
+  return openModal('<div class="fhead"><h2>현장 확인 · ' + x.name + '</h2><span class="sm">' + x.people + '</span></div>'
+    + '<p style="font-size:17px">' + L.ctx + '</p>'
+    + '<div class="ledger"><div class="listing">시장 매물 번호<div class="no">' + L.listing + '</div><span class="sm">이 번호와 같은 꼬리표가 있는지, 있다면 그 묶음을 정말 쓰지 않고 남겨 두었는지 대조합니다.</span></div>'
+    + '<div class="tags2">' + tagHTML + '</div></div>'
+    + '<div class="fnote" id="fn">꼬리표 네 장을 모두 눌러 작업일지와 맞춰 보세요. 번호가 같아도 이미 녹여 쓴 묶음이면 매물일 수 없습니다. 사용 기록이 없는데 번호가 같다면 의심해야 합니다.</div>'
+    + '<div class="mfoot" id="vf" style="visibility:hidden"><button class="btn pri" type="button" data-v="innocent">' + (s.hold ? '전매 아님 · 보류 해제' : '문제 없음으로 기록') + '</button><button class="btn" type="button" data-v="revoke">전매로 판정 · 등록 말소 절차</button></div>', 'fieldcard', function(card, done){
+    var opened = 0;
+    $$('.tagc', card).forEach(function(b){
+      b.addEventListener('click', function(){
+        if (b.classList.contains('open')) return;
+        var t = L.tags[+b.getAttribute('data-i')];
+        b.classList.add('open', t.used ? 'used' : 'none');
+        $('.res', b).innerHTML = (t.used ? '작업일지: ' + t.used + ' ✔' : '작업일지 없음 ✖') + (t.no === L.listing ? '<span class="same">매물과 번호 같음</span>' : '');
+        Snd.stamp(); opened++;
+        if (opened >= L.tags.length){
+          $('#vf', card).style.visibility = 'visible';
+          $('#fn', card).textContent = '대조를 마쳤습니다. 판정은 사람이 내립니다.';
+        }
+      });
+    });
+    $$('[data-v]', card).forEach(function(b){ b.addEventListener('click', function(){ done(b.getAttribute('data-v')); }); });
+  });
+}
+
+async function doField(id){
+  if (modalOpen || busy) return;
+  var x = factOf(id), s = ST.f[id];
+  if (ST.trips <= 0){ toast('이번 주 출장은 모두 사용했습니다.'); return; }
+  if (s.known || s.closed || s.revoked) return;
+  ST.trips--; ST.checks = (ST.checks || 0) + 1;
+  var v = await fieldModal(x);
+  if (v === 'innocent' || v === 'revoke'){
+    var r = applyVerdict(ST, id, v);
+    A[id] = Math.min(A[id] || 0, maxFor(ST, id));
+    if (r.kind === 'cleared') await notice('보류를 풀었습니다', '<p>서진아 공장의 자동 보류를 해제했습니다. 같은 번호의 꼬리표가 있었지만 이미 녹여 쓴 묶음이었고, 시장 매물은 지난 번호를 베낀 것이었습니다. 이번 주부터 배정할 수 있습니다.</p>');
+    else if (r.kind === 'caught') await notice('전매를 확인했습니다', '<p>매물 번호와 같은 꼬리표의 묶음은 쓴 기록이 없었습니다. 차익 환수, 위약금, 등록 말소 절차를 시작합니다. 이 업체는 배정 목록에서 빠집니다.</p>');
+    else if (r.kind === 'wrong') await notice('등록 말소가 시작되었습니다', '<p>작업일지에는 네 묶음 모두 녹여 쓴 기록이 있었습니다. 근거 없이 등록을 말소해 이 공장은 문을 닫게 됩니다.</p>');
+    else await notice('기록했습니다', '<p>‘문제 없음’으로 기록하고 현장을 떠납니다.</p>');
+  }
+  render();
+}
+
+/* ===================== 본 화면 ===================== */
+function lotHTML(l){
+  var by = l.labelBy === 'seok' ? ' (주임)' : '';
+  var sub = (l.rem < l.size ? l.rem + '/' + l.size : l.size) + '묶음 · ' + (l.label ? (l.label === 'clear' ? '맑음' : '탁함') + by : '순도 미확인');
+  return '<div class="lot ' + (l.label || 'need') + (l.fresh ? ' fresh' : '') + '">' + lotIcon()
+    + '<div class="nm"><b>' + l.tag + '</b><small>' + sub + '</small></div>'
+    + '<button class="btn sm" type="button" data-act="bend" data-id="' + l.id + '">' + (l.label ? '다시 휘기' : '시편 휘기') + '</button></div>';
+}
+
+function rowHTML(x){
+  var s = ST.f[x.id], dead = s.closed || s.revoked, mx = maxFor(ST, x.id), a = A[x.id] || 0;
+  var tags = '';
+  if (x.exporter) tags += '<span class="tg amber">수출 한도 특례</span>';
+  if (x.precision) tags += '<span class="tg teal">정밀 납땜</span>';
+  if (s.hold) tags += '<span class="tg red">자동 보류</span>';
+  if (s.revoked) tags += '<span class="tg red">등록 말소</span>';
+  else if (s.closed) tags += '<span class="tg gray">문 닫음</span>';
+  else if (x.id === 'jn' && s.cleared) tags += '<span class="tg green">보류 해제</span>';
+  var slots = '';
+  for (var i=0;i<x.cap;i++){
+    var dis = (i >= mx) ? ' dis' : '';
+    slots += '<button type="button" class="slot' + (i < a ? ' on' : '') + (i === x.ai - 1 ? ' aim' : '') + dis + '" data-act="slot" data-id="' + x.id + '" data-n="' + (i+1) + '"' + (i >= mx ? ' disabled' : '') + '></button>';
+  }
+  var warn = '';
+  if (x.data <= 2) warn += ' <span style="color:var(--red)">장부가 얇아 AI가 작게 읽음</span>';
+  if (x.id === 'bs') warn += ' <span style="color:var(--red)">최근 주문량 평소의 2.5배</span>';
+  var fact;
+  if (s.closed) fact = '공장이 문을 닫았습니다.';
+  else if (s.revoked) fact = '등록이 말소되어 판매할 수 없습니다.';
+  else if (s.hold) fact = '자동 보류 중(처리 2주) · 현장 확인으로 판단할 수 있음';
+  else if (s.known) fact = '현장 확인 · 재고 ' + s.inv + '묶음 · 필요 ' + x.need + '묶음/주';
+  else fact = '재고·필요량 미확인' + warn;
+  var aiLine = 'AI 예측 <b>' + x.ai + '</b> · 한도 ' + x.cap + ' · 데이터 ' + dotsHTML(x.data);
+  var act;
+  if (s.known) act = '<button class="btn sm" type="button" disabled>확인함 ✔</button>';
+  else if (dead) act = '';
+  else if (ST.trips > 0) act = '<button class="btn sm" type="button" data-act="field" data-id="' + x.id + '">현장 확인<br><span style="font-size:12px;font-weight:400">출장 1회 사용</span></button>';
+  else act = '<button class="btn sm" type="button" disabled>출장 없음</button>';
+  var step = '<div class="stepper"><button type="button" data-act="dec" data-id="' + x.id + '"' + (mx === 0 || a <= 0 ? ' disabled' : '') + '>−</button><span class="n">' + a + '</span><button type="button" data-act="inc" data-id="' + x.id + '"' + (mx === 0 || a >= mx ? ' disabled' : '') + '>+</button></div>';
+  return '<div class="row' + (dead ? ' dead' : '') + (s.hold ? ' hold' : '') + '"><div class="ico">' + ICON[x.icon] + '</div>'
+    + '<div class="nmb"><b>' + x.name + '</b><div class="tags">' + tags + '</div><small>' + x.people + '</small></div>'
+    + '<div class="mid"><div class="ai">' + aiLine + '</div><div class="slots">' + slots + '</div><div class="fact' + (s.known ? ' ok' : '') + '">' + fact + '</div></div>'
+    + step + '<div class="rowact">' + act + '</div></div>';
+}
+
+function render(){
+  if (!ST || ST.done) return;
+  var w = ST.w, wk = WEEKS[w], rel = wk.rel, p = pools(ST), t = totalAlloc(A);
+  var chips = [['1주 · 방출',0],['2주 · 방출',1],['3주 · 보충 중 방출 중단',2],['4주 · 방출',3]].map(function(c){
+    return '<span class="chip' + (c[1] === 2 ? ' halt' : '') + (c[1] < w ? ' past' : '') + (c[1] === w ? ' now' : '') + '">' + c[0] + '</span>';
+  }).join('') + '<span class="chip past" style="opacity:.7">그 뒤 · 새 입고</span>';
+  var lots = ST.lots.filter(function(l){ return l.avail && l.rem > 0; }).map(lotHTML).join('');
+  var dots = '';
+  var tot = TRIPS[w] === 0 && !(w === 3 && ST.interview) ? 0 : (w === 3 ? 1 : 2);
+  for (var i=0;i<Math.max(tot, ST.trips);i++) dots += '<span class="dot' + (i < ST.trips ? '' : ' off') + '"></span>';
+  var tripsHTML = '<div class="trips">현장 출장 <b>' + ST.trips + '회</b> 남음<br>' + (dots || '<span class="sm">이번 주는 출장이 없습니다</span>')
+    + (w === 3 && ST.interview ? '<br><span style="font-size:12.5px">면접 때문에 출장 불가</span>' : '') + '</div>';
+  var center;
+  if (rel){
+    var banner = w === 0 ? '① 왼쪽 묶음을 눌러 시편을 휘어 순도를 확인합니다. ② 공장마다 몇 묶음을 줄지 정합니다. ③ ‘이번 주 확정’을 누릅니다.'
+      : w === 1 ? '이번 주가 마지막 방출입니다. 3주차는 보충 기간이라 아무에게도 내보낼 수 없습니다. 3주차 몫까지 한도 안에서 미리 풀어 두세요.'
+      : '마지막 배정입니다. 새 주석은 몇 주 뒤에 들어옵니다. 남은 묶음과 공장 사정을 보고 정하세요.';
+    center = '<div class="banner' + (w === 1 ? ' warn' : '') + '">' + banner + '</div><div class="rows">' + FACT.map(rowHTML).join('') + '</div>';
+  } else {
+    var un = ST.lots.filter(function(l){ return l.fresh && !l.label; }).length;
+    center = '<div class="halt"><div class="haltbox"><h2>재고 보충 기간 · 방출 중단</h2>'
+      + '<p>오늘부터 새 주석을 들여오는 동안에는 아무 곳에도 내보낼 수 없습니다. 공장들은 지난주까지 받아 둔 재고로 한 주를 버팁니다.</p>'
+      + '<p><b>할 일:</b> 새로 입고된 묶음 3개의 시편을 휘어 순도를 확인하세요. 확인이 끝나면 3주차를 마감합니다.' + (un ? ' (남은 확인 ' + un + '개)' : ' (확인 끝)') + '</p></div>'
+      + '<div class="mini">' + FACT.map(function(x){
+        var s = ST.f[x.id], st = s.closed ? '문 닫음' : (s.revoked ? '등록 말소' : (s.known ? '재고 ' + s.inv + '묶음' : '재고 미확인'));
+        return '<div class="c"><b>' + x.name + '</b>' + st + '<br>필요량 ' + (s.known ? x.need + '묶음/주' : '?') + '</div>';
+      }).join('') + '</div></div>';
+  }
+  var pool = rel
+    ? '출고 가능 묶음 — <span class="cl">맑음 <b>' + p.clear + '</b></span> · <span class="mu">탁함 <b>' + p.murky + '</b></span> · <span class="un">미확인 <b>' + p.unk + '</b>' + (p.unk ? ' (확인 후 출고)' : '') + '</span><br>이번 주 배정 <b>' + t + '</b>묶음 · 정밀 납땜 공장은 맑은 묶음만 받을 수 있습니다.'
+    : '창고 재고 <b>' + stockTotal() + '묶음</b> · 새 묶음은 4주차부터 출고할 수 있습니다.';
+  var buttons = rel
+    ? '<button class="btn" type="button" data-act="ai">AI안 적용</button><button class="btn" type="button" data-act="clr">모두 비우기</button><button class="btn pri big" type="button" data-act="confirm">이번 주 확정 ▶</button>'
+    : '<button class="btn pri big" type="button" data-act="confirm">3주차 마감 ▶</button>';
+  screenEl.innerHTML = '<div class="main"><div class="top"><div class="brand"><b>서해 비축기지</b> · ' + wk.date + ' · 수출 금지 ' + wk.ban + '일째</div><div class="tl">' + chips + '</div></div>'
+    + '<div class="body"><aside class="lots"><h3>창고 · 시편 확인</h3><div class="help">확인한 묶음만 출고할 수 있습니다.</div>' + lots + '<div class="grow"></div>' + tripsHTML + '</aside>'
+    + '<section class="center">' + center + '</section></div>'
+    + '<div class="bot"><div class="pool">' + pool + '</div><button class="btn" type="button" data-act="info">제도 안내</button>' + buttons + '</div></div>';
+}
+
+function whyNot(id){
+  var x = factOf(id), p = pools(ST), t = {}; for (var k in A) t[k] = A[k];
+  var P = 0; FACT.forEach(function(f){ if (f.precision) P += (t[f.id] || 0); });
+  if (x.precision && P + 1 > p.clear) return p.unk > 0 ? '정밀 납땜 공장에는 맑은 묶음만 줄 수 있습니다. 시편을 휘어 맑은 묶음을 더 확인하세요.' : '정밀 납땜 공장에 줄 맑은 묶음이 모자랍니다.';
+  return p.unk > 0 ? '시편을 확인한 묶음만 출고할 수 있습니다. 왼쪽 묶음을 휘어 보세요.' : '창고에 출고할 묶음이 모자랍니다.';
+}
+function trySet(id, n){
+  var mx = maxFor(ST, id); n = clamp(n, 0, mx);
+  var old = A[id] || 0;
+  if (n === old) return;
+  var t = {}; for (var k in A) t[k] = A[k]; t[id] = n;
+  if (n > old && !feasible(ST, t)){ Snd.warn(); toast(whyNot(id)); return; }
+  A[id] = n; render();
+}
+
+async function doBend(id){
+  if (modalOpen || busy) return;
+  var l = lotById(ST, id);
+  var r = await bendModal(l, { week:ST.w });
+  if (!r) return;
+  l.label = r; l.labelBy = 'player'; l.tests++;
+  render();
+  if (ST.w === 2 && !ST.revealDone && !ST.interview){
+    var fresh = ST.lots.filter(function(q){ return q.fresh; });
+    if (fresh.every(function(q){ return q.label; })){ ST.revealDone = true; await revealScene(); render(); }
+  }
+}
+
+async function revealScene(){
+  var n2 = lotById(ST, 'N2');
+  var lines;
+  if (n2.label === 'murky'){
+    lines = [
+      { w:'doyun', t:'주임님, ‘' + n2.tag + '’는 안 울었습니다. 소리가 죽었어요.' },
+      { w:'seok', look:'left', t:'…그려? 나는 울었다고 들었는디.' },
+      { w:'narr', t:'석주가 시편을 한참 들여다본다. 귀에 대지 않고, 도윤의 얼굴을 본다.' },
+      { w:'seok', look:'left', t:'네 말이 맞을 겨. 귀가 작년부터 이려. 벨 소리가 안 들려서 전화도 네가 먼저 받게 했지.' },
+      { w:'doyun', t:'그래서 매번 제 얼굴을 보신 거예요? 제가 울었다고 하는지, 안 울었다고 하는지.' },
+      { w:'seok', look:'left', t:'듣는 법은 가르쳐 줄 수 있어도, 듣는 귀는 이제 네 거여. 장부 확인 칸엔 네 이름을 쓸 겨.' },
+      { w:'narr', t:'석주가 장부의 ‘확인’ 칸에 한도윤이라고 적는다.' }
+    ];
+  } else {
+    lines = [
+      { w:'doyun', t:'…울었습니다. 세 묶음 다 괜찮아 보여요.' },
+      { w:'seok', look:'left', t:'(시편을 들여다보다가 손을 멈춘다) 도윤아. 두 번째 건, 네 얼굴이 하는 말이 이상혀.' },
+      { w:'narr', t:'석주는 귀가 아니라 도윤의 얼굴을 읽어 왔다.' },
+      { w:'seok', look:'left', mouth:'sad', t:'나 사실 소리가 안 들려. 작년부터. 네 얼굴 보고 울었나 안 울었나 말해 온 겨. …다시 휘어 봐. 이번엔 네 귀로.' },
+      { w:'narr', t:'‘' + n2.tag + '’의 시편은 왼쪽 목록에서 ‘다시 휘기’로 다시 확인할 수 있다.' }
+    ];
+  }
+  await scene(lines, '서해 비축기지 창고 · 3주차 오전');
+}
+
+async function revealInterview(){
+  await scene([
+    { w:'narr', t:'대전에서 면접을 마치고 기지로 돌아왔다. 입고 장부의 ‘확인’ 칸에는 오석주라는 이름만 있다. 새 묶음 세 개 모두 ‘울음’.' },
+    { w:'seok', look:'left', t:'도윤아. 시편 하나만 다시 휘어 봐 줄려? …나는 이제 소리가 안 들려서.' },
+    { w:'doyun', t:'…언제부터요?' },
+    { w:'seok', look:'left', mouth:'sad', t:'작년부터. 네 얼굴 보고 말해 온 겨. 이번 입고분은 네 귀로 다시 봐 줘.' },
+    { w:'narr', t:'새 묶음 세 개는 주임 판정으로 ‘맑음’이라고 적혀 있다. 왼쪽 목록에서 ‘다시 휘기’로 확인할 수 있다.' }
+  ], '서해 비축기지 창고 · 4주차 아침');
+}
+
+async function weekIntro(w){
+  var L;
+  if (w === 0) L = [
+    { w:'narr', t:'2050년 7월 14일 아침 · 서해 비축기지 창고. 주요 생산국의 주석 수출 금지 23일째. 소형 전자부품 공장들이 하나둘 멈추고 있다.' },
+    { w:'seok', look:'down', t:'시편 휘어 봐라. 순한 놈이면 우는 거여.' },
+    { w:'doyun', t:'분석기로 이미 쟀는데요.' },
+    { w:'seok', look:'down', t:'분석기는 분석기고. 들은 사람 이름이 장부에 들어가야 혀.' },
+    { w:'sys', t:'긴급 방출 공고 · 주석 · 오늘부터 4주 동안 배정합니다. 3주차는 재고 보충 기간이라 방출을 중단합니다.' },
+    { w:'jung', look:'left', t:'(화면 너머) 대형 두 곳 라인이 서면 협력사 만 명이 쉰다. 수출기업 한도 특례를 적용했으니 큰 곳부터 챙기게.' },
+    { w:'doyun', t:'…알겠습니다. 일단 AI 예측안부터 열어 보겠습니다.' },
+    { w:'narr', t:'3주차 아침에는 본청 전보 면접이 잡혀 있다.' }
+  ];
+  else if (w === 1) L = [
+    { w:'narr', t:'7월 21일 · 수출 금지 30일째. 사무실 책상 위 유선 전화가 울린다. 한 번, 두 번, 세 번, 네 번, 다섯 번.' },
+    { w:'doyun', t:'(수화기를 들고) 서해 기지입니다. …주임님, 바로 옆인데 전화 좀 받으세요.' },
+    { w:'seok', look:'left', t:'벨 소리가 작어졌어. 바꿔야 혀.' },
+    { w:'narr', t:'이번이 마지막 방출 주다. 3주차에는 아무에게도 내보낼 수 없다. 공장들이 3주차를 버틸 몫까지, 주간 한도 안에서 미리 풀어 두어야 한다.' }
+  ];
+  else if (w === 2) L = [
+    { w:'narr', t:'7월 28일 · 수출 금지 37일째. 오늘부터 재고 보충 기간이다. 방출은 중단된다. 오전에 새 주석 묶음 세 개가 입고된다.' }
+  ];
+  else L = [
+    { w:'narr', t:'8월 4일 · 수출 금지 44일째. 보충이 끝나고 방출이 다시 열린다. 이번 주가 마지막 배정이다.' }
+  ];
+  await scene(L, WEEKS[w].label + ' · ' + WEEKS[w].date);
+}
+
+async function eventUnreg(){
+  var c = await choice('전화 한 통 · 등록 전인 업체',
+    '<p>경기도의 작은 공장이 전화를 걸어 왔습니다. “비축 주석이 풀린다는 소식을 들었습니다. 아직 비축이용업체 등록 전인데, 이번 주만 4묶음 먼저 주실 수 없습니까?”</p>',
+    [ { t:'등록 절차를 안내하고, 등록이 끝난 뒤에 신청하시라고 답한다', pri:true }, { t:'급한 사정이니 이번 주만 4묶음을 임시로 내준다' } ]);
+  if (c === 1){
+    removeStock(4); ST.viol.illegal = 1; Snd.warn();
+    await notice('임시로 내줬습니다', '<p>등록하지 않은 업체에 4묶음이 나갔습니다. 서류 없는 거래는 나중에 감사에서 문제가 됩니다. 창고 재고가 4묶음 줄었습니다.</p>');
+  } else {
+    await notice('안내서를 보냈습니다', '<p>등록 서류와 절차를 안내했습니다. 비축 주석은 비축이용업체로 등록한 실수요 업체에만 판매합니다.</p>');
+  }
+}
+
+async function interviewChoice(){
+  var c = await choice('3주차 아침 · 본청 전보 면접',
+    '<p>오늘 10:00, 대전 본청에서 ‘AI조달과’ 전보 최종 면접이 있습니다. 같은 날 오전에 새 주석 묶음 세 개가 입고됩니다.</p>'
+    + '<p class="sm">면접에 가면 입고 검수는 석주 주임이 혼자 하고, 4주차에는 현장 출장을 나갈 시간이 없습니다.</p>',
+    [ { t:'기지에 남아 입고 검수를 한다', pri:true }, { t:'면접에 간다 (입고 검수는 주임에게 맡긴다)' } ]);
+  return c === 1;
+}
+
+async function doInterview(){
+  ST.interview = true;
+  ST.lots.forEach(function(l){ if (l.fresh){ l.label = 'clear'; l.labelBy = 'seok'; } });
+  await scene([
+    { w:'narr', t:'10:00, 대전 본청 면접실. 질문 가운데 하나는 이랬다. “현장 확인에는 시간을 얼마나 쓰셨습니까?”' },
+    { w:'doyun', t:'(지난 두 주 동안 현장 확인은 ' + (ST.checks || 0) + '번 나갔다.)' },
+    { w:'narr', t:'같은 시각, 기지에서는 입고 검수를 석주 혼자 했다.' }
+  ], '본청 · 3주차');
+}
+
+async function approval(){
+  var c = ST.checks || 0;
+  await scene([
+    { w:'narr', t:'배정안을 본청에 올린다. 확정 도장은 사람이 찍는다.' },
+    { w:'jung', look:'left', t:'(화면 너머) 근거 서류는?' },
+    { w:'doyun', t: c > 0 ? '현장 확인 ' + c + '건을 첨부했습니다.' : '현장 확인은 없었습니다. AI 예측안을 기준으로 했습니다.' },
+    { w:'jung', look:'left', t: c > 0 ? '…읽었다. 내 이름으로 확정한다.' : '근거가 얇군. 그래도 시간이 없다. 확정한다.' }
+  ], '본청 국장실 화상 결재');
+}
+
+async function doConfirm(){
+  if (busy || modalOpen || !weekResolve) return;
+  var w = ST.w;
+  if (WEEKS[w].rel){
+    var t = totalAlloc(A);
+    if (t === 0){
+      var c = await choice('아무에게도 배정하지 않고 확정할까요?', '<p>이번 주는 방출이 없습니다. 공장들은 가진 재고로만 버텨야 합니다.</p>',
+        [ { t:'다시 정한다', pri:true }, { t:'배정 없이 확정' } ]);
+      if (c === 0) return;
+    }
+    if (w === 3) await approval();
+  } else {
+    var un = ST.lots.filter(function(l){ return l.fresh && !l.label; }).length;
+    if (un > 0){ Snd.warn(); toast('새로 입고된 묶음의 시편을 모두 확인해야 3주차를 마감할 수 있습니다.'); return; }
+  }
+  var res = weekResolve; weekResolve = null;
+  res(JSON.parse(JSON.stringify(A)));
+}
+
+screenEl.addEventListener('click', function(e){
+  var b = e.target.closest('[data-act]'); if (!b || b.disabled || !ST || modalOpen) return;
+  var act = b.getAttribute('data-act'), id = b.getAttribute('data-id');
+  if (act === 'bend') doBend(id);
+  else if (act === 'field') doField(id);
+  else if (act === 'slot'){ var n = +b.getAttribute('data-n'); trySet(id, (A[id] || 0) === n ? n - 1 : n); }
+  else if (act === 'inc') trySet(id, (A[id] || 0) + 1);
+  else if (act === 'dec') trySet(id, (A[id] || 0) - 1);
+  else if (act === 'ai'){
+    var plan = aiPlan(ST), full = true;
+    FACT.forEach(function(x){ if (plan[x.id] < Math.min(maxFor(ST, x.id), x.ai)) full = false; });
+    A = plan; render();
+    toast(full ? 'AI 예측안을 채웠습니다. 확정은 사람이 합니다.' : '시편 확인이 끝난 묶음만큼만 채웠습니다.');
+  }
+  else if (act === 'clr'){ A = {}; render(); }
+  else if (act === 'info') showInfo();
+  else if (act === 'confirm') doConfirm();
+});
+
+/* ===================== 한 주의 결과 ===================== */
+var STATE_TXT = { ok:'정상 가동', cut:'감산', stop:'가동 중단', closing:'문을 닫음', closed:'폐업 상태', revoked:'등록 말소' };
+async function showResult(rep){
+  var wk = WEEKS[rep.w], stops = 0, rows = '';
+  rep.rows.forEach(function(r){
+    var x = factOf(r.id), s = ST.f[r.id], note = '';
+    if (r.rec && r.rec.bad > 0) note += '탁한 묶음 ' + r.rec.bad + '개가 섞여 납땜 불량이 났다. ';
+    if (r.state === 'stop' || r.state === 'closing') { note += '재고가 바닥났다. '; stops++; if (x.kind === 'big') note += '협력사 라인도 쉬었다. '; }
+    else if (r.state === 'cut') note += '재고가 모자라 일부만 돌렸다. ';
+    if (r.state === 'closing') note += '두 주 연속 절반 미만이라 결국 문을 닫았다. ';
+    var pct = Math.round(r.out * 100);
+    rows += '<tr><td class="nm">' + x.name + '</td><td><div class="bar"><i class="' + (r.state === 'ok' ? '' : (r.state === 'cut' ? 'cut' : 'stop')) + '" style="width:' + pct + '%"></i></div></td>'
+      + '<td class="st ' + r.state + '">' + (r.state === 'closed' || r.state === 'revoked' ? STATE_TXT[r.state] : pct + '% · ' + STATE_TXT[r.state]) + '</td><td class="note">' + note + '</td></tr>';
+  });
+  var news = '';
+  if (rep.notes.indexOf('resale') >= 0){
+    var b = ST.f.bs;
+    news = '<div class="news">시장에 비축 주석 매물이 대량으로 올라왔다. 출처를 추적하니 부산 센서 공장이 받은 ' + b.resold + '묶음이었다. 차익 환수, 위약금, 등록 말소 절차를 시작한다. 그 묶음은 어느 공장도 쓰지 못했다.</div>';
+  }
+  var title = wk.label + ' 결과' + (wk.rel ? '' : ' · 보충 기간');
+  if (stops === 0) Snd.chime(); else Snd.warn();
+  await openModal('<h2>' + title + '</h2><p class="sm">가동률은 이번 주에 필요한 양 가운데 실제로 쓴 비율입니다.</p><table class="restab">' + rows + '</table>' + news
+    + '<div class="mfoot"><button class="btn pri big" type="button" data-ok>' + (rep.w === 3 ? '결산으로 ▶' : '다음 주로 ▶') + '</button></div>', '', function(card, done){
+    $('[data-ok]', card).addEventListener('click', function(){ done(); });
+  });
+}
+
+/* ===================== 한 주의 흐름 ===================== */
+async function playWeek(w){
+  A = {};
+  render();
+  await weekIntro(w);
+  if (w === 1) await eventUnreg();
+  var skipBoard = false;
+  if (w === 2){
+    var go = await interviewChoice();
+    if (go){ await doInterview(); skipBoard = true; }
+  }
+  if (w === 3 && ST.interview) await revealInterview();
+  var alloc = {};
+  if (!skipBoard){
+    alloc = await new Promise(function(res){ weekResolve = res; render(); });
+  }
+  var rep = resolveWeek(ST, alloc);
+  await showResult(rep);
+  advanceWeek(ST);
+}
+
+/* ===================== 결산과 엔딩 ===================== */
+var HEAD = {
+  S:['4주 동안 뉴스가 된 일은 없었다.', '멈춘 공장도, 새어 나간 주석도 없었다. 일이 잘되면 아무 일도 일어나지 않는다.'],
+  A:['큰 사고 없이 4주를 넘겼다.', '몇 주는 불이 꺼진 곳도 있었지만, 문을 닫은 공장은 없었다.'],
+  B:['문을 닫은 곳이 생겼다.', 'AI 예측만으로는 보이지 않는 곳이 있었다. 현장에서 확인한 만큼만 지킬 수 있었다.'],
+  C:['창고는 지켰지만 공장이 여럿 멈췄다.', '재고는 남았어도 필요한 곳에 닿지 못하면 비축은 쓸모를 잃는다.']
+};
+async function resultsCard(sc){
+  var legit = ['e1','e2','co','jn'];
+  var rows = legit.concat(['bs']).map(function(id){
+    var x = factOf(id), s = ST.f[id], avg = 0; s.outs.forEach(function(o){ avg += o; }); avg = Math.round(avg / WEEKS.length * 100);
+    var st = s.closed ? '문을 닫음' : (s.revoked ? '등록 말소' : '4주 버팀');
+    if (id === 'bs') return '<tr><td class="nm">' + x.name + '</td><td colspan="2" class="st ' + (s.revoked ? 'revoked' : 'cut') + '">' + (s.revoked ? '전매로 등록 말소' : (s.resold > 0 ? '전매 의심' : '배정 없음')) + '</td></tr>';
+    return '<tr><td class="nm">' + x.name + '</td><td><div class="bar"><i class="' + (s.closed ? 'stop' : (avg < 80 ? 'cut' : '')) + '" style="width:' + avg + '%"></i></div></td><td class="st ' + (s.closed ? 'closed' : (avg >= 80 ? 'ok' : 'cut')) + '">평균 가동 ' + avg + '% · ' + st + '</td></tr>';
+  }).join('');
+  var notes = [];
+  if (ST.viol.resale) notes.push('전매를 막지 못해 받은 묶음이 시장에 나왔다.');
+  if (ST.viol.illegal) notes.push('등록하지 않은 업체에 임시로 내줬다.');
+  if (ST.viol.wrongRevoke) notes.push('근거 없이 등록을 말소했다.');
+  if (ST.mislabel) notes.push('시편 판정이 틀린 묶음이 ' + ST.mislabel + '개 있었다.');
+  var intv = ST.interview ? '본청 전보 면접에 갔다. 4주차 현장 출장은 없었다.' : '전보 면접에 가지 않고 기지에 남았다.';
+  Snd.chime();
+  await openModal('<h2>4주 결산</h2><div class="scorebox"><div class="grade">' + sc.grade + '</div><div><table>'
+    + '<tr><td>공장 가동</td><td><b>' + sc.factory + '</b> / 60</td></tr><tr><td>규칙 지키기</td><td><b>' + sc.rule + '</b> / 25</td></tr><tr><td>시편 판단</td><td><b>' + sc.lots + '</b> / 15</td></tr>'
+    + '<tr><td><b>합계</b></td><td><b style="font-size:26px;color:var(--amber)">' + sc.total + '</b> / 100</td></tr></table></div></div>'
+    + '<table class="restab">' + rows + '</table>'
+    + '<p class="sm" style="margin-top:10px">' + intv + (notes.length ? ' · ' + notes.join(' · ') : '') + '</p>'
+    + '<div class="mfoot"><button class="btn pri big" type="button" data-ok>계속 ▶</button></div>', '', function(card, done){
+    $('[data-ok]', card).addEventListener('click', function(){ done(); });
+  });
+}
+
+function finalBend(){
+  var html = '<h2>몇 주 뒤 · 새 주석이 입고되는 날</h2><p class="sm" style="margin:2px 0 10px">석주의 귀에 작은 보청기가 걸려 있다. 자기 돈으로 산 것이다. 새 묶음에서 자른 시편을 휘어 보세요.</p>'
+    + '<div class="bendwrap"><div class="bendleft"><svg class="bendsvg"></svg><div class="bendmsg">띠 끝의 노란 원을 잡고 휘어 보세요.</div></div>'
+    + '<div class="bendside"><div class="av">' + avatar('seok', { look:'down', aid:true }) + '</div><div class="bubble"></div><div class="sm" style="margin-top:6px;text-align:center">오석주 · 보청기를 끼고</div></div></div>'
+    + '<div class="verdict"></div>';
+  return openModal(html, 'bendcard', function(card, done){
+    var timers = [], msg = $('.bendmsg', card), verdict = $('.verdict', card), bubble = $('.bubble', card);
+    var bender = makeBender($('.bendsvg', card), { clear:true, onReady:function(){
+      timers.push(setTimeout(function(){ bubble.textContent = '울었네.'; bubble.classList.add('on'); }, 500));
+      msg.textContent = '석주가 시편이 아니라 도윤의 손끝을 본다. 이번에는 소리를 듣고 있다.';
+      verdict.innerHTML = '<button class="btn pri big" type="button" data-tag>꼬리표를 단다</button>';
+      $('[data-tag]', card).addEventListener('click', function(){
+        bender.showTag(); Snd.stamp();
+        verdict.innerHTML = '<button class="btn pri big" type="button" data-end>마치기</button>';
+        msg.textContent = '꼬리표: 2050 입고 · 001';
+        $('[data-end]', card).addEventListener('click', function(){ var cl = $('.bendsvg', card).cloneNode(true);
+          ['.caps', '.rips', '.dust'].forEach(function(s){ var e = cl.querySelector(s); if (e) e.innerHTML = ''; });
+          lastStrip = cl.outerHTML; done(); });
+      });
+    }});
+    return function(){ bender.destroy(); timers.forEach(clearTimeout); };
+  });
+}
+
+async function ending(){
+  var sc = score(ST);
+  screenEl.innerHTML = '<div class="title" style="opacity:.55"></div>';
+  await resultsCard(sc);
+  var closing = ST.interview
+    ? [ { w:'narr', t:'본청에서 전보 통지가 왔다. 기지 장부의 ‘확인’ 칸에는 며칠 더 오석주라는 이름이 이어졌다.' } ]
+    : [ { w:'narr', t:'면접 시각은 지나갔다. 기지 장부의 ‘확인’ 칸에는 한도윤이라는 이름이 남았다.' } ];
+  closing.push({ w:'narr', t:'몇 주 뒤, 새 주석이 들어오는 날.' });
+  closing.push({ w:'seok', look:'down', aid:true, t:'휘어 봐라.' });
+  await scene(closing, '서해 비축기지 창고');
+  await finalBend();
+  var h = HEAD[sc.grade];
+  Snd.chime();
+  await openModal('<div class="final"><div class="sm" style="letter-spacing:.1em">주석의 울음 · 서해 비축기지 배정 일지</div>'
+    + '<div class="fs">' + lastStrip + '</div>'
+    + '<div class="big">' + h[0] + '</div><p style="font-size:20px">' + h[1] + '</p>'
+    + '<div class="tagl">“안 쓰려고 쌓는 거여.”</div>'
+    + '<p class="sm">결산 ' + sc.total + '점 (' + sc.grade + ') · 이 게임은 지어낸 이야기이며, 제도 설명은 조달청 비축사업 안내를 바탕으로 했습니다. 기획과 코드 작성에 생성형 AI(Claude)를 활용했습니다.</p>'
+    + '<div class="mfoot" style="justify-content:center"><button class="btn" type="button" data-facts>실제 제도와 게임의 차이</button><button class="btn pri big" type="button" data-again>처음부터 다시</button></div></div>', '', function(card, done){
+    $('[data-again]', card).addEventListener('click', function(){ done('again'); });
+    $('[data-facts]', card).addEventListener('click', function(){
+      var f = $('.facts', card);
+      if (f){ f.parentNode.removeChild(f); return; }
+      card.querySelector('.final').insertAdjacentHTML('beforeend', FACTS_HTML);
+      card.scrollTop = card.scrollHeight;
+    });
+  });
+  window.location.reload();
+}
+
+/* ===================== 시작과 점프(시연 촬영·검수용) ===================== */
+function jumpState(target){
+  ST = newState(); A = {};
+  if (target === 0) return;
+  ST.lots.forEach(function(l){ if (l.avail){ l.label = l.truth; l.labelBy = 'player'; } });
+  applyVerdict(ST, 'jn', 'innocent'); applyVerdict(ST, 'bs', 'revoke'); ST.checks = 2; ST.trips = 2;
+  for (var w=0; w<target; w++){
+    ST.w = w;
+    var al = WEEKS[w].rel ? aiPlan(ST) : {};
+    if (WEEKS[w].rel){ FACT.forEach(function(x){ if (x.id==='jn') al.jn = Math.min(maxFor(ST,'jn'), 3); }); var g = 60; while (!feasible(ST, al) && g-- > 0){ al.e1 = Math.max(0, (al.e1||0) - 1); } }
+    resolveWeek(ST, al); advanceWeek(ST);
+    ST.lots.forEach(function(l){ if (l.avail && !l.fresh && !l.label){ l.label = l.truth; l.labelBy = 'player'; } });
+  }
+  ST.w = target; if (target === 3) ST.lots.forEach(function(l){ if (l.fresh && !l.label){ l.label = l.truth; l.labelBy='player'; } });
+}
+
+async function main(){
+  setMuteLabel();
+  var q = (window.location.search || '').match(/jump=(w[1-4]|end)/), jump = q ? q[1] : null;
+  if (!jump){
+    ST = newState();
+    await titleScreen();
+    await briefing();
+    for (var w=0; w<4; w++){ ST.w = w; await playWeek(w); }
+    await ending();
+    return;
+  }
+  if (jump === 'end'){ jumpState(3); await playWeek(3); await ending(); return; }
+  var wi = +jump.slice(1) - 1;
+  jumpState(wi);
+  for (var k=wi; k<4; k++){ ST.w = k; await playWeek(k); }
+  await ending();
+}
+window.__game = { state:function(){ return ST; }, alloc:function(){ return A; } };
+main();
+
+})();
+</script>
+</body>
+</html>
