@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-11",
+  "primary_reader": "main_session",
+  "delegation": [
+    "해외 창작 후보 조사",
+    "국내 신규 후보 조사",
+    "햇반 개봉 구조 및 수식 반론"
+  ],
+  "corrections": [
+    {
+      "item": "Deck the Pixels",
+      "initial": "조사자가 공식 원문 확인 후보로 추천",
+      "action": "주 세션 재열기 실패 후 재감사를 지시. 조사자도 새 URL 실패 확인. HOLD_PRIMARY_RECHECK로 강등",
+      "verification_level": "목록 존재는 주 세션 직접 확인, 상세는 조사자 이전 응답 보고"
+    },
+    {
+      "item": "세라믹",
+      "action": "조사자 공식 열람 보고와 별개로 주 세션 공식 공고 접근 실패를 명시. 포털 교차값을 공식 확정으로 승격하지 않음"
+    },
+    {
+      "item": "간판",
+      "action": "사용자의 시상식 참석 허용을 적용. 참석 필수라는 이유만으로 작업을 탈락시키지 않음"
+    },
+    {
+      "item": "H2 수식",
+      "action": "양의 회전각에서 부분박리 불가능이라는 한정 결론을 채택. 모든 연속 경로·모든 덮개 제품 불가능이라는 확장은 거부"
+    }
+  ],
+  "sources_checked_by_main": [
+    "UGREEN rules+starter kit",
+    "Kiroween rules+FAQ",
+    "Snap Learn AR rules",
+    "PayPal rules+공식 blog",
+    "Codegeist rules+본문",
+    "Chroma terms+FAQ+해당 부문",
+    "간판 공식 요강",
+    "GEMS 공식 PDF",
+    "AMD 공식 안내",
+    "Firebase 대회 본문+rules 미공개"
+  ],
+  "not_performed": [
+    "가입",
+    "결제",
+    "대회 접수",
+    "SNS 공개 게시",
+    "외부 메시지 발송",
+    "신원/계좌 인증",
+    "실제 제품 실험",
+    "실제 관객 조사"
+  ]
+}

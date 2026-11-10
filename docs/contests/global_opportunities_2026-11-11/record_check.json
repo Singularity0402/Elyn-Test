@@ -1,0 +1,52 @@
+{
+  "as_of": "2026-11-11",
+  "status": "PASS_RECORD_CHECK_ONLY",
+  "records": 19,
+  "rules_confirmed": 5,
+  "holds": 11,
+  "excluded": 3,
+  "timezone_conversions": [
+    {
+      "id": "ugreen",
+      "field": "deadline",
+      "kst": "2026-11-16T16:45:00+09:00"
+    },
+    {
+      "id": "ugreen",
+      "field": "round2",
+      "kst": "2026-12-01T16:45:00+09:00"
+    },
+    {
+      "id": "kiroween",
+      "field": "deadline",
+      "kst": "2026-12-05T07:00:00+09:00"
+    },
+    {
+      "id": "learn_ar",
+      "field": "deadline",
+      "kst": "2026-12-08T07:00:00+09:00"
+    },
+    {
+      "id": "paypal",
+      "field": "deadline",
+      "kst": "2026-11-13T05:00:00+09:00"
+    },
+    {
+      "id": "codegeist",
+      "field": "deadline",
+      "kst": "2026-12-23T05:00:00+09:00"
+    },
+    {
+      "id": "deck_pixels",
+      "field": "reported_deadline",
+      "kst": "2026-12-08T06:00:00+09:00"
+    },
+    {
+      "id": "chroma",
+      "field": "deadline",
+      "kst": "2027-01-08T16:45:00+09:00"
+    }
+  ],
+  "errors": [],
+  "limits": "Only stored record consistency, arithmetic, URL syntax and local links. No current website refresh, eligibility certification, account verification, submission or prize receipt."
+}

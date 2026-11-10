@@ -1,0 +1,9 @@
+{
+  "status": "PASS_ALGEBRA_ONLY",
+  "interior_samples": 1000,
+  "L": 1,
+  "max_identity_error": 1.3322676295501878e-15,
+  "min_positive_length_gap": 0.00024620227416183305,
+  "boundary_cases": 9,
+  "scope": "Numerical cross-check of a stated idealized geometry, not physical simulation or product validation."
+}

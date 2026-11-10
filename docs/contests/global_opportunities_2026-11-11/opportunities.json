@@ -1,0 +1,318 @@
+{
+  "as_of": "2026-11-11",
+  "timezone": "Asia/Seoul",
+  "scope": "2026-11-11 현재 발견·선별한 기회이며 전세계 공모전의 전수 목록이 아니다.",
+  "assumptions": [
+    "한국에 거주하는 성인 개인",
+    "주최 관계자·제재·이해충돌 제외 조건 비해당",
+    "집에서 제작·온라인 제출, 시상식 참석은 허용된 선호"
+  ],
+  "meaning": "RULES_CONFIRMED는 주 세션이 원문 규정을 읽어 비교한 상태다. 개인 자격 인증·실제 접수·수상·입금 확인이 아니다.",
+  "entries": [
+    {
+      "id": "ugreen",
+      "name": "UGREEN AI NAS Skills Hackathon",
+      "kind": "AI 기능 설계·개발",
+      "status": "RULES_CONFIRMED",
+      "korea_basis": "EXPLICIT_SOUTH_KOREA_RESIDENCE",
+      "ai_basis": "EXPLICIT_AI_SKILL",
+      "top_cash": {
+        "currency": "USD",
+        "amount": 20000
+      },
+      "total_cash": 46000,
+      "fee": "FREE_ENTRY",
+      "deadline_local": "2026-11-15T23:45:00-08:00",
+      "deadline_kst": "2026-11-16T16:45:00+09:00",
+      "round2_local": "2026-11-30T23:45:00-08:00",
+      "round2_kst": "2026-12-01T16:45:00+09:00",
+      "announcement_local": "2026-12-06T14:00:00-08:00",
+      "payout": "BANK_OR_MAIL_AFTER_FORMS_WITHIN_60_DAYS",
+      "rights": "ENTRANT_OWNS_NONEXCLUSIVE_JUDGING_PROMOTION_3_YEARS",
+      "burden": "MEDIUM_TWO_ROUNDS",
+      "decision": "PRIORITY_NEW",
+      "sources": [
+        "https://ugreenhackathon.devpost.com/rules",
+        "https://ai.ugreen.com/pages/hackathon-starter-kit"
+      ],
+      "unverified": [
+        "개인 신원·이해충돌",
+        "실제 개발·NAS 실행",
+        "최종 서류·수령 계좌",
+        "정확한 입금 날짜"
+      ]
+    },
+    {
+      "id": "kiroween",
+      "name": "Kiroween 2026",
+      "kind": "AI로 앱 제작",
+      "status": "RULES_CONFIRMED",
+      "korea_basis": "ADULT_RESIDENCE_NOT_EXCLUDED_INFERENCE",
+      "ai_basis": "KIRO_REQUIRED",
+      "top_cash": {
+        "currency": "USD",
+        "amount": 30000
+      },
+      "total_cash": 100000,
+      "fee": "FREE_ENTRY",
+      "deadline_local": "2026-12-04T14:00:00-08:00",
+      "deadline_kst": "2026-12-05T07:00:00+09:00",
+      "announcement_local": "2027-02-03T09:00:00-08:00",
+      "payout": "BANK_OR_MAIL_AFTER_FORMS_WITHIN_60_DAYS",
+      "rights": "ENTRANT_OWNS_NONEXCLUSIVE_JUDGING_PROMOTION_3_YEARS",
+      "burden": "HIGH",
+      "decision": "LATER_HIGH_PRIZE",
+      "sources": [
+        "https://kiroween.devpost.com/rules",
+        "https://kiroween.devpost.com/details/faqs"
+      ],
+      "unverified": [
+        "개인 신원·이해충돌",
+        "Kiro 실제 사용·기능 URL·공개 저장소",
+        "최종 서류·수령 계좌"
+      ]
+    },
+    {
+      "id": "learn_ar",
+      "name": "Learn AR with SPECS Round 2",
+      "kind": "AR 앱",
+      "status": "RULES_CONFIRMED",
+      "korea_basis": "ADULT_RESIDENCE_NOT_EXCLUDED_INFERENCE",
+      "ai_basis": "AI_CODING_ASSISTANT_EXPLICIT",
+      "top_cash": {
+        "currency": "USD",
+        "amount": 1250
+      },
+      "total_cash": 2500,
+      "fee": "FREE_ENTRY",
+      "deadline_local": "2026-12-07T17:00:00-05:00",
+      "deadline_kst": "2026-12-08T07:00:00+09:00",
+      "announcement_local": "2026-12-17T14:00:00-05:00",
+      "payout": "BANK_OR_MAIL_AFTER_FORMS_WITHIN_60_DAYS",
+      "rights": "ENTRANT_OWNS_NONEXCLUSIVE_JUDGING_PROMOTION_3_YEARS",
+      "burden": "MEDIUM_HIGH_NEW_TOOL",
+      "decision": "SECONDARY",
+      "sources": [
+        "https://learn-specs.devpost.com/rules",
+        "https://learn-specs.devpost.com/"
+      ],
+      "unverified": [
+        "개인 신원·이해충돌",
+        "로컬 Lens Studio·MCP 실행",
+        "최종 서류·수령 계좌"
+      ]
+    },
+    {
+      "id": "paypal",
+      "name": "PayPal AI Hackathon",
+      "kind": "결제·AI 앱",
+      "status": "RULES_CONFIRMED",
+      "korea_basis": "ADULT_RESIDENCE_NOT_EXCLUDED_INFERENCE",
+      "ai_basis": "ANY_AI_PLUS_PAYPAL_REQUIRED",
+      "top_cash": {
+        "currency": "USD",
+        "amount": 12000
+      },
+      "total_cash": 67500,
+      "fee": "FREE_ENTRY",
+      "deadline_local": "2026-11-12T12:00:00-08:00",
+      "deadline_kst": "2026-11-13T05:00:00+09:00",
+      "announcement_local": "2026-12-21T14:00:00-08:00",
+      "payout": "BANK_OR_MAIL_AFTER_FORMS_WITHIN_60_DAYS",
+      "rights": "ENTRANT_OWNS_PUBLIC_OPEN_SOURCE_REQUIRED",
+      "burden": "HIGH_URGENT",
+      "decision": "SKIP_FROM_ZERO_PRESERVE_HETBAHN",
+      "sources": [
+        "https://paypalaihackathon.devpost.com/rules",
+        "https://developer.paypal.com/community/blog/PayPal_AI_Hackathon/"
+      ],
+      "unverified": [
+        "개인 신원·이해충돌",
+        "동작하는 PayPal 연동·AI 앱·공개 소스·시연",
+        "최종 서류·수령 계좌"
+      ]
+    },
+    {
+      "id": "codegeist",
+      "name": "Codegeist 2026",
+      "kind": "업무용 AI 앱",
+      "status": "RULES_CONFIRMED",
+      "korea_basis": "ADULT_RESIDENCE_NOT_EXCLUDED_INFERENCE",
+      "ai_basis": "AI_AGENT_CATEGORIES_EXPLICIT",
+      "top_cash": {
+        "currency": "USD",
+        "amount": 15000,
+        "scope": "ONE_CATEGORY_FIRST_PRIZE"
+      },
+      "total_cash": 120000,
+      "fee": "FREE_ENTRY",
+      "deadline_local": "2026-12-22T12:00:00-08:00",
+      "deadline_kst": "2026-12-23T05:00:00+09:00",
+      "announcement_local": "2027-02-15T09:00:00-08:00",
+      "payout": "BANK_OR_MAIL_AFTER_FORMS_WITHIN_60_DAYS",
+      "rights": "ENTRANT_OWNS_NONEXCLUSIVE_JUDGING_PROMOTION_3_YEARS",
+      "burden": "HIGH_PLATFORM_INTEGRATION",
+      "decision": "LATER_COMMERCIAL_PRODUCT",
+      "sources": [
+        "https://codegeist2026.devpost.com/rules",
+        "https://codegeist2026.devpost.com/"
+      ],
+      "unverified": [
+        "개인 신원·이해충돌",
+        "Forge 앱 설치·연동 검증",
+        "최종 서류·수령 계좌"
+      ]
+    },
+    {
+      "id": "deck_pixels",
+      "name": "Deck the Pixels",
+      "status": "HOLD_PRIMARY_RECHECK",
+      "reported_top_cash": {
+        "currency": "USD",
+        "amount": 8000
+      },
+      "reported_deadline_local": "2026-12-07T16:00:00-05:00",
+      "reported_deadline_kst": "2026-12-08T06:00:00+09:00",
+      "reason": "AI 조사자는 규정 본문을 읽었다고 보고했으나 주 세션의 대회·규정·자료 페이지 재접속이 실패. 재감사한 조사자도 새 URL 열기 실패를 확인. 공개 목록의 존재만 독립 확인.",
+      "sources": [
+        "https://devpost.com/c/artificial-intelligence",
+        "https://deckthepixels.devpost.com/rules",
+        "https://deckthepixels.devpost.com/resources"
+      ]
+    },
+    {
+      "id": "ceramic",
+      "name": "한국세라믹기술원 세라믹이 사라진 세상",
+      "status": "HOLD_PRIMARY_RECHECK",
+      "reported_top_cash": {
+        "currency": "KRW",
+        "amount": 3000000
+      },
+      "reported_deadline_kst": "2026-11-23T17:00:00+09:00",
+      "reason": "조사자는 공식 공고·첨부를 확인했다고 보고. 주 세션 공식 공고 재열기 실패. 여러 포털에서 자격·규격·금액은 일치하지만 공식 첨부 독립 대조 전.",
+      "sources": [
+        "https://www.kicet.re.kr/00020/00117/00120.web?gcode=1015&idx=12357&amode=view",
+        "https://www.code-c.kr/post/contest/546415?ct=&page=1&sc=&sortname=cl_order&sortorder=asc&t=1&tg="
+      ]
+    },
+    {
+      "id": "chroma",
+      "name": "Chroma Awards Season 2 — Experimental & Open Format",
+      "status": "RULES_CONFIRMED_PAYMENT_DETAILS_PENDING",
+      "top_cash": {
+        "currency": "USD",
+        "amount": 2000,
+        "scope": "EXPERIMENTAL_CATEGORY"
+      },
+      "deadline_local": "2027-01-07T23:45:00-08:00",
+      "deadline_kst": "2027-01-08T16:45:00+09:00",
+      "reason": "한국을 제외하지 않는 성인 자격·AI·무료·부문상 확인. 송금수단 미확인, 장기 일정. 실험영상 부문 외 전체 대회의 최고상으로 표시하지 않음.",
+      "sources": [
+        "https://chromaawards.com/terms",
+        "https://chromaawards.com/faq",
+        "https://chromaawards.com/prizes/film-tv-experimental-open-format"
+      ]
+    },
+    {
+      "id": "hybrid",
+      "name": "#BuildHybridAI 2026",
+      "status": "HOLD_RULES_UNPUBLISHED",
+      "reason": "공식 rules 페이지가 아직 미공개. 본문 Requirements가 테스트 문구이며 날짜/요일 불일치와 포털 상금 차이도 있음. 등록중이라는 표시를 한국 수상 자격의 확정으로 쓰지 않음.",
+      "sources": [
+        "https://firebasehybridaihackathon.devpost.com/rules",
+        "https://firebasehybridaihackathon.devpost.com/"
+      ]
+    },
+    {
+      "id": "amd",
+      "name": "AMD AI League",
+      "status": "HOLD_ELIGIBILITY_PAYMENT",
+      "reason": "리그/개별매치 현금과 GPU 크레딧 구분. 마지막 매치 Nov10–14 표기와 상단 Match4 live 표기가 공존. 한국 수령자격·상세 지급·정확한 매치 마감 미확인.",
+      "sources": [
+        "https://lablab.build/ai-hackathons/amd-lablab-ai-academy-challenge"
+      ]
+    },
+    {
+      "id": "road",
+      "name": "한국도로공사 AI 활용 아이디어 공모전",
+      "status": "HOLD_AI_AUTHORING_POLICY",
+      "reason": "AI 해결 아이디어를 모집하는 것과 생성형 AI로 제안서를 작성해도 되는 것은 별개. 후자 직접 규정 대조 미완료.",
+      "sources": [
+        "https://www.epeople.go.kr/idea/ex/1AE-2610-0000546/detail.npaid"
+      ]
+    },
+    {
+      "id": "shorts",
+      "name": "제6회 숏츠멘터리 AI시대 기후기록",
+      "status": "HOLD_PRIZES_ELIGIBILITY",
+      "reason": "조사자 보고: AI 이미지 사용은 가능, 전체 AI 영상·최고 현금·세부 자격 미확인.",
+      "sources": [
+        "https://www.sdgsworld.net/notice/제6회-숏츠멘터리-공모전-재공고"
+      ]
+    },
+    {
+      "id": "ai_zone",
+      "name": "AI ZONE International AI Film Festival 2026",
+      "status": "HOLD_ELIGIBILITY_PAYMENT",
+      "reason": "조사자 보고: 대상 USD500, Nov30 마감·온라인·AI. 국가/나이 상세 자격과 실제 지급수단·기한 미확인.",
+      "sources": [
+        "https://ai-zone.net/festival/",
+        "https://filmfreeway.com/AIZONEInternationalAIFilmFestival2026"
+      ]
+    },
+    {
+      "id": "mai",
+      "name": "M.AI",
+      "status": "HOLD_ATTENDANCE_PAYMENT",
+      "reason": "조사자 보고: Nov20 마감·대상 EUR1500. 불참 시 상금 수령 가능 여부와 지급 방법 미확인.",
+      "sources": [
+        "https://filmfreeway.com/MAIINTERNATIONALAISHORTFILMFESTIVAL"
+      ]
+    },
+    {
+      "id": "akool",
+      "name": "AKOOL Film Challenge",
+      "status": "HOLD_CASH_SPLIT",
+      "reason": "조사자 보고: USD50000 광고 금액에 현금·회원권·크레딧 혼재. 순현금 및 지급 절차 독립 검증 미완료.",
+      "sources": [
+        "https://info.akool.com/film-challenge-rules-regulations"
+      ]
+    },
+    {
+      "id": "billion",
+      "name": "1 Billion AI Film Award 2027",
+      "status": "HOLD_FINALIST_ATTENDANCE",
+      "reason": "조사자 보고: USD1m 현금. 결선 Summit·홍보 활동 의무 및 원격 종결 가능 여부 미확인.",
+      "sources": [
+        "https://www.1billionsummit.com/ai-award-2027/terms-and-conditions"
+      ]
+    },
+    {
+      "id": "gems",
+      "name": "GEMS Prize",
+      "status": "EXCLUDED_US_ELIGIBILITY",
+      "reason": "개인 단독은 미국 시민/영주권, 팀도 대표 자격·미국 근로자격 등. 한국 거주 일반 개인만이라는 현재 전제로 제외.",
+      "sources": [
+        "https://www.nlr.gov/docs/fy26osti/96647.pdf"
+      ]
+    },
+    {
+      "id": "kiat",
+      "name": "5극3특 성장엔진 미래지도 AI 영상",
+      "status": "EXCLUDED_NONCASH_REPORTED",
+      "reason": "조사자 보고: 상금 지급이 온누리상품권. 순현금 후보에서 제외, 원문 독립 재대조 전.",
+      "sources": [
+        "https://www.kiat.or.kr/front/board/boardContentsView.do?contents_id=5f9c77b29adf4d32b5f722ed7fd7f73e&menu_id=2124728cc8cc4b74a31bbe97d7977c6d"
+      ]
+    },
+    {
+      "id": "impossible",
+      "name": "I'Mpossible 2026",
+      "status": "EXCLUDED_CLOSED_REPORTED",
+      "reason": "조사자 보고: Nov5 마감. 현재 기준 지난 후보로 분류.",
+      "sources": [
+        "https://impossiblefilmfest.com/"
+      ]
+    }
+  ]
+}
