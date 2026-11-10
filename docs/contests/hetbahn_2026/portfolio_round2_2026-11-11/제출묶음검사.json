@@ -1,0 +1,114 @@
+{
+  "date": "2026-11-11",
+  "zip": "햇반_추가출품_3작.zip",
+  "sha256": "ffde74df722f0e084786002d6601bdc2d15b1b69865954c9bf8e56357ab9c3f9",
+  "bytes": 22785167,
+  "entry_count": 27,
+  "crc_and_each_source_sha256": "PASS",
+  "files": [
+    {
+      "archive_path": "01_갓지은편지/01_상태비교.png",
+      "sha256": "03146b0e62c3ec097848567ff66e8214aa4dd25f48588a53951e5930ef2c3027"
+    },
+    {
+      "archive_path": "01_갓지은편지/02_안부의순간.png",
+      "sha256": "5544cfeb3ed3b3b0638a43b35049dda1faee6dc8f7043ab955255f5847946e1b"
+    },
+    {
+      "archive_path": "02_내밥을환영합니다/최종.png",
+      "sha256": "c2a3534b2c0f30656ecb69b2c1562fea5b22fea42992da413bab4fa9cd1d5a26"
+    },
+    {
+      "archive_path": "03_내일의논/최종.png",
+      "sha256": "713312135c9efece6991d59f7f74e382c2d97314471499f1c1e01ef4b3e4a469"
+    },
+    {
+      "archive_path": "01_갓지은편지/01_상태비교.jpg",
+      "sha256": "1ec6eb27dcd12485af0688019139633ad984ceefe9a2775825fef99279901ef9"
+    },
+    {
+      "archive_path": "01_갓지은편지/02_안부의순간.jpg",
+      "sha256": "3f7e42af56d72a532790a954c27f0b62a48757e4960f7e3b69dafc453e144013"
+    },
+    {
+      "archive_path": "02_내밥을환영합니다/최종.jpg",
+      "sha256": "5e4f39212b460a53e03590383f236878ae913e4c1d0feaf77571a8eaf3799a6f"
+    },
+    {
+      "archive_path": "03_내일의논/최종.jpg",
+      "sha256": "b500064f7de1cd99232308e43de09d609c761a8b1f03fc5f5f6b467d54cf8d20"
+    },
+    {
+      "archive_path": "01_갓지은편지/제출문구.md",
+      "sha256": "70f9e3f5221d348adb71e380d913bb08bcfde859706a0ddab82d01c815bdfca9"
+    },
+    {
+      "archive_path": "02_내밥을환영합니다/제출문구.md",
+      "sha256": "353addf61afeda82ea252a5c00c5c30ebb23086d4a5e64c5442782085f628191"
+    },
+    {
+      "archive_path": "03_내일의논/제출문구.md",
+      "sha256": "751b6324cc89707dd1e38d2e72be826f97f9b707f6b7669a867666bbeca0d761"
+    },
+    {
+      "archive_path": "01_갓지은편지/기록/선택생성원본.png",
+      "sha256": "e773d06c1eca09d267b7bdce6864dfeb510a6a627a61e8ba46a5a10760486f83"
+    },
+    {
+      "archive_path": "02_내밥을환영합니다/기록/선택생성원본.png",
+      "sha256": "14f3d165ed05f286d682610b81e159f5f939cd85e00a162222209792c4d5a62d"
+    },
+    {
+      "archive_path": "03_내일의논/기록/선택생성원본.png",
+      "sha256": "be8ed0b331d756aa46ec2897532f1365f78a79260f05326901e36cd29104dd44"
+    },
+    {
+      "archive_path": "01_갓지은편지/기록/둘째장_선택생성원본.png",
+      "sha256": "637c35ac821c641c348b41900ff00f3a8f6d45111dee458f96f4ee00cc024857"
+    },
+    {
+      "archive_path": "01_갓지은편지/기록/이전A6_생성기록.json",
+      "sha256": "21bce98821f5806a3e5d72348db274c30ed64dd37064a45a06ec3f4a08c3c77e"
+    },
+    {
+      "archive_path": "01_갓지은편지/기록/이전A6_시각검토.json",
+      "sha256": "897e88eab89a28fd66d7fc2dfa0cdf782881d517b3c5742228520d94b677221a"
+    },
+    {
+      "archive_path": "검수기록/실제생성기록.json",
+      "sha256": "f6504115aca8133e590a1b86da904648c52ce39e880f44c3463966a33b89c0c3"
+    },
+    {
+      "archive_path": "검수기록/선별_기획_검수보고.md",
+      "sha256": "30cb9462c1409f9d45c4ddfcf26ee4a0d4e09d78b627ee3349af9b6deaf5a39a"
+    },
+    {
+      "archive_path": "검수기록/독립파일검사.json",
+      "sha256": "183448fded7b0c786d2fc0eab4cd38f527ddab7393b84b1a7fed048ff74577a9"
+    },
+    {
+      "archive_path": "검수기록/규칙별감사.json",
+      "sha256": "c6443852d4033d3f410622bd83b6ad0f58713fe1475cbbab1940feb37bfcef10"
+    },
+    {
+      "archive_path": "검수기록/규칙별감사.md",
+      "sha256": "fb608531a42104bb9791c62a95fc6cf0690b9c813967106071038d9293b26446"
+    },
+    {
+      "archive_path": "검수기록/검토대상연결.json",
+      "sha256": "b425b4b1f78b1e634ef341d00ac7f17fb4b67d6921a95e345a4efc147a50c93b"
+    },
+    {
+      "archive_path": "검수기록/선행검색_추가.md",
+      "sha256": "e0d19fff3db6c64d1ce28d99856cea55e32a944e8b09419b6f9a9f02cb4c5da9"
+    },
+    {
+      "archive_path": "검수기록/AI_무문구원본검토.json",
+      "sha256": "b3dce81a0a544e5752cdd886c626c69f6123e905bfbb9cd97c67acb84e399bc0"
+    },
+    {
+      "archive_path": "검수기록/AI_후속검토.json",
+      "sha256": "c54b419869b42fe3693b8d92c57b22d6d83dd46c7d2a534a334787797e5d193b"
+    }
+  ]
+}

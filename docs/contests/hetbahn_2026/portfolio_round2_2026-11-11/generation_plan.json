@@ -1,0 +1,74 @@
+[
+  {
+    "key": "A7",
+    "file": "exec-96d1849d-5647-49d9-8d30-1f39734fb101.png",
+    "prompt": "A7_요청프롬프트.txt",
+    "submission_source": false,
+    "reason": "가열 전 비교 용기의 크기·거리 오독으로 A8 재제작",
+    "render_source": false
+  },
+  {
+    "key": "A8",
+    "file": "exec-8b65c980-0f9f-43ea-a140-0f56216fd7b4.png",
+    "prompt": "A8_요청프롬프트.txt",
+    "submission_source": true,
+    "reason": "같은 크기와 개봉 각도로 전후 설정 대비",
+    "render_source": true
+  },
+  {
+    "key": "I1",
+    "file": "exec-2dc0d334-1164-4f60-beb8-5bbe8fdd4d88.png",
+    "prompt": "I_요청프롬프트.txt",
+    "submission_source": false,
+    "reason": "큰 콩처럼 보이는 잡곡 질감 수정",
+    "render_source": false
+  },
+  {
+    "key": "I2",
+    "file": "exec-bff5a925-a019-49a2-8b68-67469b2a9e73.png",
+    "prompt": "I2_요청프롬프트.txt",
+    "submission_source": false,
+    "reason": "곡물 질감 개선 후 백미 중복 용기 오독 발생",
+    "render_source": false
+  },
+  {
+    "key": "I3",
+    "file": "exec-72d67b8c-6d12-47c0-b524-a649e2879d4a.png",
+    "prompt": "I3_요청프롬프트.txt",
+    "submission_source": true,
+    "reason": "중복 용기 제거로 손님이 가져온 밥 한 공기에 사건 집중",
+    "render_source": true
+  },
+  {
+    "key": "J1",
+    "file": "exec-8affb7c2-ea4f-41f1-9d93-bf89b622f7ad.png",
+    "prompt": "J_요청프롬프트.txt",
+    "submission_source": false,
+    "reason": "큰 컵 비례와 재배 구획 안의 물 구분을 수정",
+    "render_source": false
+  },
+  {
+    "key": "J2",
+    "file": "exec-b806ba80-fd3e-4c88-9443-b5c51e518fb0.png",
+    "prompt": "J2_요청프롬프트.txt",
+    "submission_source": true,
+    "reason": "얕은 용기와 경계벽 안의 토양·물 띠를 표현",
+    "render_source": true
+  },
+  {
+    "key": "K1",
+    "file": "exec-a598f468-8991-4d7e-9c34-fc69b3c5149a.png",
+    "prompt": "K_요청프롬프트.txt",
+    "submission_source": false,
+    "reason": "머리·상체의 직선 잘림 오류를 수정",
+    "render_source": false
+  },
+  {
+    "key": "K2",
+    "file": "exec-bec92906-45c1-419f-8e4c-c0af0d2efa7e.png",
+    "prompt": "K2_요청프롬프트.txt",
+    "submission_source": false,
+    "reason": "시각 오류는 고쳤으나 기획 심사에서 식탁/복지 광고 오독과 브랜드 기여 약함으로 선별 제외",
+    "render_source": true
+  }
+]

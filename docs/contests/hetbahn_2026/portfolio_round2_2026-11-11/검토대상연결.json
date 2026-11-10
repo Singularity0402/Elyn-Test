@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-11",
+  "initial_reviews": "Initial visual/strategy files relate to pre-final I2/J1 and prior typography. No current-final hash is retroactively assigned.",
+  "followup": "AI_후속검토.json relates to final I3/J2 raster files below; A8/A6/K not re-reviewed in that followup.",
+  "wordless": "AI_무문구원본검토.json opened only the four selected render sources, no brief or composed copy.",
+  "entries": [
+    {
+      "key": "A8",
+      "final_png": "A8_갓지은편지_변화.png",
+      "final_sha256": "03146b0e62c3ec097848567ff66e8214aa4dd25f48588a53951e5930ef2c3027",
+      "source": "원본과기록\\A8_선택생성원본.png",
+      "source_sha256": "e773d06c1eca09d267b7bdce6864dfeb510a6a627a61e8ba46a5a10760486f83",
+      "followup_raster_review": false,
+      "wordless_source_review": true
+    },
+    {
+      "key": "I",
+      "final_png": "I_내밥을환영합니다.png",
+      "final_sha256": "c2a3534b2c0f30656ecb69b2c1562fea5b22fea42992da413bab4fa9cd1d5a26",
+      "source": "원본과기록\\I_선택생성원본.png",
+      "source_sha256": "14f3d165ed05f286d682610b81e159f5f939cd85e00a162222209792c4d5a62d",
+      "followup_raster_review": true,
+      "wordless_source_review": true
+    },
+    {
+      "key": "J",
+      "final_png": "J_내일의논.png",
+      "final_sha256": "713312135c9efece6991d59f7f74e382c2d97314471499f1c1e01ef4b3e4a469",
+      "source": "원본과기록\\J_선택생성원본.png",
+      "source_sha256": "be8ed0b331d756aa46ec2897532f1365f78a79260f05326901e36cd29104dd44",
+      "followup_raster_review": true,
+      "wordless_source_review": true
+    },
+    {
+      "key": "K",
+      "final_png": "K_밥먹는동안.png",
+      "final_sha256": "ccbffbbf7e9928885ff643baf5046836ac251205fb8dbfeed9e343cf6b3e35d2",
+      "source": "원본과기록\\K_선택생성원본.png",
+      "source_sha256": "bc8be887d1857e2a23590302d966d1c5fec0aae8cda9aba133828bf251a853bf",
+      "followup_raster_review": false,
+      "wordless_source_review": true
+    }
+  ]
+}

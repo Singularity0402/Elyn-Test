@@ -1,0 +1,453 @@
+{
+  "date": "2026-11-11",
+  "entries": [
+    {
+      "key": "A8",
+      "title": "갓 지은 편지",
+      "file": "A8_갓지은편지_변화.png",
+      "jpg": "A8_갓지은편지_변화.jpg",
+      "source": "원본과기록/A8_선택생성원본.png",
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "e773d06c1eca09d267b7bdce6864dfeb510a6a627a61e8ba46a5a10760486f83",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "final_sha256": "03146b0e62c3ec097848567ff66e8214aa4dd25f48588a53951e5930ef2c3027",
+      "logo_variant": "white",
+      "logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "text_bounds": [
+        {
+          "text": "가열 전 · 그림 없음",
+          "x": 78,
+          "y": 451,
+          "width": 177,
+          "height": 21,
+          "color": "#fff5e6"
+        },
+        {
+          "text": "가열 후 · 그림 발현",
+          "x": 678,
+          "y": 451,
+          "width": 176,
+          "height": 22,
+          "color": "#fff5e6"
+        },
+        {
+          "text": "밥을 데웠더니,",
+          "x": 64,
+          "y": 156,
+          "width": 367,
+          "height": 59,
+          "color": "#fff3df"
+        },
+        {
+          "text": "네 그림이 피었다.",
+          "x": 64,
+          "y": 232,
+          "width": 464,
+          "height": 58,
+          "color": "#f5c27d"
+        },
+        {
+          "text": "네가 보낸 그림이,",
+          "x": 67,
+          "y": 314,
+          "width": 186,
+          "height": 25,
+          "color": "#fff3df"
+        },
+        {
+          "text": "밥의 온기 속에 나타나는 햇반.",
+          "x": 67,
+          "y": 349,
+          "width": 320,
+          "height": 24,
+          "color": "#fff3df"
+        },
+        {
+          "text": "갓 지은 편지 · 미래 상상",
+          "x": 789,
+          "y": 65,
+          "width": 227,
+          "height": 21,
+          "color": "#fff3df"
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "x": 605,
+          "y": 1298,
+          "width": 411,
+          "height": 26,
+          "color": "#fff3df"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "가열 전 · 그림 없음",
+          "min_contrast": 15.344048715064723,
+          "pixels": 665
+        },
+        {
+          "text": "가열 후 · 그림 발현",
+          "min_contrast": 15.212817521674388,
+          "pixels": 668
+        },
+        {
+          "text": "밥을 데웠더니,",
+          "min_contrast": 16.634517514024537,
+          "pixels": 6120
+        },
+        {
+          "text": "네 그림이 피었다.",
+          "min_contrast": 11.255445096058963,
+          "pixels": 7253
+        },
+        {
+          "text": "네가 보낸 그림이,",
+          "min_contrast": 16.805439091876895,
+          "pixels": 936
+        },
+        {
+          "text": "밥의 온기 속에 나타나는 햇반.",
+          "min_contrast": 16.805439091876895,
+          "pixels": 1608
+        },
+        {
+          "text": "갓 지은 편지 · 미래 상상",
+          "min_contrast": 16.78246321226616,
+          "pixels": 855
+        },
+        {
+          "text": "미래 제품 상상 · 실제 출시 제품 아님",
+          "min_contrast": 10.06483058575624,
+          "pixels": 2238
+        }
+      ],
+      "description_chars": 264
+    },
+    {
+      "key": "I",
+      "title": "내 밥을 환영합니다",
+      "file": "I_내밥을환영합니다.png",
+      "jpg": "I_내밥을환영합니다.jpg",
+      "source": "원본과기록/I_선택생성원본.png",
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "14f3d165ed05f286d682610b81e159f5f939cd85e00a162222209792c4d5a62d",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "final_sha256": "c2a3534b2c0f30656ecb69b2c1562fea5b22fea42992da413bab4fa9cd1d5a26",
+      "logo_variant": "white",
+      "logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "text_bounds": [
+        {
+          "text": "오늘 먹을 밥은,",
+          "x": 64,
+          "y": 156,
+          "width": 385,
+          "height": 59,
+          "color": "#fff3df"
+        },
+        {
+          "text": "제가 가져왔습니다.",
+          "x": 64,
+          "y": 232,
+          "width": 507,
+          "height": 58,
+          "color": "#f5c27d"
+        },
+        {
+          "text": "내 밥 반입을 환영하는",
+          "x": 67,
+          "y": 314,
+          "width": 234,
+          "height": 24,
+          "color": "#fff3df"
+        },
+        {
+          "text": "미래의 햇반 제휴 식당.",
+          "x": 67,
+          "y": 349,
+          "width": 241,
+          "height": 24,
+          "color": "#fff3df"
+        },
+        {
+          "text": "내 밥을 환영합니다 · 미래 상상",
+          "x": 260,
+          "y": 65,
+          "width": 289,
+          "height": 22,
+          "color": "#fff3df"
+        },
+        {
+          "text": "미래 식생활 상상 · 실제 시행 서비스 아님",
+          "x": 555,
+          "y": 1298,
+          "width": 461,
+          "height": 26,
+          "color": "#fff3df"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "오늘 먹을 밥은,",
+          "min_contrast": 16.28238607167976,
+          "pixels": 6246
+        },
+        {
+          "text": "제가 가져왔습니다.",
+          "min_contrast": 10.908399824005084,
+          "pixels": 7932
+        },
+        {
+          "text": "내 밥 반입을 환영하는",
+          "min_contrast": 16.285413854920368,
+          "pixels": 1348
+        },
+        {
+          "text": "미래의 햇반 제휴 식당.",
+          "min_contrast": 16.24679685263155,
+          "pixels": 1266
+        },
+        {
+          "text": "내 밥을 환영합니다 · 미래 상상",
+          "min_contrast": 16.29479063964498,
+          "pixels": 1161
+        },
+        {
+          "text": "미래 식생활 상상 · 실제 시행 서비스 아님",
+          "min_contrast": 18.183130700236717,
+          "pixels": 2378
+        }
+      ],
+      "description_chars": 235
+    },
+    {
+      "key": "J",
+      "title": "내일의 논",
+      "file": "J_내일의논.png",
+      "jpg": "J_내일의논.jpg",
+      "source": "원본과기록/J_선택생성원본.png",
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "be8ed0b331d756aa46ec2897532f1365f78a79260f05326901e36cd29104dd44",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "final_sha256": "713312135c9efece6991d59f7f74e382c2d97314471499f1c1e01ef4b3e4a469",
+      "logo_variant": "red",
+      "logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+      "text_bounds": [
+        {
+          "text": "다음 30년의 밥을,",
+          "x": 64,
+          "y": 156,
+          "width": 456,
+          "height": 59,
+          "color": "#142c38"
+        },
+        {
+          "text": "지을 자리를 찾습니다.",
+          "x": 64,
+          "y": 232,
+          "width": 585,
+          "height": 60,
+          "color": "#802630"
+        },
+        {
+          "text": "바닷물과 분리한 담수 논의 쌀로,",
+          "x": 67,
+          "y": 314,
+          "width": 344,
+          "height": 25,
+          "color": "#243a47"
+        },
+        {
+          "text": "다음 한 공기를 짓는 미래.",
+          "x": 67,
+          "y": 349,
+          "width": 272,
+          "height": 25,
+          "color": "#243a47"
+        },
+        {
+          "text": "내일의 논 · 미래 상상",
+          "x": 817,
+          "y": 65,
+          "width": 199,
+          "height": 21,
+          "color": "#243a47"
+        },
+        {
+          "text": "미래 농업 상상 · 실제 생산·성능 검증 아님",
+          "x": 545,
+          "y": 1298,
+          "width": 471,
+          "height": 26,
+          "color": "#fff3df"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "다음 30년의 밥을,",
+          "min_contrast": 8.363727200757253,
+          "pixels": 7460
+        },
+        {
+          "text": "지을 자리를 찾습니다.",
+          "min_contrast": 5.583074195877237,
+          "pixels": 9707
+        },
+        {
+          "text": "바닷물과 분리한 담수 논의 쌀로,",
+          "min_contrast": 7.651384389156853,
+          "pixels": 1801
+        },
+        {
+          "text": "다음 한 공기를 짓는 미래.",
+          "min_contrast": 7.818594193611919,
+          "pixels": 1381
+        },
+        {
+          "text": "내일의 논 · 미래 상상",
+          "min_contrast": 7.444595898007593,
+          "pixels": 776
+        },
+        {
+          "text": "미래 농업 상상 · 실제 생산·성능 검증 아님",
+          "min_contrast": 14.756550008275088,
+          "pixels": 2422
+        }
+      ],
+      "description_chars": 219
+    },
+    {
+      "key": "K",
+      "title": "밥 먹는 동안",
+      "file": "K_밥먹는동안.png",
+      "jpg": "K_밥먹는동안.jpg",
+      "source": "원본과기록/K_선택생성원본.png",
+      "source_dimensions": [
+        1122,
+        1402
+      ],
+      "source_sha256": "bc8be887d1857e2a23590302d966d1c5fec0aae8cda9aba133828bf251a853bf",
+      "dimensions": [
+        1080,
+        1350
+      ],
+      "final_sha256": "ccbffbbf7e9928885ff643baf5046836ac251205fb8dbfeed9e343cf6b3e35d2",
+      "logo_variant": "white",
+      "logo_sha256": "35c003d590ef823c8e5106ada9421272353ea9df50c14044b937beb440a1b286",
+      "text_bounds": [
+        {
+          "text": "밥은 빨리 준비해도,",
+          "x": 64,
+          "y": 130,
+          "width": 316,
+          "height": 39,
+          "color": "#fff3df"
+        },
+        {
+          "text": "식사는 서두르지 않게.",
+          "x": 64,
+          "y": 180,
+          "width": 373,
+          "height": 39,
+          "color": "#f5c27d"
+        },
+        {
+          "text": "식사 중",
+          "x": 720,
+          "y": 388,
+          "width": 95,
+          "height": 30,
+          "color": "#fff3df"
+        },
+        {
+          "text": "업무 인계 완료",
+          "x": 720,
+          "y": 441,
+          "width": 194,
+          "height": 30,
+          "color": "#fff3df"
+        },
+        {
+          "text": "밥 먹는 동안 · 미래 상상",
+          "x": 260,
+          "y": 65,
+          "width": 227,
+          "height": 21,
+          "color": "#fff3df"
+        },
+        {
+          "text": "미래 일터 상상 · 실제 시행 서비스 아님",
+          "x": 580,
+          "y": 1298,
+          "width": 436,
+          "height": 26,
+          "color": "#fff3df"
+        },
+        {
+          "text": "미래 제휴 일터 구상",
+          "x": 720,
+          "y": 505,
+          "width": 168,
+          "height": 20,
+          "color": "#bce3e4"
+        }
+      ],
+      "contrast": [
+        {
+          "text": "밥은 빨리 준비해도,",
+          "min_contrast": 14.960205873442398,
+          "pixels": 3036
+        },
+        {
+          "text": "식사는 서두르지 않게.",
+          "min_contrast": 9.7599598544458,
+          "pixels": 3300
+        },
+        {
+          "text": "식사 중",
+          "min_contrast": 14.667960002727453,
+          "pixels": 610
+        },
+        {
+          "text": "업무 인계 완료",
+          "min_contrast": 14.694765354787245,
+          "pixels": 1465
+        },
+        {
+          "text": "밥 먹는 동안 · 미래 상상",
+          "min_contrast": 15.081680721484604,
+          "pixels": 869
+        },
+        {
+          "text": "미래 일터 상상 · 실제 시행 서비스 아님",
+          "min_contrast": 16.091290863683223,
+          "pixels": 2208
+        },
+        {
+          "text": "미래 제휴 일터 구상",
+          "min_contrast": 11.781098862464829,
+          "pixels": 648
+        }
+      ],
+      "description_chars": 227
+    }
+  ],
+  "scope": "파일/조판 검사, 실제 제품/관객/수상 검증 아님"
+}

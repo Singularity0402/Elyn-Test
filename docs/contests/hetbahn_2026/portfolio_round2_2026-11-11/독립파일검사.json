@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-11",
+  "status": "PASS_FILES_ONLY",
+  "entries": [
+    {
+      "key": "A8",
+      "final": "A8_갓지은편지_변화.png",
+      "sha256": "03146b0e62c3ec097848567ff66e8214aa4dd25f48588a53951e5930ef2c3027",
+      "decoded_dimensions": [
+        1080,
+        1350
+      ],
+      "all_alpha_logo_pixels": 7090,
+      "opaque_logo_mismatch": 0,
+      "alpha_formula_max_channel_delta": 1,
+      "conservative_text_contrast": 9.92843526130676,
+      "description_chars": 264,
+      "selected": true
+    },
+    {
+      "key": "I",
+      "final": "I_내밥을환영합니다.png",
+      "sha256": "c2a3534b2c0f30656ecb69b2c1562fea5b22fea42992da413bab4fa9cd1d5a26",
+      "decoded_dimensions": [
+        1080,
+        1350
+      ],
+      "all_alpha_logo_pixels": 7090,
+      "opaque_logo_mismatch": 0,
+      "alpha_formula_max_channel_delta": 1,
+      "conservative_text_contrast": 10.875681287419498,
+      "description_chars": 235,
+      "selected": true
+    },
+    {
+      "key": "J",
+      "final": "J_내일의논.png",
+      "sha256": "713312135c9efece6991d59f7f74e382c2d97314471499f1c1e01ef4b3e4a469",
+      "decoded_dimensions": [
+        1080,
+        1350
+      ],
+      "all_alpha_logo_pixels": 7113,
+      "opaque_logo_mismatch": 0,
+      "alpha_formula_max_channel_delta": 1,
+      "conservative_text_contrast": 5.573301842353405,
+      "description_chars": 219,
+      "selected": true
+    },
+    {
+      "key": "K",
+      "final": "K_밥먹는동안.png",
+      "sha256": "ccbffbbf7e9928885ff643baf5046836ac251205fb8dbfeed9e343cf6b3e35d2",
+      "decoded_dimensions": [
+        1080,
+        1350
+      ],
+      "all_alpha_logo_pixels": 7090,
+      "opaque_logo_mismatch": 0,
+      "alpha_formula_max_channel_delta": 1,
+      "conservative_text_contrast": 9.001321747988836,
+      "description_chars": 227,
+      "selected": false
+    }
+  ],
+  "prior_8_unchanged": [
+    {
+      "key": "A",
+      "unchanged": true
+    },
+    {
+      "key": "B",
+      "unchanged": true
+    },
+    {
+      "key": "C",
+      "unchanged": true
+    },
+    {
+      "key": "D",
+      "unchanged": true
+    },
+    {
+      "key": "E",
+      "unchanged": true
+    },
+    {
+      "key": "F",
+      "unchanged": true
+    },
+    {
+      "key": "G",
+      "unchanged": true
+    },
+    {
+      "key": "H",
+      "unchanged": true
+    }
+  ],
+  "actual_generation_calls": 9,
+  "errors": [],
+  "limitations": [
+    "Not physical tests",
+    "Not audience measurements",
+    "Not contest submission or winning verification",
+    "Does not provide actual service screenshots"
+  ]
+}
