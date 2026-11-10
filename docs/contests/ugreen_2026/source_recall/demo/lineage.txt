@@ -1,0 +1,17 @@
+SOURCE-RECALL 1
+SOURCE narrator-a
+SOURCE score-b
+WORK episode-mix
+WORK teaser-mix
+EXPORT trailer campaign-trailer.wav
+EXPORT audio campaign-audio.wav
+EXPORT bed campaign-bed.wav
+EXPORT social campaign-social.wav
+USES narrator-a episode-mix
+USES narrator-a teaser-mix
+USES episode-mix trailer
+USES teaser-mix trailer
+USES episode-mix audio
+USES narrator-a social
+USES score-b bed
+END

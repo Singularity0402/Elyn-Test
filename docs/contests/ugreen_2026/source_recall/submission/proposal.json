@@ -1,0 +1,42 @@
+[
+  [
+    "What does the Skill do?",
+    "Source Recall traces which studio exports use a withdrawn source and checks which affected files are present in a selected UGREEN AI NAS folder."
+  ],
+  [
+    "Who is the target user and problem?",
+    "Small audio and video teams reuse narration, music, and footage across edits. When permission changes or a source must be replaced, filenames rarely reveal which mixes and exports inherited it. Affected exports can remain in the delivery folder alongside unrelated work."
+  ],
+  [
+    "What is your proposed solution?",
+    "Use a producer-maintained lineage map to calculate the affected exports. Compare the resulting names with a bounded NAS inventory and show each dependency chain, the observed file status, and untracked entries."
+  ],
+  [
+    "What is the core user flow?",
+    "Select one source ID, one lineage map, and one export folder. Read and validate the map. Follow source, work, and export links. Check the current directory and return a review list with reasons and coverage."
+  ],
+  [
+    "What substantive difference does your idea offer?",
+    "A search can find the original recording. Source Recall can follow that recording through a shared mix into two differently named exports and explain both routes into an export without counting it twice."
+  ],
+  [
+    "Which NAS capabilities are used?",
+    "The registered file expert uses the UGOS filesystem capability to resolve authorized selections, read one bounded text file, and list direct children of the export folder. The stat, cat, and ls actions supply this evidence without reading media contents."
+  ],
+  [
+    "What was your technical approach?",
+    "The Uliya Skill delegates read operations through the registered file expert. It validates the entire graph before inventory access, matches exact basenames, treats file data as untrusted, and withholds file conclusions when coverage is incomplete. The Skill configures no external endpoints. Uliya supplies inference and access controls."
+  ],
+  [
+    "What is the current development status?",
+    "The initial Skill, example map, and local reference checker are complete. Synthetic scenarios exercise the comparison and error paths. Installation, expert result coverage, and inference behavior on the assigned NAS remain to be tested."
+  ],
+  [
+    "What is your final validation plan?",
+    "First, verify two routes to one present export and a separate file with no recorded route. Second, verify an absent export, a case variant, and an untracked file. For the edge case, put traversal text in the map and confirm it stops before inventory access."
+  ],
+  [
+    "Are there known limitations?",
+    "The map must be maintained by the producer. The workflow covers one flat directory and at most 24 graph nodes. It cannot infer unrecorded dependencies or inspect published copies. Platform dependencies are UGOS and Uliya. ReportLab (BSD) generates this PDF locally and is outside the Skill package."
+  ]
+]

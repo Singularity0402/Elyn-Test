@@ -1,0 +1,57 @@
+{
+  "source": "narrator-a",
+  "map": "lineage.txt",
+  "folder": "exports",
+  "coverage": "complete",
+  "entries_checked": 4,
+  "affected": [
+    {
+      "name": "campaign-audio.wav",
+      "status": "review",
+      "reason": "Filename case differs from the map.",
+      "routes": [
+        [
+          "narrator-a",
+          "episode-mix",
+          "audio"
+        ]
+      ]
+    },
+    {
+      "name": "campaign-social.wav",
+      "status": "absent",
+      "reason": "No matching entry in the complete inventory.",
+      "routes": [
+        [
+          "narrator-a",
+          "social"
+        ]
+      ]
+    },
+    {
+      "name": "campaign-trailer.wav",
+      "status": "hold",
+      "reason": "Exact regular file observed.",
+      "routes": [
+        [
+          "narrator-a",
+          "episode-mix",
+          "trailer"
+        ],
+        [
+          "narrator-a",
+          "teaser-mix",
+          "trailer"
+        ]
+      ]
+    }
+  ],
+  "no_route_present": [
+    "campaign-bed.wav"
+  ],
+  "other_entries_to_review": [],
+  "untracked": [
+    "editor-notes.txt"
+  ],
+  "untracked_names_omitted": 0
+}

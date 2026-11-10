@@ -1,0 +1,26 @@
+{
+  "checkFormatVersion": "2.0.0",
+  "status": "static-pass",
+  "target": {
+    "skillName": "source-recall"
+  },
+  "catalog": {
+    "checkedVersion": "2.0.0"
+  },
+  "files": [
+    {
+      "path": "references/map-and-report.md",
+      "sha256": "b05314b612ff0864817d5400e7d68a95a2e0d17c408bfadabb60b533ada62836"
+    },
+    {
+      "path": "SKILL.md",
+      "sha256": "d1fb6a9adba88594ce82053e552c8ce5b13e48cfbde74c80fa5565cc95526b32"
+    }
+  ],
+  "summary": {
+    "errors": 0,
+    "warnings": 0,
+    "info": 0
+  },
+  "diagnostics": []
+}

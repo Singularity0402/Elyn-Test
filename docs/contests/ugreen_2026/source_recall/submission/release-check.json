@@ -1,0 +1,17 @@
+{
+  "package": {
+    "sha256": "010a2fcccc59e58400273f63d1ed32426f3597e359f87eb69da739671e768d34",
+    "bytes": 4454,
+    "members": [
+      "SKILL.md",
+      "references/map-and-report.md"
+    ]
+  },
+  "proposal": {
+    "sha256": "e15bb963e8dd4d62a8af04f74004bd721a1f635f58c3c6d11fadce8f89f3a550",
+    "substantive_words": 376,
+    "words_including_questions": 432,
+    "pages": 2
+  },
+  "nas_runtime": "pending"
+}

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Source Recall | Local example</title>
+<style>
+:root { color-scheme: light; --ink:#152437; --muted:#43586d; --page:#f8f7f2; --line:#cad6d0; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.55 system-ui, sans-serif; }
+header { background:#152437; color:#fff; padding: 52px 24px 54px; }
+.inner, main { max-width: 890px; margin: 0 auto; }
+header p { color:#c0e5d9; margin: 0; }
+h1 { font-size: clamp(2.55rem, 8vw, 4.45rem); line-height: 1.05; letter-spacing:-.045em; margin: 10px 0 14px; }
+main { padding: 28px 24px 48px; }
+h2 { font-size:1.06rem; overflow-wrap:anywhere; margin: 0; }
+.scope { display:flex; flex-wrap:wrap; gap: 8px 18px; color:var(--muted); }
+.metrics { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; margin:22px 0; }
+.metric { display:grid; gap:2px; padding:13px 15px; border:1px solid var(--line); border-radius:10px; }
+.metric strong { font-size:1.75rem; line-height:1.2; }
+.hold { background:#f6dfda; color:#7f2c22; }
+.absent { background:#edf1f5; color:#354960; }
+.review { background:#f5ebcf; color:#664a05; }
+article { margin:12px 0; background:white; border:1px solid var(--line); border-radius:12px; padding:18px; }
+article p { color:var(--muted); margin:6px 0; }
+.file-heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+.state { border-radius:20px; padding:3px 10px; font-weight:650; font-size:.88rem; }
+.routes { list-style:none; margin:10px 0 0; padding:0; color:#145848; overflow-wrap:anywhere; }
+aside { border-top:1px solid var(--line); margin-top:22px; padding-top:16px; }
+aside p, footer { color:var(--muted); }
+footer { font-size:.875rem; margin-top:28px; }
+</style>
+</head>
+<body>
+<header><div class="inner">
+<p>Local example using synthetic studio files</p>
+<h1>Source Recall</h1>
+<p>Which exports still depend on this recording?</p>
+</div></header>
+<main>
+<div class="scope"><span>Selected source <strong>@SOURCE@</strong></span><span>@COUNT@ directory entries checked</span></div>
+<div class="metrics">@OVERVIEW@</div>
+@ROWS@
+<aside>
+<h2>Additional findings</h2>
+<p><strong>No route in the supplied map</strong> · @OTHER@</p>
+<p><strong>Untracked entry</strong> · @UNTRACKED@</p>
+</aside>
+<footer>Generated from the local reference checker. The map must be current. This report covers one selected folder and does not inspect published copies.</footer>
+</main>
+</body>
+</html>
