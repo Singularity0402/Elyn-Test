@@ -1,0 +1,92 @@
+{
+  "date": "2026-11-11",
+  "source_dimensions": [
+    1122,
+    1402
+  ],
+  "source_sha256": "0e9deb678636f979f8bcd0ea7ad99d882df929aaaabff0c9ae206cd4dda32fc4",
+  "final_dimensions": [
+    1080,
+    1350
+  ],
+  "final_sha256": "0ee66c65734eb51f139d5eb5738ebc7622c19247f70aa3811d212aab511396ae",
+  "text_bounds": [
+    {
+      "text": "밥 한 끼,",
+      "x": 64,
+      "y": 156,
+      "width": 225,
+      "height": 63,
+      "color": "#142b38"
+    },
+    {
+      "text": "여는 것부터 편하게.",
+      "x": 64,
+      "y": 236,
+      "width": 534,
+      "height": 61,
+      "color": "#822333"
+    },
+    {
+      "text": "넓게 잡는 일체형 필름 손잡이.",
+      "x": 67,
+      "y": 322,
+      "width": 320,
+      "height": 24,
+      "color": "#243b47"
+    },
+    {
+      "text": "편하게 여는 햇반 · 개봉 구조 제안",
+      "x": 726,
+      "y": 65,
+      "width": 290,
+      "height": 20,
+      "color": "#243b47"
+    },
+    {
+      "text": "미래 제품 상상 · 실물 성능 검증 전",
+      "x": 662,
+      "y": 1302,
+      "width": 354,
+      "height": 24,
+      "color": "#142b38"
+    }
+  ],
+  "contrast": [
+    {
+      "text": "밥 한 끼,",
+      "minimum": 9.125955975756225,
+      "count": 3498,
+      "target": 4.5
+    },
+    {
+      "text": "여는 것부터 편하게.",
+      "minimum": 5.394074365694804,
+      "count": 8909,
+      "target": 4.5
+    },
+    {
+      "text": "넓게 잡는 일체형 필름 손잡이.",
+      "minimum": 7.19592551734654,
+      "count": 1740,
+      "target": 4.5
+    },
+    {
+      "text": "편하게 여는 햇반 · 개봉 구조 제안",
+      "minimum": 5.614827822406784,
+      "count": 1061,
+      "target": 4.5
+    },
+    {
+      "text": "미래 제품 상상 · 실물 성능 검증 전",
+      "minimum": 4.787787216453928,
+      "count": 1812,
+      "target": 4.5
+    }
+  ],
+  "logo_sha256": "281defc2005cddc9deba6c2098867eafc406cbbc57f0b422cc7c36b195a1525e",
+  "logo_alpha_positive_pixels": 7113,
+  "logo_mismatches": 0,
+  "classification": "IMAGINED_PRODUCT_COMPARISON_CANDIDATE",
+  "limits": "File and layout checks only. No physical performance, audience or prize validation."
+}

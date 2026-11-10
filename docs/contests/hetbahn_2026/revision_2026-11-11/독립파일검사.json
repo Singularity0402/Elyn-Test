@@ -1,0 +1,22 @@
+{
+  "status": "PASS_FILES_ONLY",
+  "checks": {
+    "H2_편하게여는햇반.png_decoded_dimensions": true,
+    "H2_편하게여는햇반.jpg_decoded_dimensions": true,
+    "source_hash": true,
+    "final_hash": true,
+    "official_logo_hash": true,
+    "opaque_logo_pixels_exact": true,
+    "conservative_text_contrast": true,
+    "description_500_chars": true,
+    "required_tags": true,
+    "prior_A_unchanged": true,
+    "prior_B_unchanged": true,
+    "prior_H_unchanged": true
+  },
+  "opaque_logo_pixels": 5978,
+  "opaque_logo_mismatch": 0,
+  "minimum_conservative_text_contrast": 4.787787216453928,
+  "description_chars": 241,
+  "limit": "No physical performance, actual viewers, rule-120 approval, service screenshots, posting, submission, or prize verification."
+}
